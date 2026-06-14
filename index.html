@@ -76,20 +76,20 @@
         <section class="field-stage" aria-label="守備位置とランナー">
           <img class="field-art" src="assets/baseball-field.png" alt="" />
 
-          <button class="position pos-left" type="button" aria-label="レフト">7</button>
-          <button class="position pos-center" type="button" aria-label="センター">8</button>
-          <button class="position pos-right" type="button" aria-label="ライト">9</button>
-          <button class="position pos-short" type="button" aria-label="ショート">6</button>
-          <button class="position pos-second" type="button" aria-label="セカンド">4</button>
-          <button class="position pos-third" type="button" aria-label="サード">5</button>
-          <button class="position pos-first" type="button" aria-label="ファースト">3</button>
-          <button class="position pos-pitcher" type="button" aria-label="ピッチャー">1</button>
-          <button class="position pos-catcher" type="button" aria-label="キャッチャー">2</button>
+          <button class="position pos-left" type="button" data-position="7" aria-label="レフト">7</button>
+          <button class="position pos-center" type="button" data-position="8" aria-label="センター">8</button>
+          <button class="position pos-right" type="button" data-position="9" aria-label="ライト">9</button>
+          <button class="position pos-short" type="button" data-position="6" aria-label="ショート">6</button>
+          <button class="position pos-second" type="button" data-position="4" aria-label="セカンド">4</button>
+          <button class="position pos-third" type="button" data-position="5" aria-label="サード">5</button>
+          <button class="position pos-first" type="button" data-position="3" aria-label="ファースト">3</button>
+          <button class="position pos-pitcher" type="button" data-position="1" aria-label="ピッチャー">1</button>
+          <button class="position pos-catcher" type="button" data-position="2" aria-label="キャッチャー">2</button>
 
           <div class="decision-bubble" role="group" aria-label="判定" hidden>
-            <button type="button" class="danger-text">アウト</button>
-            <button type="button">セーフ</button>
-            <button type="button">?</button>
+            <button type="button" class="danger-text" data-decision="out">アウト</button>
+            <button type="button" data-decision="safe">セーフ</button>
+            <button type="button" data-decision="unknown">?</button>
           </div>
 
           <img class="runner runner-third" src="assets/runner-red-outline.png" alt="三塁ランナー" hidden />
@@ -129,12 +129,6 @@
           </div>
         </section>
 
-        <section class="hit-buttons" aria-label="ヒット入力">
-          <button type="button" data-hit-type="single"><span>1B</span>ヒット</button>
-          <button type="button" data-hit-type="two-base"><span>2B</span>ツーベース</button>
-          <button type="button" data-hit-type="three-base"><span>3B</span>スリーベース</button>
-          <button type="button" data-hit-type="home-run"><span>HR</span>ホームラン</button>
-        </section>
 
         <section class="pitch-buttons" aria-label="投球入力">
           <button class="strike" type="button"><span>✕</span>ストライク</button>

@@ -6,11 +6,21 @@ const hitMarkAssets = {
   "three-base": "assets/three-base.svg",
   "home-run": "assets/home-run.svg"
 };
-const hitTypeLabels = {
-  single: "ヒット",
-  "two-base": "ツーベース",
-  "three-base": "スリーベース",
-  "home-run": "ホームラン"
+const positionNames = {
+  1: "ピッチャー",
+  2: "キャッチャー",
+  3: "ファースト",
+  4: "セカンド",
+  5: "サード",
+  6: "ショート",
+  7: "レフト",
+  8: "センター",
+  9: "ライト"
+};
+const outfieldPositions = new Set(["7", "8", "9"]);
+const scoreInputState = {
+  touches: [],
+  playText: ""
 };
 const orderState = {
   own: ownTeam.players.map((player, index) => ({
@@ -506,6 +516,8 @@ function renderBroadcastScore() {
 
 function renderScoreMatrixState() {
   const hitMark = document.querySelector("[data-hit-mark]");
+  const playText = document.querySelector(".matrix-play");
+
   if (hitMark && hitMarkAssets[currentGame.hitType]) {
     hitMark.src = hitMarkAssets[currentGame.hitType];
     hitMark.dataset.hitMark = currentGame.hitType;
@@ -513,19 +525,30 @@ function renderScoreMatrixState() {
   } else if (hitMark) {
     hitMark.hidden = true;
   }
+
+  if (playText) {
+    playText.textContent = scoreInputState.playText;
+    playText.hidden = !scoreInputState.playText;
+  }
 }
 
 function renderPendingReason() {
   const reasonRow = document.querySelector(".reason-row");
   const reasonLabel = reasonRow?.querySelector("b");
-  const hasPendingHit = Boolean(hitTypeLabels[currentGame.hitType]);
+  const hasPendingPlay = Boolean(scoreInputState.playText);
 
-  if (reasonRow) reasonRow.hidden = !hasPendingHit;
-  if (reasonLabel && hasPendingHit) reasonLabel.textContent = hitTypeLabels[currentGame.hitType];
+  if (reasonRow) reasonRow.hidden = !hasPendingPlay;
+  if (reasonLabel && hasPendingPlay) reasonLabel.textContent = scoreInputState.playText;
+}
 
-  document.querySelectorAll("[data-hit-type]").forEach((button) => {
-    button.classList.toggle("active", button.dataset.hitType === currentGame.hitType);
+function renderPositionInputState() {
+  const selectedPositions = new Set(scoreInputState.touches.map((touch) => touch.position));
+  document.querySelectorAll("[data-position]").forEach((button) => {
+    button.classList.toggle("active", selectedPositions.has(button.dataset.position));
   });
+
+  const bubble = document.querySelector(".decision-bubble");
+  if (bubble) bubble.hidden = scoreInputState.touches.length === 0;
 }
 
 function renderGameState() {
@@ -538,6 +561,7 @@ function renderGameState() {
   renderBroadcastCounts();
   renderScoreMatrixState();
   renderPendingReason();
+  renderPositionInputState();
 }
 
 function advanceBattingOrder() {
@@ -545,9 +569,31 @@ function advanceBattingOrder() {
   syncCurrentBatterWithOrder();
 }
 
-function selectHitType(hitType) {
-  if (!hitTypeLabels[hitType]) return;
-  currentGame.hitType = hitType;
+function getPositionName(position) {
+  return positionNames[position] ?? "";
+}
+
+function buildPlayText() {
+  const [firstTouch, secondTouch] = scoreInputState.touches;
+  if (!firstTouch) return "";
+
+  const firstPositionName = getPositionName(firstTouch.position);
+  if (scoreInputState.touches.length >= 3 && secondTouch?.decision === "out") {
+    return "ゲッツー";
+  }
+
+  if (firstTouch.decision === "safe") return `${firstPositionName}ヒット`;
+  if (firstTouch.decision === "out") {
+    return outfieldPositions.has(firstTouch.position) ? `${firstPositionName}フライアウト` : `${firstPositionName}ゴロアウト`;
+  }
+
+  if (secondTouch) return `${firstPositionName}ゴロ`;
+  return "";
+}
+
+function updateScoreInputPlay() {
+  scoreInputState.playText = buildPlayText();
+  currentGame.hitType = scoreInputState.touches[0]?.decision === "safe" ? "single" : "";
   currentGame.balls = 0;
   currentGame.strikes = 0;
   currentGame.firstPitchEntered = true;
@@ -557,22 +603,45 @@ function selectHitType(hitType) {
 
 function cancelPendingScoreInput() {
   currentGame.hitType = "";
+  scoreInputState.touches = [];
+  scoreInputState.playText = "";
   renderGameState();
 }
 
 function confirmPendingScoreInput() {
-  if (!hitTypeLabels[currentGame.hitType]) return;
+  if (!scoreInputState.playText) return;
 
   currentGame.hitType = "";
+  scoreInputState.touches = [];
+  scoreInputState.playText = "";
   currentGame.balls = 0;
   currentGame.strikes = 0;
   advanceBattingOrder();
   renderGameState();
 }
 
-function initHitInput() {
-  document.querySelectorAll("[data-hit-type]").forEach((button) => {
-    button.addEventListener("click", () => selectHitType(button.dataset.hitType));
+function selectFieldingPosition(position) {
+  if (!positionNames[position]) return;
+
+  scoreInputState.touches.push({ position, decision: "" });
+  updateScoreInputPlay();
+}
+
+function selectFieldingDecision(decision) {
+  const currentTouch = scoreInputState.touches.at(-1);
+  if (!currentTouch || !["out", "safe", "unknown"].includes(decision)) return;
+
+  currentTouch.decision = decision === "unknown" ? "" : decision;
+  updateScoreInputPlay();
+}
+
+function initFieldingInput() {
+  document.querySelectorAll("[data-position]").forEach((button) => {
+    button.addEventListener("click", () => selectFieldingPosition(button.dataset.position));
+  });
+
+  document.querySelectorAll("[data-decision]").forEach((button) => {
+    button.addEventListener("click", () => selectFieldingDecision(button.dataset.decision));
   });
 
   document.querySelector(".reason-row .ghost")?.addEventListener("click", cancelPendingScoreInput);
@@ -849,7 +918,7 @@ function initAppShell() {
   initBattingSideSelector();
   initFirstPitchLock();
   initBatterDialog();
-  initHitInput();
+  initFieldingInput();
   initTabs();
 }
 
