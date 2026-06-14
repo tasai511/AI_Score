@@ -28,11 +28,36 @@ const orderDragState = {
 };
 
 function findOwnPlayer(jerseyNumber) {
-  return ownTeam.players.find((player) => player.jerseyNumber === jerseyNumber);
+  return orderState.own.find((player) => player.jerseyNumber === jerseyNumber);
 }
 
 function findOwnPlayerByPosition(positionNumber) {
   return orderState.own.find((player) => player.positionNumber === positionNumber);
+}
+
+function findOpponentPlayer(jerseyNumber) {
+  const normalizedJersey = normalizeNumber(jerseyNumber);
+  return orderState.opponent.find((player) => normalizeNumber(player.jerseyNumber) === normalizedJersey);
+}
+
+function getCurrentBattingIndex() {
+  return Math.max(0, Number(currentGame.battingOrder || 1) - 1);
+}
+
+function getCurrentOwnBatter() {
+  return orderState.own[getCurrentBattingIndex()];
+}
+
+function getCurrentOpponentBatter() {
+  return orderState.opponent[getCurrentBattingIndex()];
+}
+
+function syncCurrentBatterWithOrder() {
+  const ownBatter = getCurrentOwnBatter();
+  const opponentBatter = getCurrentOpponentBatter();
+
+  currentGame.currentBatterJerseyNumber = ownBatter?.jerseyNumber ?? "";
+  currentGame.currentOpponentBatterJerseyNumber = opponentBatter?.jerseyNumber ?? currentGame.currentOpponentBatterJerseyNumber;
 }
 
 function setText(selector, value) {
@@ -48,6 +73,14 @@ function normalizeNumber(value) {
 function formatJerseyNumber(value) {
   const jerseyNumber = normalizeNumber(value);
   return jerseyNumber ? `#${jerseyNumber}` : "";
+}
+
+function formatPlayerLabel(player, fallbackJerseyNumber = "") {
+  const jerseyNumber = formatJerseyNumber(player?.jerseyNumber || fallbackJerseyNumber);
+  const name = normalizeNumber(player?.name);
+
+  if (jerseyNumber && name) return `${jerseyNumber} ${name}`;
+  return jerseyNumber || name;
 }
 
 function isOwnBattingNow() {
@@ -255,7 +288,9 @@ function moveOrderRow(teamKey, fromRowId, toRowId) {
 
   const [moved] = rows.splice(fromIndex, 1);
   rows.splice(toIndex, 0, moved);
+  syncCurrentBatterWithOrder();
   renderOrderList(teamKey);
+  renderGameState();
   updateOrderDragGhostNumber();
 }
 
@@ -264,7 +299,9 @@ function updateOrderValue(teamKey, rowId, field, value) {
   if (!player) return;
 
   player[field] = value.trim();
+  syncCurrentBatterWithOrder();
   renderOrderList(teamKey);
+  renderGameState();
 }
 
 function initOrderForms() {
@@ -418,16 +455,22 @@ function renderBatterPanel() {
   }
 
   if (ownBatting) {
-    const batter = findOwnPlayer(currentGame.currentBatterJerseyNumber);
+    const batter = getCurrentOwnBatter();
+    currentGame.currentBatterJerseyNumber = batter?.jerseyNumber ?? "";
     setText("[data-batter-name]", `${currentGame.battingOrder}番 ${batter?.name ?? "未設定"}`);
-    setText("[data-pitcher-number]", formatJerseyNumber(currentGame.currentOpponentPitcherJerseyNumber) || "?");
+    setText(
+      "[data-pitcher-number]",
+      formatPlayerLabel(findOpponentPlayer(currentGame.currentOpponentPitcherJerseyNumber), currentGame.currentOpponentPitcherJerseyNumber) || "?"
+    );
     return;
   }
 
-  const pitcher = findOwnPlayerByPosition("1");
-  const opponentJersey = formatJerseyNumber(currentGame.currentOpponentBatterJerseyNumber);
+  const pitcher = findOwnPlayer(currentGame.currentPitcherJerseyNumber) || findOwnPlayerByPosition("1");
+  const opponentBatter = getCurrentOpponentBatter();
+  currentGame.currentOpponentBatterJerseyNumber = opponentBatter?.jerseyNumber ?? currentGame.currentOpponentBatterJerseyNumber;
+  const opponentJersey = formatPlayerLabel(opponentBatter, currentGame.currentOpponentBatterJerseyNumber);
   setText("[data-batter-name]", `${currentGame.battingOrder}番 ${opponentJersey || "未設定"}`);
-  setText("[data-pitcher-number]", formatJerseyNumber(currentGame.currentPitcherJerseyNumber || pitcher?.jerseyNumber) || "?");
+  setText("[data-pitcher-number]", formatPlayerLabel(pitcher, currentGame.currentPitcherJerseyNumber) || "?");
 }
 
 function renderBroadcastScore() {
@@ -728,12 +771,15 @@ function initTabs() {
       for (const view of views) {
         view.hidden = view.dataset.view !== activeView;
       }
+
+      renderGameState();
     });
   }
 }
 
 function initAppShell() {
   document.documentElement.style.setProperty("--own-team-color", ownTeam.colorHex);
+  syncCurrentBatterWithOrder();
   renderGameState();
 
   renderOrderList("own");

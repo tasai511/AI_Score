@@ -1,4 +1,4 @@
-const CACHE_NAME = "ai-score-v1";
+const CACHE_NAME = "ai-score-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -43,6 +43,24 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+
+  const requestUrl = new URL(event.request.url);
+  const shouldUseNetworkFirst =
+    event.request.mode === "navigate" ||
+    [".html", ".css", ".js", ".webmanifest"].some((extension) => requestUrl.pathname.endsWith(extension));
+
+  if (shouldUseNetworkFirst) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          const responseCopy = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseCopy));
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request).then((cachedResponse) => cachedResponse || caches.match("./index.html")))
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
