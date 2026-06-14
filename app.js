@@ -20,7 +20,8 @@ const positionNames = {
 const outfieldPositions = new Set(["7", "8", "9"]);
 const scoreInputState = {
   touches: [],
-  playText: ""
+  playText: "",
+  promptText: ""
 };
 const orderState = {
   own: ownTeam.players.map((player, index) => ({
@@ -535,10 +536,12 @@ function renderScoreMatrixState() {
 function renderPendingReason() {
   const reasonRow = document.querySelector(".reason-row");
   const reasonLabel = reasonRow?.querySelector("b");
-  const hasPendingPlay = Boolean(scoreInputState.playText);
+  const confirmButton = reasonRow?.querySelector(".confirm");
+  const hasPendingInput = Boolean(scoreInputState.playText || scoreInputState.promptText);
 
-  if (reasonRow) reasonRow.hidden = !hasPendingPlay;
-  if (reasonLabel && hasPendingPlay) reasonLabel.textContent = scoreInputState.playText;
+  if (reasonRow) reasonRow.hidden = !hasPendingInput;
+  if (reasonLabel && hasPendingInput) reasonLabel.textContent = scoreInputState.playText || scoreInputState.promptText;
+  if (confirmButton) confirmButton.disabled = !scoreInputState.playText;
 }
 
 function renderPositionInputState() {
@@ -548,7 +551,20 @@ function renderPositionInputState() {
   });
 
   const bubble = document.querySelector(".decision-bubble");
-  if (bubble) bubble.hidden = scoreInputState.touches.length === 0;
+  const currentTouch = scoreInputState.touches.at(-1);
+  if (!bubble) return;
+
+  bubble.hidden = !currentTouch || Boolean(currentTouch.decision) || isCompletedScoreInput();
+  if (!currentTouch || bubble.hidden) return;
+
+  const selectedButton = document.querySelector(`[data-position='${currentTouch.position}']`);
+  const fieldStage = document.querySelector(".field-stage");
+  if (!selectedButton || !fieldStage) return;
+
+  const buttonRect = selectedButton.getBoundingClientRect();
+  const stageRect = fieldStage.getBoundingClientRect();
+  bubble.style.left = `${buttonRect.left - stageRect.left + buttonRect.width / 2}px`;
+  bubble.style.top = `${Math.max(8, buttonRect.top - stageRect.top - bubble.offsetHeight - 8)}px`;
 }
 
 function renderGameState() {
@@ -591,8 +607,17 @@ function buildPlayText() {
   return "";
 }
 
+function isCompletedScoreInput() {
+  const [firstTouch, secondTouch] = scoreInputState.touches;
+  return Boolean(firstTouch?.decision || (scoreInputState.touches.length >= 3 && secondTouch?.decision === "out"));
+}
+
 function updateScoreInputPlay() {
   scoreInputState.playText = buildPlayText();
+  const currentTouch = scoreInputState.touches.at(-1);
+  scoreInputState.promptText = currentTouch && !currentTouch.decision && !isCompletedScoreInput()
+    ? `${getPositionName(currentTouch.position)}の判定を選択`
+    : "";
   currentGame.hitType = scoreInputState.touches[0]?.decision === "safe" ? "single" : "";
   currentGame.balls = 0;
   currentGame.strikes = 0;
@@ -605,6 +630,7 @@ function cancelPendingScoreInput() {
   currentGame.hitType = "";
   scoreInputState.touches = [];
   scoreInputState.playText = "";
+  scoreInputState.promptText = "";
   renderGameState();
 }
 
@@ -614,6 +640,7 @@ function confirmPendingScoreInput() {
   currentGame.hitType = "";
   scoreInputState.touches = [];
   scoreInputState.playText = "";
+  scoreInputState.promptText = "";
   currentGame.balls = 0;
   currentGame.strikes = 0;
   advanceBattingOrder();
