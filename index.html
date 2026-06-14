@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AIスコア</title>
+    <meta name="theme-color" content="#ef4d39" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="AIスコア" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="assets/icon-192.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app-data.js" defer></script>
+    <script src="app.js" defer></script>
+    <script src="pwa.js" defer></script>
+  </head>
+  <body>
+    <main class="phone-shell" aria-label="AIスコア 試合入力画面">
+      <nav class="main-tabs" aria-label="メインメニュー">
+        <button type="button" data-tab="order">オーダー</button>
+        <button type="button" class="active" aria-current="page" data-tab="score">スコア入力</button>
+        <button type="button" data-tab="output">スコア出力</button>
+      </nav>
+
+      <section class="view order-view" data-view="order" hidden>
+        <section class="order-team own-order" aria-label="自チームオーダー">
+          <header>
+            <span>自チーム</span>
+            <div class="own-team-header-controls">
+              <strong data-team-name>東村山ドリーム</strong>
+              <select class="batting-side-select" aria-label="先攻後攻" data-batting-side>
+                <option value="top">先攻</option>
+                <option value="bottom">後攻</option>
+              </select>
+            </div>
+          </header>
+          <p class="order-error" data-order-error="own" role="alert"></p>
+          <div class="order-list" data-order-list="own"></div>
+        </section>
+
+        <section class="order-team opponent-order" aria-label="相手チームオーダー">
+          <header>
+            <span>相手チーム</span>
+            <input class="team-name-input" type="text" value="" placeholder="未設定" aria-label="相手チーム名" data-opponent-team-name />
+          </header>
+          <p class="order-error" data-order-error="opponent" role="alert"></p>
+          <div class="order-list" data-order-list="opponent"></div>
+        </section>
+      </section>
+
+      <section class="view score-view" data-view="score">
+        <section class="player-row" aria-label="現在の選手">
+          <img class="batter-icon" src="assets/batter-red.png" alt="" />
+          <button class="player-copy batter-select" type="button" data-batter-select aria-label="バッターを変更">
+            <p>バッター</p>
+            <strong data-batter-name>1番 川崎 白輝</strong>
+          </button>
+          <button class="pitcher-select" type="button" data-pitcher-select aria-label="ピッチャーを変更">
+            <span>ピッチャー</span>
+            <b data-pitcher-number>?</b>
+          </button>
+          <article class="score-cell" aria-label="現在のスコアマス">
+            <div class="score-matrix score-matrix-current">
+              <img src="assets/score_matrix.png" alt="" />
+              <img class="matrix-hit-mark" src="assets/single.svg" alt="" data-hit-mark hidden />
+              <svg class="matrix-overlay" viewBox="0 0 1382 1025" aria-hidden="true">
+                <text class="score-symbol" x="182" y="305" hidden>✕</text>
+                <text class="score-symbol" x="182" y="430" hidden>●</text>
+                <text class="score-symbol" x="182" y="555" hidden>△</text>
+                <text class="matrix-play" x="805" y="346" hidden></text>
+              </svg>
+            </div>
+          </article>
+        </section>
+
+        <section class="field-stage" aria-label="守備位置とランナー">
+          <img class="field-art" src="assets/baseball-field.png" alt="" />
+
+          <button class="position pos-left" type="button" aria-label="レフト">7</button>
+          <button class="position pos-center" type="button" aria-label="センター">8</button>
+          <button class="position pos-right" type="button" aria-label="ライト">9</button>
+          <button class="position pos-short" type="button" aria-label="ショート">6</button>
+          <button class="position pos-second" type="button" aria-label="セカンド">4</button>
+          <button class="position pos-third" type="button" aria-label="サード">5</button>
+          <button class="position pos-first" type="button" aria-label="ファースト">3</button>
+          <button class="position pos-pitcher" type="button" aria-label="ピッチャー">1</button>
+          <button class="position pos-catcher" type="button" aria-label="キャッチャー">2</button>
+
+          <div class="decision-bubble" role="group" aria-label="判定" hidden>
+            <button type="button" class="danger-text">アウト</button>
+            <button type="button">セーフ</button>
+            <button type="button">?</button>
+          </div>
+
+          <img class="runner runner-third" src="assets/runner-red-outline.png" alt="三塁ランナー" hidden />
+          <img class="runner runner-first" src="assets/runner-blue-outline.png" alt="一塁ランナー" hidden />
+
+          <aside class="broadcast-board" aria-label="試合状況">
+            <div class="broadcast-inning" data-inning>1回表</div>
+            <div class="broadcast-score">
+              <span class="team own" data-team-short>東村山</span>
+              <strong class="own" data-own-score>0</strong>
+              <span class="separator">-</span>
+              <strong class="opponent" data-opponent-score>0</strong>
+              <span class="team opponent" data-opponent-name>相手</span>
+            </div>
+            <div class="broadcast-counts" aria-label="カウント">
+              <div>
+                <span>B</span>
+                <i></i><i></i><i></i>
+              </div>
+              <div>
+                <span>S</span>
+                <i></i><i></i>
+              </div>
+              <div>
+                <span>O</span>
+                <i></i><i></i>
+              </div>
+            </div>
+          </aside>
+        </section>
+
+        <section class="reason-row" aria-label="入力確定" hidden>
+          <span>理由: <b>ヒット</b></span>
+          <div>
+            <button type="button" class="ghost">取消</button>
+            <button type="button" class="confirm">確定</button>
+          </div>
+        </section>
+
+        <section class="pitch-buttons" aria-label="投球入力">
+          <button class="strike" type="button"><span>✕</span>ストライク</button>
+          <button class="foul" type="button"><span>△</span>ファール</button>
+          <button class="ball" type="button"><span>●</span>ボール</button>
+          <button class="dead" type="button"><span>DB</span>デッドボール</button>
+        </section>
+      </section>
+
+      <section class="view output-view" data-view="output" hidden>
+        <div class="empty-state">スコア出力</div>
+      </section>
+
+      <section class="batter-dialog" data-batter-dialog hidden>
+        <div class="batter-dialog-backdrop" data-close-batter-dialog></div>
+        <section class="batter-dialog-panel" aria-label="バッター変更">
+          <header>
+            <strong data-batter-dialog-title>バッター変更</strong>
+            <button type="button" data-close-batter-dialog aria-label="閉じる">×</button>
+          </header>
+          <div class="bench-player-list" data-bench-player-list></div>
+          <form class="opponent-batter-form" data-opponent-batter-form hidden>
+            <label>
+              背番号
+              <input type="number" inputmode="numeric" min="0" data-opponent-batter-jersey />
+            </label>
+            <button type="submit">登録</button>
+          </form>
+          <form class="opponent-batter-form" data-opponent-pitcher-form hidden>
+            <label>
+              背番号
+              <input type="number" inputmode="numeric" min="0" data-opponent-pitcher-jersey />
+            </label>
+            <button type="submit">登録</button>
+          </form>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>
