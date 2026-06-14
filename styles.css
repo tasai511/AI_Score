@@ -776,13 +776,22 @@ i.red {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
+.hit-buttons,
 .pitch-buttons {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+.hit-buttons {
+  padding: 0 14px 10px;
+}
+
+.pitch-buttons {
   padding: 0 14px 22px;
 }
 
+.hit-buttons button,
 .pitch-buttons button {
   display: flex;
   min-height: 58px;
@@ -798,6 +807,17 @@ i.red {
     0 4px 8px rgba(34, 39, 47, 0.14);
 }
 
+.hit-buttons button {
+  color: #7c2d12;
+  background: linear-gradient(#fff7ed, #fed7aa);
+}
+
+.hit-buttons button.active {
+  outline: 3px solid #f97316;
+  outline-offset: -3px;
+}
+
+.hit-buttons span,
 .pitch-buttons span {
   display: inline-grid;
   min-width: 34px;

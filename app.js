@@ -6,6 +6,12 @@ const hitMarkAssets = {
   "three-base": "assets/three-base.svg",
   "home-run": "assets/home-run.svg"
 };
+const hitTypeLabels = {
+  single: "ヒット",
+  "two-base": "ツーベース",
+  "three-base": "スリーベース",
+  "home-run": "ホームラン"
+};
 const orderState = {
   own: ownTeam.players.map((player, index) => ({
     ...player,
@@ -509,6 +515,19 @@ function renderScoreMatrixState() {
   }
 }
 
+function renderPendingReason() {
+  const reasonRow = document.querySelector(".reason-row");
+  const reasonLabel = reasonRow?.querySelector("b");
+  const hasPendingHit = Boolean(hitTypeLabels[currentGame.hitType]);
+
+  if (reasonRow) reasonRow.hidden = !hasPendingHit;
+  if (reasonLabel && hasPendingHit) reasonLabel.textContent = hitTypeLabels[currentGame.hitType];
+
+  document.querySelectorAll("[data-hit-type]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.hitType === currentGame.hitType);
+  });
+}
+
 function renderGameState() {
   setText("[data-team-name]", ownTeam.name);
   setText("[data-team-short]", ownTeam.shortName);
@@ -518,6 +537,46 @@ function renderGameState() {
   renderBroadcastScore();
   renderBroadcastCounts();
   renderScoreMatrixState();
+  renderPendingReason();
+}
+
+function advanceBattingOrder() {
+  currentGame.battingOrder = currentGame.battingOrder >= 9 ? 1 : currentGame.battingOrder + 1;
+  syncCurrentBatterWithOrder();
+}
+
+function selectHitType(hitType) {
+  if (!hitTypeLabels[hitType]) return;
+  currentGame.hitType = hitType;
+  currentGame.balls = 0;
+  currentGame.strikes = 0;
+  currentGame.firstPitchEntered = true;
+  updateBattingSideLock();
+  renderGameState();
+}
+
+function cancelPendingScoreInput() {
+  currentGame.hitType = "";
+  renderGameState();
+}
+
+function confirmPendingScoreInput() {
+  if (!hitTypeLabels[currentGame.hitType]) return;
+
+  currentGame.hitType = "";
+  currentGame.balls = 0;
+  currentGame.strikes = 0;
+  advanceBattingOrder();
+  renderGameState();
+}
+
+function initHitInput() {
+  document.querySelectorAll("[data-hit-type]").forEach((button) => {
+    button.addEventListener("click", () => selectHitType(button.dataset.hitType));
+  });
+
+  document.querySelector(".reason-row .ghost")?.addEventListener("click", cancelPendingScoreInput);
+  document.querySelector(".reason-row .confirm")?.addEventListener("click", confirmPendingScoreInput);
 }
 
 function closeBatterDialog() {
@@ -790,6 +849,7 @@ function initAppShell() {
   initBattingSideSelector();
   initFirstPitchLock();
   initBatterDialog();
+  initHitInput();
   initTabs();
 }
 
