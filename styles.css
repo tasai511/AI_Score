@@ -378,8 +378,9 @@ input {
   grid-template-columns: 48px 1fr 144px;
   grid-template-areas:
     "icon batter score"
-    "icon pitcher score";
-  gap: 12px;
+    "pitcher pitcher pitcher";
+  column-gap: 12px;
+  row-gap: 8px;
   align-items: start;
   padding: 12px 18px 6px;
 }
@@ -416,10 +417,11 @@ input {
 .pitcher-select {
   grid-area: pitcher;
   display: inline-flex;
-  width: max-content;
+  width: 100%;
   max-width: 100%;
   align-items: baseline;
   gap: 6px;
+  min-width: 0;
   padding: 0;
   color: #333;
   background: transparent;
@@ -435,6 +437,9 @@ input {
   color: #1160c7;
   font-size: 1.2rem;
   font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .player-copy p {
@@ -541,8 +546,13 @@ i.red {
 }
 
 .matrix-play {
-  fill: #222;
-  font-size: 78px;
+  fill: #e83b2e;
+  font-size: 126px;
+}
+
+.matrix-out {
+  fill: #8f8f8f;
+  font-size: 126px;
 }
 
 .field-stage {

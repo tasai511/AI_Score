@@ -63,11 +63,10 @@
             <div class="score-matrix score-matrix-current">
               <img src="assets/score_matrix.png" alt="" />
               <img class="matrix-hit-mark" src="assets/single.svg" alt="" data-hit-mark hidden />
-              <svg class="matrix-overlay" viewBox="0 0 1382 1025" aria-hidden="true">
-                <text class="score-symbol" x="182" y="305" hidden>✕</text>
-                <text class="score-symbol" x="182" y="430" hidden>●</text>
-                <text class="score-symbol" x="182" y="555" hidden>△</text>
-                <text class="matrix-play" x="805" y="346" hidden></text>
+              <svg class="matrix-overlay" viewBox="0 0 1382 1025" aria-hidden="true" data-score-overlay>
+                <g data-pitch-symbols></g>
+                <text class="matrix-out" x="725" y="505" data-out-symbol hidden></text>
+                <text class="matrix-play" x="1105" y="760" data-result-symbol hidden></text>
               </svg>
             </div>
           </article>
@@ -130,10 +129,10 @@
         </section>
 
         <section class="pitch-buttons" aria-label="投球入力">
-          <button class="strike" type="button"><span>✕</span>ストライク</button>
-          <button class="foul" type="button"><span>△</span>ファール</button>
-          <button class="ball" type="button"><span>●</span>ボール</button>
-          <button class="dead" type="button"><span>DB</span>デッドボール</button>
+          <button class="strike" type="button" data-pitch-type="strike"><span>✕</span>ストライク</button>
+          <button class="foul" type="button" data-pitch-type="foul"><span>△</span>ファール</button>
+          <button class="ball" type="button" data-pitch-type="ball"><span>●</span>ボール</button>
+          <button class="dead" type="button" data-pitch-type="dead"><span>DB</span>デッドボール</button>
         </section>
       </section>
 

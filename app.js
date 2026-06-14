@@ -26,6 +26,21 @@ const orderDragState = {
   offsetX: 0,
   offsetY: 0
 };
+const svgNamespace = "http://www.w3.org/2000/svg";
+const pitchSymbolCoordinates = [
+  { x: 182, y: 250 },
+  { x: 182, y: 365 },
+  { x: 182, y: 480 },
+  { x: 182, y: 595 }
+];
+const outSymbols = ["", "I", "II", "III"];
+
+const currentPlateAppearance = {
+  pitches: [],
+  result: "",
+  outNumber: 0
+};
+const promptedBatterRegistrationKeys = new Set();
 
 function findOwnPlayer(jerseyNumber) {
   return orderState.own.find((player) => player.jerseyNumber === jerseyNumber);
@@ -50,6 +65,33 @@ function getCurrentOwnBatter() {
 
 function getCurrentOpponentBatter() {
   return orderState.opponent[getCurrentBattingIndex()];
+}
+
+function getCurrentBatterRow() {
+  return isOwnBattingNow() ? getCurrentOwnBatter() : getCurrentOpponentBatter();
+}
+
+function isCurrentBatterRegistered() {
+  return Boolean(normalizeNumber(getCurrentBatterRow()?.jerseyNumber));
+}
+
+function getCurrentBatterRegistrationKey() {
+  return `${isOwnBattingNow() ? "own" : "opponent"}-${currentGame.battingOrder}`;
+}
+
+function isScoreViewActive() {
+  const scoreView = document.querySelector("[data-view='score']");
+  return Boolean(scoreView && !scoreView.hidden);
+}
+
+function promptForUnregisteredBatter(options = {}) {
+  if (isCurrentBatterRegistered() || !isScoreViewActive()) return;
+
+  const key = getCurrentBatterRegistrationKey();
+  if (!options.force && promptedBatterRegistrationKeys.has(key)) return;
+
+  promptedBatterRegistrationKeys.add(key);
+  openBatterDialog({ forceRegistration: true });
 }
 
 function syncCurrentBatterWithOrder() {
@@ -81,6 +123,18 @@ function formatPlayerLabel(player, fallbackJerseyNumber = "") {
 
   if (jerseyNumber && name) return `${jerseyNumber} ${name}`;
   return jerseyNumber || name;
+}
+
+function resetCurrentPlateAppearance() {
+  currentPlateAppearance.pitches = [];
+  currentPlateAppearance.result = "";
+  currentPlateAppearance.outNumber = 0;
+  currentGame.balls = 0;
+  currentGame.strikes = 0;
+}
+
+function showRunnerOnFirst() {
+  currentGame.runnerFirst = true;
 }
 
 function isOwnBattingNow() {
@@ -423,13 +477,80 @@ function initBattingSideSelector() {
 }
 
 function initFirstPitchLock() {
-  document.querySelectorAll(".pitch-buttons button").forEach((button) => {
+  document.querySelectorAll("[data-pitch-type]").forEach((button) => {
     button.addEventListener("click", () => {
-      if (currentGame.firstPitchEntered) return;
-      currentGame.firstPitchEntered = true;
-      updateBattingSideLock();
+      handlePitchInput(button.dataset.pitchType);
     });
   });
+}
+
+function lockFirstPitchIfNeeded() {
+  if (currentGame.firstPitchEntered) return;
+
+  currentGame.firstPitchEntered = true;
+  updateBattingSideLock();
+}
+
+function addPitchSymbol(type) {
+  const symbolMap = {
+    strike: "✕",
+    ball: "●",
+    foul: "△"
+  };
+  const symbol = symbolMap[type];
+  if (!symbol) return;
+
+  currentPlateAppearance.pitches.push(symbol);
+}
+
+function finishPlateAppearance(result, options = {}) {
+  currentPlateAppearance.result = result;
+  currentPlateAppearance.outNumber = options.outNumber ?? 0;
+  currentGame.balls = 0;
+  currentGame.strikes = 0;
+}
+
+function handleStrikeLikePitch(type) {
+  addPitchSymbol(type);
+
+  if (currentGame.strikes >= 2) {
+    currentGame.outs = Math.min(3, currentGame.outs + 1);
+    finishPlateAppearance("K", { outNumber: currentGame.outs });
+    return;
+  }
+
+  currentGame.strikes += 1;
+}
+
+function handlePitchInput(type) {
+  if (!isCurrentBatterRegistered()) {
+    openBatterDialog({ forceRegistration: true });
+    return;
+  }
+
+  lockFirstPitchIfNeeded();
+
+  if (type === "strike") {
+    handleStrikeLikePitch("strike");
+  } else if (type === "foul") {
+    if (currentGame.strikes < 2) {
+      currentGame.strikes += 1;
+    }
+    addPitchSymbol("foul");
+  } else if (type === "ball") {
+    addPitchSymbol("ball");
+    currentGame.balls += 1;
+
+    if (currentGame.balls >= 4) {
+      showRunnerOnFirst();
+      finishPlateAppearance("B");
+    }
+  } else if (type === "dead") {
+    showRunnerOnFirst();
+    finishPlateAppearance("DB");
+  }
+
+  renderGameState();
 }
 
 function renderBroadcastCounts() {
@@ -507,6 +628,50 @@ function renderScoreMatrixState() {
   } else if (hitMark) {
     hitMark.hidden = true;
   }
+
+  renderPitchSymbols();
+  renderPlateResult();
+}
+
+function renderPitchSymbols() {
+  const group = document.querySelector("[data-pitch-symbols]");
+  if (!group) return;
+
+  group.innerHTML = "";
+  currentPlateAppearance.pitches.forEach((symbol, index) => {
+    const coordinate = pitchSymbolCoordinates[index] ?? {
+      x: 182,
+      y: pitchSymbolCoordinates.at(-1).y + 98 * (index - pitchSymbolCoordinates.length + 1)
+    };
+    const text = document.createElementNS(svgNamespace, "text");
+    text.setAttribute("class", "score-symbol");
+    text.setAttribute("x", String(coordinate.x));
+    text.setAttribute("y", String(coordinate.y));
+    text.textContent = symbol;
+    group.append(text);
+  });
+}
+
+function renderPlateResult() {
+  const result = document.querySelector("[data-result-symbol]");
+  if (result) {
+    result.textContent = currentPlateAppearance.result;
+    result.hidden = !currentPlateAppearance.result;
+  }
+
+  const outSymbol = document.querySelector("[data-out-symbol]");
+  if (outSymbol) {
+    outSymbol.textContent = outSymbols[currentPlateAppearance.outNumber] || "";
+    outSymbol.hidden = !currentPlateAppearance.outNumber;
+  }
+}
+
+function renderRunners() {
+  const firstRunner = document.querySelector(".runner-first");
+  if (firstRunner) {
+    firstRunner.src = isOwnBattingNow() ? "assets/runner-red-outline.png" : "assets/runner-blue-outline.png";
+    firstRunner.hidden = !currentGame.runnerFirst;
+  }
 }
 
 function renderGameState() {
@@ -518,6 +683,9 @@ function renderGameState() {
   renderBroadcastScore();
   renderBroadcastCounts();
   renderScoreMatrixState();
+  renderRunners();
+
+  setTimeout(() => promptForUnregisteredBatter(), 0);
 }
 
 function closeBatterDialog() {
@@ -691,11 +859,11 @@ function renderOpponentPitcherDialog() {
   }
 }
 
-function openBatterDialog() {
+function openBatterDialog(options = {}) {
   const dialog = document.querySelector("[data-batter-dialog]");
   if (!dialog) return;
 
-  if (isOwnBattingNow()) {
+  if (isOwnBattingNow() && !options.forceRegistration) {
     renderOwnBenchDialog();
   } else {
     renderOpponentBatterDialog();
