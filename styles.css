@@ -567,6 +567,7 @@ i.red {
   top: 8px;
   width: 134%;
   max-width: none;
+  pointer-events: none;
   transform: translateX(-50%);
   user-select: none;
 }
@@ -787,6 +788,8 @@ i.red {
 }
 
 .pitch-buttons {
+  position: relative;
+  z-index: 5;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
