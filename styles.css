@@ -651,10 +651,10 @@ i.red {
   transform: none;
 }
 
-.base-first { left: 72.9%; top: 59.8%; }
-.base-second { left: 50%; top: 42.8%; }
-.base-third { left: 27.1%; top: 59.8%; }
-.base-home { left: 50%; top: 83.6%; }
+.base-first { left: 75.5%; top: 62.5%; }
+.base-second { left: 50%; top: 45.4%; }
+.base-third { left: 24.5%; top: 62.5%; }
+.base-home { left: 50%; top: 84.4%; }
 
 .position {
   position: absolute;
