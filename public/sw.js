@@ -1,11 +1,7 @@
-const CACHE_NAME = "ai-score-v2";
+const CACHE_NAME = "ai-score-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css",
-  "./app-data.js",
-  "./app.js",
-  "./pwa.js",
   "./manifest.webmanifest",
   "./assets/baseball-field.png",
   "./assets/batter-red.png",

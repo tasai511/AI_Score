@@ -639,6 +639,7 @@ i.red {
   width: 48px;
   height: 52px;
   object-fit: contain;
+  transform: scaleX(-1);
   filter: drop-shadow(0 4px 8px rgba(34, 39, 47, 0.24));
 }
 
