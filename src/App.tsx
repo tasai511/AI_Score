@@ -578,7 +578,7 @@ function FieldStage({ state }: { state: AppState }) {
       ))}
 
       {state.game.runnerFirst && (
-        <img className="runner runner-first" src={ownBatting ? "assets/runner-red-outline.png" : "assets/runner-blue-outline.png"} alt="一塁ランナー" />
+        <img className="runner runner-first runner-flipped" src={ownBatting ? "assets/runner-red-outline.png" : "assets/runner-blue-outline.png"} alt="一塁ランナー" />
       )}
 
       <aside className="broadcast-board" aria-label="試合状況">
