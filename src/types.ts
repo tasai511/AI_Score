@@ -3,6 +3,18 @@ export type TeamKey = "own" | "opponent";
 export type TabKey = "order" | "score" | "output";
 export type PitchType = "strike" | "foul" | "ball" | "dead";
 export type HitType = "" | "single" | "two-base" | "three-base" | "home-run";
+export type BaseKey = "first" | "second" | "third";
+export type RunnerSource = "batter" | BaseKey;
+export type AdvanceReason =
+  | "walk"
+  | "dead-ball"
+  | "dropped-third-strike"
+  | "catcher-interference"
+  | "steal"
+  | "passed-ball"
+  | "balk"
+  | "runner-interference"
+  | "hit";
 
 export interface Player {
   rowId: string;
@@ -21,6 +33,17 @@ export interface Team {
   battingSide?: BattingSide;
 }
 
+export interface RunnerState {
+  id: string;
+  teamKey: TeamKey;
+  battingOrder: number;
+  jerseyNumber: string;
+  name: string;
+  scoreNotes: string[];
+}
+
+export type BaseRunners = Record<BaseKey, RunnerState | null>;
+
 export interface GameState {
   inning: number;
   half: "表" | "裏";
@@ -37,6 +60,7 @@ export interface GameState {
   hitType: HitType;
   firstPitchEntered: boolean;
   runnerFirst: boolean;
+  runners: BaseRunners;
 }
 
 export interface PlateAppearance {

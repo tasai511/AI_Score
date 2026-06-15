@@ -1,4 +1,4 @@
-import type { AppState, PitchType, TeamKey } from "./types";
+import type { AdvanceReason, AppState, BaseKey, PitchType, RunnerSource, RunnerState, TeamKey } from "./types";
 
 export const hitMarkAssets = {
   single: "assets/single.svg",
@@ -15,6 +15,24 @@ export const pitchSymbolCoordinates = [
 ];
 
 export const outSymbols = ["", "I", "II", "III"];
+
+export const advanceReasonLabels: Record<AdvanceReason, string> = {
+  walk: "四球",
+  "dead-ball": "死球",
+  "dropped-third-strike": "振り逃げ",
+  "catcher-interference": "打撃妨害",
+  steal: "盗塁",
+  "passed-ball": "後逸",
+  balk: "ボーク",
+  "runner-interference": "走塁妨害",
+  hit: "安打"
+};
+
+const nextBaseMap: Record<BaseKey, BaseKey | "home"> = {
+  first: "second",
+  second: "third",
+  third: "home"
+};
 
 export function normalizeNumber(value: unknown) {
   return String(value ?? "").trim();
@@ -58,6 +76,134 @@ export function formatPlayerLabel(player?: { jerseyNumber?: string; name?: strin
 
   if (jerseyNumber && name) return `${jerseyNumber} ${name}`;
   return jerseyNumber || name;
+}
+
+function syncRunnerFirst(state: AppState) {
+  state.game.runnerFirst = Boolean(state.game.runners.first);
+}
+
+function getRunnerId(state: AppState, runner: { jerseyNumber?: string; name?: string }) {
+  const teamKey = getBattingTeamKey(state);
+  const jerseyNumber = normalizeNumber(runner.jerseyNumber);
+  return `${teamKey}-${state.game.battingOrder}-${jerseyNumber || normalizeNumber(runner.name) || "unknown"}`;
+}
+
+export function getCurrentBatterRunner(state: AppState): RunnerState {
+  const batter = getCurrentBatter(state);
+  return {
+    id: getRunnerId(state, batter ?? {}),
+    teamKey: getBattingTeamKey(state),
+    battingOrder: state.game.battingOrder,
+    jerseyNumber: normalizeNumber(batter?.jerseyNumber),
+    name: normalizeNumber(batter?.name),
+    scoreNotes: []
+  };
+}
+
+function withAdvanceNote(runner: RunnerState, reason: AdvanceReason): RunnerState {
+  const label = advanceReasonLabels[reason];
+  return {
+    ...runner,
+    scoreNotes: runner.scoreNotes.includes(label) ? runner.scoreNotes : [...runner.scoreNotes, label]
+  };
+}
+
+function scoreRunner(state: AppState, runner: RunnerState) {
+  if (runner.teamKey === "own") {
+    state.game.ownScore += 1;
+  } else {
+    state.game.opponentScore += 1;
+  }
+}
+
+function placeRunnerOnBase(state: AppState, base: BaseKey, runner: RunnerState, reason: AdvanceReason) {
+  const occupyingRunner = state.game.runners[base];
+  if (occupyingRunner) advanceExistingRunnerInPlace(state, base, reason);
+  state.game.runners[base] = withAdvanceNote(runner, reason);
+}
+
+function advanceExistingRunnerInPlace(state: AppState, source: BaseKey, reason: AdvanceReason) {
+  const runner = state.game.runners[source];
+  if (!runner) return;
+
+  state.game.runners[source] = null;
+  const destination = nextBaseMap[source];
+  if (destination === "home") {
+    scoreRunner(state, withAdvanceNote(runner, reason));
+  } else {
+    placeRunnerOnBase(state, destination, runner, reason);
+  }
+}
+
+function advanceBatterToFirstInPlace(state: AppState, reason: AdvanceReason) {
+  placeRunnerOnBase(state, "first", getCurrentBatterRunner(state), reason);
+  syncRunnerFirst(state);
+}
+
+export function advanceRunner(state: AppState, source: RunnerSource, reason: AdvanceReason): AppState {
+  const next: AppState = structuredClone(state);
+  next.game.firstPitchEntered = true;
+
+  if (reason === "dropped-third-strike") {
+    const strikeCount = next.plate.pitches.filter((pitch) => pitch === "\u2715").length;
+    if (strikeCount < 3) next.plate.pitches.push("\u2715");
+    if (next.plate.result === "K" && next.game.outs > 0) next.game.outs -= 1;
+    next.plate.outNumber = 0;
+    next.plate.result = advanceReasonLabels[reason];
+    next.game.balls = 0;
+    next.game.strikes = 0;
+  }
+
+  if (reason === "catcher-interference") {
+    next.plate.result = advanceReasonLabels[reason];
+    next.game.balls = 0;
+    next.game.strikes = 0;
+  }
+
+  if (source === "batter") {
+    advanceBatterToFirstInPlace(next, reason);
+  } else {
+    advanceExistingRunnerInPlace(next, source, reason);
+  }
+
+  syncRunnerFirst(next);
+  return next;
+}
+
+export function canUseDroppedThirdStrike(state: AppState) {
+  const strikeCount = state.plate.pitches.filter((pitch) => pitch === "\u2715").length;
+  const hasTwoStrikes = state.game.strikes >= 2 || strikeCount >= 2 || state.plate.result === "K";
+  return hasTwoStrikes && (!state.game.runners.first || state.game.outs >= 2);
+}
+
+export function confirmPlateAppearance(state: AppState): AppState {
+  const next: AppState = structuredClone(state);
+  const nextBattingOrder = next.game.battingOrder >= 9 ? 1 : next.game.battingOrder + 1;
+  next.game.battingOrder = nextBattingOrder;
+  next.game.balls = 0;
+  next.game.strikes = 0;
+  next.game.hitType = "";
+  next.game.firstPitchEntered = false;
+
+  if (next.game.outs >= 3) {
+    next.game.outs = 0;
+    next.game.battingOrder = 1;
+    next.game.runners = { first: null, second: null, third: null };
+    next.game.half = next.game.half === "表" ? "裏" : "表";
+    if (next.game.half === "表") next.game.inning += 1;
+  }
+
+  const ownBatter = getCurrentOwnBatter(next);
+  const opponentBatter = getCurrentOpponentBatter(next);
+  next.game.currentBatterJerseyNumber = ownBatter?.jerseyNumber ?? "";
+  next.game.currentOpponentBatterJerseyNumber = opponentBatter?.jerseyNumber ?? next.game.currentOpponentBatterJerseyNumber;
+  next.plate = {
+    pitches: [],
+    result: "",
+    outNumber: 0
+  };
+  syncRunnerFirst(next);
+  return next;
 }
 
 export function getDuplicateValues<T>(rows: T[], field: keyof T) {
@@ -116,15 +262,16 @@ export function applyPitch(state: AppState, type: PitchType): AppState {
     addSymbol("ball");
     next.game.balls = Math.min(4, next.game.balls + 1);
     if (next.game.balls >= 4) {
-      next.game.runnerFirst = true;
+      advanceBatterToFirstInPlace(next, "walk");
       finish("B");
     }
   }
 
   if (type === "dead") {
-    next.game.runnerFirst = true;
+    advanceBatterToFirstInPlace(next, "dead-ball");
     finish("DB");
   }
 
+  syncRunnerFirst(next);
   return next;
 }

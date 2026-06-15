@@ -58,7 +58,12 @@ export const initialState: AppState = {
     currentOpponentPitcherJerseyNumber: "",
     hitType: "",
     firstPitchEntered: false,
-    runnerFirst: false
+    runnerFirst: false,
+    runners: {
+      first: null,
+      second: null,
+      third: null
+    }
   },
   plate: {
     pitches: [],

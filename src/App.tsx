@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, KeyboardEvent, PointerEvent, SetStateAction } from "react";
-import type { AppState, PitchType, Player, TabKey, TeamKey } from "./types";
+import type { AdvanceReason, AppState, BaseKey, PitchType, Player, RunnerSource, TabKey, TeamKey } from "./types";
 import { initialState } from "./data";
 import {
+  advanceReasonLabels,
+  advanceRunner,
   applyPitch,
+  canUseDroppedThirdStrike,
+  confirmPlateAppearance,
   formatJerseyNumber,
   formatPlayerLabel,
   getBattingTeamKey,
@@ -51,6 +55,8 @@ export function App() {
   const [forceRegistration, setForceRegistration] = useState(false);
   const [dragging, setDragging] = useState<{ teamKey: TeamKey; rowId: string } | null>(null);
   const [fieldSelection, setFieldSelection] = useState<string | null>(null);
+  const [needsPlateConfirm, setNeedsPlateConfirm] = useState(false);
+  const [fieldResetToken, setFieldResetToken] = useState(0);
 
   const ownBatting = isOwnBattingNow(state);
   const battingTeamKey = getBattingTeamKey(state);
@@ -80,6 +86,10 @@ export function App() {
     setForceRegistration(true);
     setDialogMode("batter");
   }, [activeTab, battingTeamKey, currentBatter?.jerseyNumber, state.game.battingOrder, state.promptedBatterKeys]);
+
+  useEffect(() => {
+    if (state.plate.result) setNeedsPlateConfirm(true);
+  }, [state.plate.result]);
 
   const ownPositionDuplicates = useMemo(() => getDuplicateValues(state.ownOrder, "positionNumber"), [state.ownOrder]);
   const opponentPositionDuplicates = useMemo(() => getDuplicateValues(state.opponentOrder, "positionNumber"), [state.opponentOrder]);
@@ -143,6 +153,22 @@ export function App() {
 
     event.preventDefault();
     handlePitch(type);
+  }
+
+  function handleAdvance(source: RunnerSource, reason: AdvanceReason) {
+    setState((current) => advanceRunner(current, source, reason));
+    setNeedsPlateConfirm(true);
+  }
+
+  function handleFieldPlayStarted() {
+    setNeedsPlateConfirm(true);
+  }
+
+  function handleConfirmPlate() {
+    setState((current) => confirmPlateAppearance(current));
+    setNeedsPlateConfirm(false);
+    setFieldSelection(null);
+    setFieldResetToken((token) => token + 1);
   }
 
   function closeDialog() {
@@ -273,13 +299,20 @@ export function App() {
               <ScoreCell state={state} />
             </section>
 
-            <FieldStage state={state} fieldSelection={fieldSelection} setFieldSelection={setFieldSelection} />
+            <FieldStage
+              state={state}
+              fieldSelection={fieldSelection}
+              resetToken={fieldResetToken}
+              setFieldSelection={setFieldSelection}
+              onAdvance={handleAdvance}
+              onFieldPlayStarted={handleFieldPlayStarted}
+            />
 
             <section className="pitch-buttons" aria-label="投球入力">
               <button
                 className="strike"
                 type="button"
-                disabled={Boolean(state.plate.result)}
+                disabled={Boolean(state.plate.result) || needsPlateConfirm}
                 onPointerDown={(event) => handlePitchPointer("strike", event)}
                 onKeyDown={(event) => handlePitchKey("strike", event)}
               >
@@ -288,7 +321,7 @@ export function App() {
               <button
                 className="foul"
                 type="button"
-                disabled={Boolean(state.plate.result)}
+                disabled={Boolean(state.plate.result) || needsPlateConfirm}
                 onPointerDown={(event) => handlePitchPointer("foul", event)}
                 onKeyDown={(event) => handlePitchKey("foul", event)}
               >
@@ -297,7 +330,7 @@ export function App() {
               <button
                 className="ball"
                 type="button"
-                disabled={Boolean(state.plate.result)}
+                disabled={Boolean(state.plate.result) || needsPlateConfirm}
                 onPointerDown={(event) => handlePitchPointer("ball", event)}
                 onKeyDown={(event) => handlePitchKey("ball", event)}
               >
@@ -306,13 +339,19 @@ export function App() {
               <button
                 className="dead"
                 type="button"
-                disabled={Boolean(state.plate.result)}
+                disabled={Boolean(state.plate.result) || needsPlateConfirm}
                 onPointerDown={(event) => handlePitchPointer("dead", event)}
                 onKeyDown={(event) => handlePitchKey("dead", event)}
               >
                 <span>DB</span>デッドボール
               </button>
             </section>
+
+            {needsPlateConfirm && (
+              <button className="plate-confirm-button" type="button" onClick={handleConfirmPlate}>
+                確定
+              </button>
+            )}
           </section>
         )}
 
@@ -564,24 +603,27 @@ function ScoreCell({ state }: { state: AppState }) {
 }
 
 function RunnerScoreStrip({ state }: { state: AppState }) {
-  const firstRunner = state.game.runnerFirst ? getCurrentBatter(state) : undefined;
-  const firstRunnerName = firstRunner ? formatPlayerLabel(firstRunner) : "";
   const runnerCells = [
-    { key: "third", label: "3塁", runnerName: "", occupied: false },
-    { key: "second", label: "2塁", runnerName: "", occupied: false },
-    { key: "first", label: "1塁", runnerName: firstRunnerName, occupied: state.game.runnerFirst }
+    { key: "third", label: "3塁", runner: state.game.runners.third },
+    { key: "second", label: "2塁", runner: state.game.runners.second },
+    { key: "first", label: "1塁", runner: state.game.runners.first }
   ];
 
   return (
     <section className="runner-score-strip" aria-label="塁上ランナーのスコアマス">
       {runnerCells.map((cell) => (
-        <article className={`runner-score-card${cell.occupied ? " occupied" : ""}`} key={cell.key}>
+        <article className={`runner-score-card${cell.runner ? " occupied" : ""}`} key={cell.key}>
           <div className="runner-score-title">
             <span>{cell.label}</span>
-            {cell.runnerName && <b>{cell.runnerName}</b>}
+            {cell.runner && <b>{formatPlayerLabel(cell.runner)}</b>}
           </div>
           <div className="score-matrix runner-score-matrix">
             <img src="assets/score_matrix.png" alt="" />
+            {cell.runner?.scoreNotes.slice(-1).map((note) => (
+              <span className="runner-score-note" key={note}>
+                {note}
+              </span>
+            ))}
           </div>
         </article>
       ))}
@@ -592,10 +634,16 @@ function RunnerScoreStrip({ state }: { state: AppState }) {
 function FieldStage({
   state,
   fieldSelection,
+  resetToken,
+  onAdvance,
+  onFieldPlayStarted,
   setFieldSelection
 }: {
   state: AppState;
   fieldSelection: string | null;
+  resetToken: number;
+  onAdvance: (source: RunnerSource, reason: AdvanceReason) => void;
+  onFieldPlayStarted: () => void;
   setFieldSelection: Dispatch<SetStateAction<string | null>>;
 }) {
   type FieldDecision = "out" | "safe";
@@ -618,6 +666,16 @@ function FieldStage({
     to: FieldPoint;
     kind: "hit" | "throw";
   };
+  type AdvanceChoice = {
+    reason: AdvanceReason;
+    label: string;
+  };
+  type AdvanceTarget = {
+    source: RunnerSource;
+    point: FieldPoint;
+    title: string;
+    choices: AdvanceChoice[];
+  };
 
   const targetRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [fieldPlay, setFieldPlay] = useState<{
@@ -629,6 +687,16 @@ function FieldStage({
     nodes: [],
     segments: []
   });
+  const [advanceTarget, setAdvanceTarget] = useState<AdvanceTarget | null>(null);
+
+  useEffect(() => {
+    setFieldPlay({
+      activeNodeId: null,
+      nodes: [],
+      segments: []
+    });
+    setAdvanceTarget(null);
+  }, [resetToken]);
   const ownBatting = isOwnBattingNow(state);
   const battingTeamKey = getBattingTeamKey(state);
   const ownSlot = { key: "own", name: getBroadcastTeamName(state.ownTeam.name), score: state.game.ownScore };
@@ -685,9 +753,9 @@ function FieldStage({
     const batterLabel = formatPlayerLabel(getCurrentBatter(state));
     if (target.kind === "position") return batterLabel ? `打者 ${batterLabel}` : "打者";
     if (target.key === "base-first") return batterLabel ? `打者走者 ${batterLabel}` : "打者走者";
-    if (target.key === "base-second") return state.game.runnerFirst ? "一塁走者" : batterLabel ? `打者走者 ${batterLabel}` : "打者走者";
-    if (target.key === "base-third") return "三塁へ向かう走者";
-    if (target.key === "base-home") return "本塁へ向かう走者";
+    if (target.key === "base-second") return state.game.runners.first ? `一塁走者 ${formatPlayerLabel(state.game.runners.first)}` : batterLabel ? `打者走者 ${batterLabel}` : "打者走者";
+    if (target.key === "base-third") return state.game.runners.second ? `二塁走者 ${formatPlayerLabel(state.game.runners.second)}` : "三塁へ向かう走者";
+    if (target.key === "base-home") return state.game.runners.third ? `三塁走者 ${formatPlayerLabel(state.game.runners.third)}` : "本塁へ向かう走者";
     return "走者";
   }
 
@@ -696,7 +764,11 @@ function FieldStage({
     const homePoint = getTargetPoint("base-home");
     const catcherThrowAfterPitch = state.plate.pitches.some((pitch) => pitch === "\u2715" || pitch === "\u25cf");
     const initialThrowPoint = getTargetPoint(catcherThrowAfterPitch ? "position-2" : "position-1");
+    const shouldAutoAdvanceBatterOnHit = !fieldPlay.nodes.length && Boolean(state.game.hitType) && target.kind === "position";
     setFieldSelection(target.key);
+    setAdvanceTarget(null);
+    onFieldPlayStarted();
+    if (shouldAutoAdvanceBatterOnHit) onAdvance("batter", "hit");
 
     setFieldPlay((current) => {
       const lastNode = current.nodes[current.nodes.length - 1];
@@ -730,6 +802,39 @@ function FieldStage({
       ...current,
       nodes: current.nodes.map((node) => (node.id === nodeId ? { ...node, decision } : node))
     }));
+  }
+
+  function openAdvanceTarget(source: RunnerSource, refKey: string, title: string) {
+    const point = getTargetPoint(refKey);
+
+    if (state.game.hitType) {
+      onAdvance(source, "hit");
+      setAdvanceTarget(null);
+      return;
+    }
+
+    const choices: AdvanceChoice[] =
+      source === "batter"
+        ? [
+            ...(canUseDroppedThirdStrike(state)
+              ? [{ reason: "dropped-third-strike" as const, label: advanceReasonLabels["dropped-third-strike"] }]
+              : []),
+            { reason: "catcher-interference", label: advanceReasonLabels["catcher-interference"] }
+          ]
+        : [
+            { reason: "steal", label: advanceReasonLabels.steal },
+            { reason: "passed-ball", label: advanceReasonLabels["passed-ball"] },
+            { reason: "balk", label: advanceReasonLabels.balk },
+            { reason: "runner-interference", label: advanceReasonLabels["runner-interference"] }
+          ];
+
+    setAdvanceTarget({ source, point, title, choices });
+  }
+
+  function chooseAdvance(reason: AdvanceReason) {
+    if (!advanceTarget) return;
+    onAdvance(advanceTarget.source, reason);
+    setAdvanceTarget(null);
   }
 
   return (
@@ -782,6 +887,37 @@ function FieldStage({
         </button>
       ))}
 
+      <button
+        className="batter-runner-button"
+        type="button"
+        aria-label="バッター走者"
+        ref={(node) => setTargetRef("runner-batter", node)}
+        onClick={() => openAdvanceTarget("batter", "runner-batter", `打者 ${formatPlayerLabel(getCurrentBatter(state)) || state.game.battingOrder}`)}
+      >
+        <img src={ownBatting ? "assets/batter-red.png" : "assets/batter-blue.png"} alt="" />
+      </button>
+
+      {(["third", "second", "first"] as BaseKey[]).map((baseKey) => {
+        const runner = state.game.runners[baseKey];
+        if (!runner) return null;
+
+        return (
+          <button
+            className={`runner-button runner-${baseKey}${fieldSelection === `runner-${baseKey}` ? " selected" : ""}`}
+            type="button"
+            key={baseKey}
+            aria-label={`${formatPlayerLabel(runner)} ランナー`}
+            ref={(node) => setTargetRef(`runner-${baseKey}`, node)}
+            onClick={() => {
+              setFieldSelection(`runner-${baseKey}`);
+              openAdvanceTarget(baseKey, `runner-${baseKey}`, formatPlayerLabel(runner) || "走者");
+            }}
+          >
+            <img className="runner-icon" src={ownBatting ? "assets/runner-red-outline.png" : "assets/runner-blue-outline.png"} alt="" />
+          </button>
+        );
+      })}
+
       {fieldPlay.nodes
         .filter((node) => node.decision || node.id === fieldPlay.activeNodeId)
         .map((node) => (
@@ -806,15 +942,17 @@ function FieldStage({
           </div>
         ))}
 
-      {state.game.runnerFirst && (
-        <button
-          className={`runner-button runner-first${fieldSelection === "runner-first" ? " selected" : ""}`}
-          type="button"
-          aria-label="一塁ランナー"
-          onClick={() => setFieldSelection("runner-first")}
-        >
-          <img className="runner-icon" src={ownBatting ? "assets/runner-red-outline.png" : "assets/runner-blue-outline.png"} alt="" />
-        </button>
+      {advanceTarget && (
+        <div className="advance-bubble" style={{ left: `${advanceTarget.point.x}px`, top: `${advanceTarget.point.y}px` }}>
+          <div className="advance-bubble-title">{advanceTarget.title}</div>
+          <div className="advance-actions">
+            {advanceTarget.choices.map((choice) => (
+              <button type="button" key={choice.reason} onClick={() => chooseAdvance(choice.reason)}>
+                {choice.label}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       <aside className="broadcast-board" aria-label="試合状況">
