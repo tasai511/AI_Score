@@ -545,7 +545,7 @@ function ScoreCell({ state }: { state: AppState }) {
             </text>
           )}
           {state.plate.result && (
-            <text className="matrix-play" x="1105" y="760">
+            <text className="matrix-play" x="1045" y="720">
               {state.plate.result}
             </text>
           )}

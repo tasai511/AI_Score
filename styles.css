@@ -544,17 +544,17 @@ i.red {
 
 .score-symbol {
   fill: #e83b2e;
-  font-size: 126px;
+  font-size: 160px;
 }
 
 .matrix-play {
   fill: #e83b2e;
-  font-size: 126px;
+  font-size: 160px;
 }
 
 .matrix-out {
   fill: #8f8f8f;
-  font-size: 126px;
+  font-size: 150px;
 }
 
 .field-stage {

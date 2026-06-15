@@ -8,10 +8,10 @@ export const hitMarkAssets = {
 } as const;
 
 export const pitchSymbolCoordinates = [
-  { x: 182, y: 250 },
-  { x: 182, y: 365 },
-  { x: 182, y: 480 },
-  { x: 182, y: 595 }
+  { x: 190, y: 250 },
+  { x: 190, y: 375 },
+  { x: 190, y: 500 },
+  { x: 190, y: 625 }
 ];
 
 export const outSymbols = ["", "I", "II", "III"];
