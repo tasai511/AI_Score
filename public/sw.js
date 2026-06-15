@@ -1,4 +1,4 @@
-const CACHE_NAME = "ai-score-v6";
+const CACHE_NAME = "ai-score-v7";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -8,8 +8,6 @@ const APP_SHELL = [
   "./assets/batter-blue.png",
   "./assets/runner-red-outline.png",
   "./assets/runner-blue-outline.png",
-  "./assets/runner-red-outline-flipped.png",
-  "./assets/runner-blue-outline-flipped.png",
   "./assets/score_matrix.png",
   "./assets/single.svg",
   "./assets/two-base.svg",
