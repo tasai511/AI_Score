@@ -565,7 +565,7 @@ function ScoreCell({ state }: { state: AppState }) {
 
 function RunnerScoreStrip({ state }: { state: AppState }) {
   const firstRunner = state.game.runnerFirst ? getCurrentBatter(state) : undefined;
-  const firstRunnerName = firstRunner ? formatPlayerLabel(firstRunner, state.game.battingOrder) : "";
+  const firstRunnerName = firstRunner ? formatPlayerLabel(firstRunner) : "";
   const runnerCells = [
     { key: "third", label: "3塁", runnerName: "", occupied: false },
     { key: "second", label: "2塁", runnerName: "", occupied: false },
