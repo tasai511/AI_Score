@@ -60,7 +60,7 @@ export function formatPlayerLabel(player?: { jerseyNumber?: string; name?: strin
   return jerseyNumber || name;
 }
 
-export function getDuplicateValues<T extends Record<string, string>>(rows: T[], field: keyof T) {
+export function getDuplicateValues<T>(rows: T[], field: keyof T) {
   const counts = new Map<string, number>();
 
   for (const row of rows) {
