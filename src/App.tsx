@@ -31,7 +31,10 @@ function moveRow<T>(rows: T[], fromIndex: number, toIndex: number) {
 function getBroadcastTeamName(name: string) {
   const normalizedName = name.trim();
   if (!normalizedName) return "";
-  if (normalizedName.includes(" ")) return normalizedName.split(/\s+/).at(-1) ?? normalizedName;
+  if (normalizedName.includes(" ")) {
+    const parts = normalizedName.split(/\s+/);
+    return parts[parts.length - 1] ?? normalizedName;
+  }
 
   const suffixes = ["ドリーム", "スターズ", "クラブ", "ファイターズ", "ジャイアンツ", "イーグルス", "タイガース", "ベアーズ", "ホークス"];
   return suffixes.find((suffix) => normalizedName.endsWith(suffix)) ?? normalizedName;
@@ -528,7 +531,7 @@ function ScoreCell({ state }: { state: AppState }) {
             {state.plate.pitches.map((symbol, index) => {
               const coordinate =
                 pitchSymbolCoordinates[index] ??
-                ({ x: 182, y: pitchSymbolCoordinates.at(-1)!.y + 98 * (index - pitchSymbolCoordinates.length + 1) } as const);
+                ({ x: 182, y: pitchSymbolCoordinates[pitchSymbolCoordinates.length - 1].y + 98 * (index - pitchSymbolCoordinates.length + 1) } as const);
               return (
                 <text className="score-symbol" x={coordinate.x} y={coordinate.y} key={`${symbol}-${index}`}>
                   {symbol}
