@@ -377,21 +377,21 @@ input {
 
 .player-row {
   display: grid;
-  grid-template-columns: 48px 1fr 144px;
+  grid-template-columns: 42px 1fr 134px;
   grid-template-areas:
     "icon batter score"
     "pitcher pitcher pitcher";
-  column-gap: 12px;
-  row-gap: 8px;
+  column-gap: 10px;
+  row-gap: 4px;
   align-items: start;
-  padding: 12px 18px 6px;
+  padding: 8px 14px 4px;
 }
 
 .batter-icon {
   grid-area: icon;
-  width: 42px;
-  height: 68px;
-  margin-top: 10px;
+  width: 36px;
+  height: 58px;
+  margin-top: 8px;
   object-fit: contain;
   filter: drop-shadow(0 4px 7px rgba(34, 39, 47, 0.2));
 }
@@ -399,7 +399,7 @@ input {
 .player-copy {
   grid-area: batter;
   display: grid;
-  gap: 8px;
+  gap: 4px;
   min-width: 0;
   padding-top: 1px;
 }
@@ -431,13 +431,13 @@ input {
 }
 
 .pitcher-select span {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 800;
 }
 
 .pitcher-select b {
   color: #1160c7;
-  font-size: 1.2rem;
+  font-size: 1.08rem;
   font-weight: 900;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -447,12 +447,12 @@ input {
 .player-copy p {
   margin: 0;
   color: #333;
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 800;
 }
 
 .player-copy strong {
-  font-size: 1.65rem;
+  font-size: 1.45rem;
   white-space: nowrap;
 }
 
@@ -559,14 +559,14 @@ i.red {
 
 .field-stage {
   position: relative;
-  min-height: 528px;
-  margin-top: -12px;
+  min-height: 468px;
+  margin-top: -18px;
 }
 
 .field-art {
   position: absolute;
   left: 50%;
-  top: 8px;
+  top: 0;
   width: 134%;
   max-width: none;
   pointer-events: none;
@@ -577,8 +577,8 @@ i.red {
 .position {
   position: absolute;
   display: grid;
-  width: 50px;
-  height: 50px;
+  width: 46px;
+  height: 46px;
   place-items: center;
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 50%;
@@ -587,7 +587,7 @@ i.red {
   box-shadow:
     0 4px 10px rgba(34, 39, 47, 0.25),
     inset 0 1px 0 #fff;
-  font-size: 1.25rem;
+  font-size: 1.16rem;
   font-weight: 900;
 }
 
@@ -596,15 +596,15 @@ i.red {
   outline-offset: -3px;
 }
 
-.pos-left { left: 36px; top: 122px; }
-.pos-center { left: 50%; top: 94px; transform: translateX(-50%); }
-.pos-right { right: 36px; top: 122px; }
-.pos-short { left: 136px; top: 192px; }
-.pos-second { right: 132px; top: 192px; }
-.pos-third { left: 88px; top: 264px; }
-.pos-first { right: 88px; top: 264px; }
-.pos-pitcher { left: 50%; top: 312px; transform: translateX(-50%); }
-.pos-catcher { left: 50%; top: 458px; transform: translateX(-50%); }
+.pos-left { left: 36px; top: 104px; }
+.pos-center { left: 50%; top: 78px; transform: translateX(-50%); }
+.pos-right { right: 36px; top: 104px; }
+.pos-short { left: 136px; top: 166px; }
+.pos-second { right: 132px; top: 166px; }
+.pos-third { left: 88px; top: 232px; }
+.pos-first { right: 88px; top: 232px; }
+.pos-pitcher { left: 50%; top: 276px; transform: translateX(-50%); }
+.pos-catcher { left: 50%; top: 414px; transform: translateX(-50%); }
 
 .decision-bubble {
   position: absolute;
@@ -652,17 +652,17 @@ i.red {
 
 .runner-first {
   right: 78px;
-  top: 277px;
+  top: 245px;
 }
 
 .broadcast-board {
   position: absolute;
   right: 6px;
-  bottom: 12px;
+  bottom: 6px;
   display: grid;
   width: 178px;
-  gap: 7px;
-  padding: 10px 10px 9px;
+  gap: 5px;
+  padding: 8px 9px 7px;
   border: 1px solid rgba(20, 31, 49, 0.16);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.94);
@@ -794,19 +794,19 @@ i.red {
   z-index: 5;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  padding: 0 14px 22px;
+  gap: 8px;
+  padding: 0 14px 12px;
 }
 
 .pitch-buttons button {
   display: flex;
-  min-height: 58px;
+  min-height: 50px;
   align-items: center;
   justify-content: center;
   gap: 10px;
   border-radius: 8px;
   color: #fff;
-  font-size: 1.28rem;
+  font-size: 1.12rem;
   font-weight: 900;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.32),
@@ -824,9 +824,9 @@ i.red {
 
 .pitch-buttons span {
   display: inline-grid;
-  min-width: 34px;
+  min-width: 30px;
   place-items: center;
-  font-size: 1.5rem;
+  font-size: 1.34rem;
   line-height: 1;
 }
 
@@ -977,14 +977,14 @@ i.red {
 @media (max-width: 380px) {
   .player-row {
     grid-template-columns: 42px 1fr 128px;
-    gap: 8px;
+    gap: 6px;
     padding-inline: 12px;
   }
 
   .batter-icon {
-    width: 38px;
-    height: 62px;
-    margin-top: 10px;
+    width: 34px;
+    height: 54px;
+    margin-top: 8px;
   }
 
   .player-copy strong {
@@ -997,7 +997,7 @@ i.red {
   }
 
   .field-stage {
-    min-height: 500px;
+    min-height: 452px;
   }
 
   .field-art {
@@ -1007,6 +1007,6 @@ i.red {
   .broadcast-board {
     width: 158px;
     right: 4px;
-    bottom: 10px;
+    bottom: 4px;
   }
 }
