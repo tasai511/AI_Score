@@ -256,11 +256,17 @@ export function App() {
               <img className="batter-icon" src={ownBatting ? "assets/batter-red.png" : "assets/batter-blue.png"} alt="" />
               <button className="player-copy batter-select" type="button" onClick={() => setDialogMode("batter")}>
                 <p>バッター</p>
-                <strong>{batterText}</strong>
+                <strong>
+                  <span className="player-name-text">{batterText}</span>
+                  <span className="edit-cue" aria-hidden="true">✎</span>
+                </strong>
               </button>
               <button className="pitcher-select" type="button" onClick={() => setDialogMode("pitcher")}>
                 <span>ピッチャー</span>
-                <b>{pitcherText}</b>
+                <b>
+                  <span className="player-name-text">{pitcherText}</span>
+                  <span className="edit-cue" aria-hidden="true">✎</span>
+                </b>
               </button>
               <ScoreCell state={state} />
             </section>

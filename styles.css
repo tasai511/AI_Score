@@ -436,9 +436,21 @@ input {
 }
 
 .pitcher-select b {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   color: #1160c7;
   font-size: 1.2rem;
   font-weight: 900;
+}
+
+.player-name-text {
+  display: block;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -452,8 +464,29 @@ input {
 }
 
 .player-copy strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   font-size: 1.65rem;
+  line-height: 1.2;
   white-space: nowrap;
+}
+
+.edit-cue {
+  flex: 0 0 auto;
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 50%;
+  background: #e8f1ff;
+  color: #1160c7;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .score-cell {
