@@ -50,6 +50,7 @@ export function App() {
   const [dialogMode, setDialogMode] = useState<DialogMode>(null);
   const [forceRegistration, setForceRegistration] = useState(false);
   const [dragging, setDragging] = useState<{ teamKey: TeamKey; rowId: string } | null>(null);
+  const [fieldSelection, setFieldSelection] = useState<string | null>(null);
 
   const ownBatting = isOwnBattingNow(state);
   const battingTeamKey = getBattingTeamKey(state);
@@ -271,7 +272,7 @@ export function App() {
               <ScoreCell state={state} />
             </section>
 
-            <FieldStage state={state} />
+            <FieldStage state={state} fieldSelection={fieldSelection} setFieldSelection={setFieldSelection} />
 
             <section className="pitch-buttons" aria-label="投球入力">
               <button
@@ -561,33 +562,72 @@ function ScoreCell({ state }: { state: AppState }) {
   );
 }
 
-function FieldStage({ state }: { state: AppState }) {
+function FieldStage({
+  state,
+  fieldSelection,
+  setFieldSelection
+}: {
+  state: AppState;
+  fieldSelection: string | null;
+  setFieldSelection: Dispatch<SetStateAction<string | null>>;
+}) {
   const ownBatting = isOwnBattingNow(state);
   const ownSlot = { key: "own", name: getBroadcastTeamName(state.ownTeam.name), score: state.game.ownScore };
   const opponentSlot = { key: "opponent", name: getBroadcastTeamName(getOpponentName(state)), score: state.game.opponentScore };
   const slots = state.ownTeam.battingSide === "top" ? [ownSlot, opponentSlot] : [opponentSlot, ownSlot];
+  const bases = [
+    { key: "base-first", className: "base-first", label: "一塁" },
+    { key: "base-second", className: "base-second", label: "二塁" },
+    { key: "base-third", className: "base-third", label: "三塁" },
+    { key: "base-home", className: "base-home", label: "本塁" }
+  ];
+  const positions = [
+    ["pos-left", 7],
+    ["pos-center", 8],
+    ["pos-right", 9],
+    ["pos-short", 6],
+    ["pos-second", 4],
+    ["pos-third", 5],
+    ["pos-first", 3],
+    ["pos-pitcher", 1],
+    ["pos-catcher", 2]
+  ] as const;
 
   return (
     <section className="field-stage" aria-label="守備位置とランナー">
       <img className="field-art" src="assets/baseball-field.png" alt="" />
-      {[
-        ["pos-left", 7],
-        ["pos-center", 8],
-        ["pos-right", 9],
-        ["pos-short", 6],
-        ["pos-second", 4],
-        ["pos-third", 5],
-        ["pos-first", 3],
-        ["pos-pitcher", 1],
-        ["pos-catcher", 2]
-      ].map(([className, number]) => (
-        <button className={`position ${className}`} type="button" key={className}>
+
+      {bases.map((base) => (
+        <button
+          className={`base-marker ${base.className}${fieldSelection === base.key ? " selected" : ""}`}
+          type="button"
+          key={base.key}
+          aria-label={`${base.label}ベース`}
+          onClick={() => setFieldSelection(base.key)}
+        />
+      ))}
+
+      {positions.map(([className, number]) => (
+        <button
+          className={`position ${className}${fieldSelection === `position-${number}` ? " selected" : ""}`}
+          type="button"
+          key={className}
+          aria-label={`守備位置${number}`}
+          onClick={() => setFieldSelection(`position-${number}`)}
+        >
           {number}
         </button>
       ))}
 
       {state.game.runnerFirst && (
-        <img className="runner runner-first" src={ownBatting ? "assets/runner-red-outline.png" : "assets/runner-blue-outline.png"} alt="一塁ランナー" />
+        <button
+          className={`runner-button runner-first${fieldSelection === "runner-first" ? " selected" : ""}`}
+          type="button"
+          aria-label="一塁ランナー"
+          onClick={() => setFieldSelection("runner-first")}
+        >
+          <img className="runner-icon" src={ownBatting ? "assets/runner-red-outline.png" : "assets/runner-blue-outline.png"} alt="" />
+        </button>
       )}
 
       <aside className="broadcast-board" aria-label="試合状況">
