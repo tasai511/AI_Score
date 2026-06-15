@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, KeyboardEvent, PointerEvent, SetStateAction } from "react";
 import type { AppState, PitchType, Player, TabKey, TeamKey } from "./types";
 import { initialState } from "./data";
@@ -255,13 +255,6 @@ export function App() {
           <section className="view score-view" data-view="score">
             <section className="player-row" aria-label="現在の選手">
               <img className="batter-icon" src={ownBatting ? "assets/batter-red.png" : "assets/batter-blue.png"} alt="" />
-              <button className="player-copy batter-select" type="button" onClick={() => setDialogMode("batter")}>
-                <p>バッター</p>
-                <strong>
-                  <span className="player-name-text">{batterText}</span>
-                  <span className="edit-cue" aria-hidden="true" />
-                </strong>
-              </button>
               <button className="pitcher-select" type="button" onClick={() => setDialogMode("pitcher")}>
                 <span>ピッチャー</span>
                 <b>
@@ -269,6 +262,14 @@ export function App() {
                   <span className="edit-cue" aria-hidden="true" />
                 </b>
               </button>
+              <button className="player-copy batter-select" type="button" onClick={() => setDialogMode("batter")}>
+                <p>バッター</p>
+                <strong>
+                  <span className="player-name-text">{batterText}</span>
+                  <span className="edit-cue" aria-hidden="true" />
+                </strong>
+              </button>
+              <RunnerScoreStrip state={state} />
               <ScoreCell state={state} />
             </section>
 
@@ -562,6 +563,32 @@ function ScoreCell({ state }: { state: AppState }) {
   );
 }
 
+function RunnerScoreStrip({ state }: { state: AppState }) {
+  const firstRunner = state.game.runnerFirst ? getCurrentBatter(state) : undefined;
+  const firstRunnerName = firstRunner ? formatPlayerLabel(firstRunner, state.game.battingOrder) : "";
+  const runnerCells = [
+    { key: "third", label: "3塁", runnerName: "", occupied: false },
+    { key: "second", label: "2塁", runnerName: "", occupied: false },
+    { key: "first", label: "1塁", runnerName: firstRunnerName, occupied: state.game.runnerFirst }
+  ];
+
+  return (
+    <section className="runner-score-strip" aria-label="塁上ランナーのスコアマス">
+      {runnerCells.map((cell) => (
+        <article className={`runner-score-card${cell.occupied ? " occupied" : ""}`} key={cell.key}>
+          <div className="runner-score-title">
+            <span>{cell.label}</span>
+            {cell.runnerName && <b>{cell.runnerName}</b>}
+          </div>
+          <div className="score-matrix runner-score-matrix">
+            <img src="assets/score_matrix.png" alt="" />
+          </div>
+        </article>
+      ))}
+    </section>
+  );
+}
+
 function FieldStage({
   state,
   fieldSelection,
@@ -571,7 +598,39 @@ function FieldStage({
   fieldSelection: string | null;
   setFieldSelection: Dispatch<SetStateAction<string | null>>;
 }) {
+  type FieldDecision = "out" | "safe";
+  type FieldTarget = {
+    key: string;
+    className: string;
+    label: string;
+    kind: "base" | "position";
+  };
+  type FieldPoint = { x: number; y: number };
+  type FieldPlayNode = FieldTarget & {
+    id: string;
+    point: FieldPoint;
+    subject: string;
+    decision?: FieldDecision;
+  };
+  type FieldPlaySegment = {
+    id: string;
+    from: FieldPoint;
+    to: FieldPoint;
+    kind: "hit" | "throw";
+  };
+
+  const targetRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [fieldPlay, setFieldPlay] = useState<{
+    activeNodeId: string | null;
+    nodes: FieldPlayNode[];
+    segments: FieldPlaySegment[];
+  }>({
+    activeNodeId: null,
+    nodes: [],
+    segments: []
+  });
   const ownBatting = isOwnBattingNow(state);
+  const battingTeamKey = getBattingTeamKey(state);
   const ownSlot = { key: "own", name: getBroadcastTeamName(state.ownTeam.name), score: state.game.ownScore };
   const opponentSlot = { key: "opponent", name: getBroadcastTeamName(getOpponentName(state)), score: state.game.opponentScore };
   const slots = state.ownTeam.battingSide === "top" ? [ownSlot, opponentSlot] : [opponentSlot, ownSlot];
@@ -593,9 +652,98 @@ function FieldStage({
     ["pos-catcher", 2]
   ] as const;
 
+  function makeBaseTarget(base: { key: string; className: string; label: string }): FieldTarget {
+    return { ...base, kind: "base" };
+  }
+
+  function makePositionTarget(className: string, number: number): FieldTarget {
+    return {
+      key: `position-${number}`,
+      className,
+      label: String(number),
+      kind: "position"
+    };
+  }
+
+  function setTargetRef(key: string, node: HTMLButtonElement | null) {
+    targetRefs.current[key] = node;
+  }
+
+  function getTargetPoint(key: string): FieldPoint {
+    const target = targetRefs.current[key];
+    const targetRect = target?.getBoundingClientRect();
+    const stageRect = target?.closest(".field-stage")?.getBoundingClientRect();
+    if (!targetRect || !stageRect) return { x: 0, y: 0 };
+
+    return {
+      x: targetRect.left - stageRect.left + targetRect.width / 2,
+      y: targetRect.top - stageRect.top + targetRect.height / 2
+    };
+  }
+
+  function getDecisionSubject(target: FieldTarget) {
+    const batterLabel = formatPlayerLabel(getCurrentBatter(state));
+    if (target.kind === "position") return batterLabel ? `打者 ${batterLabel}` : "打者";
+    if (target.key === "base-first") return batterLabel ? `打者走者 ${batterLabel}` : "打者走者";
+    if (target.key === "base-second") return state.game.runnerFirst ? "一塁走者" : batterLabel ? `打者走者 ${batterLabel}` : "打者走者";
+    if (target.key === "base-third") return "三塁へ向かう走者";
+    if (target.key === "base-home") return "本塁へ向かう走者";
+    return "走者";
+  }
+
+  function handleFieldTarget(target: FieldTarget) {
+    const targetPoint = getTargetPoint(target.key);
+    const homePoint = getTargetPoint("base-home");
+    setFieldSelection(target.key);
+
+    setFieldPlay((current) => {
+      const lastNode = current.nodes[current.nodes.length - 1];
+      const node: FieldPlayNode = {
+        ...target,
+        id: `${target.key}-${Date.now()}-${current.nodes.length}`,
+        point: targetPoint,
+        subject: getDecisionSubject(target)
+      };
+
+      return {
+        activeNodeId: node.id,
+        nodes: [...current.nodes, node],
+        segments: [
+          ...current.segments,
+          {
+            id: `segment-${Date.now()}-${current.segments.length}`,
+            from: lastNode?.point ?? homePoint,
+            to: targetPoint,
+            kind: lastNode ? "throw" : "hit"
+          }
+        ]
+      };
+    });
+  }
+
+  function chooseDecision(nodeId: string, decision: FieldDecision) {
+    setFieldPlay((current) => ({
+      ...current,
+      nodes: current.nodes.map((node) => (node.id === nodeId ? { ...node, decision } : node))
+    }));
+  }
+
   return (
     <section className="field-stage" aria-label="守備位置とランナー">
       <img className="field-art" src="assets/baseball-field.png" alt="" />
+
+      <svg className="field-play-lines" aria-hidden="true">
+        {fieldPlay.segments.map((segment) => (
+          <line
+            className={`field-play-line ${segment.kind}`}
+            key={segment.id}
+            x1={segment.from.x}
+            y1={segment.from.y}
+            x2={segment.to.x}
+            y2={segment.to.y}
+          />
+        ))}
+      </svg>
 
       {bases.map((base) => (
         <button
@@ -603,7 +751,8 @@ function FieldStage({
           type="button"
           key={base.key}
           aria-label={`${base.label}ベース`}
-          onClick={() => setFieldSelection(base.key)}
+          ref={(node) => setTargetRef(base.key, node)}
+          onClick={() => handleFieldTarget(makeBaseTarget(base))}
         />
       ))}
 
@@ -613,11 +762,36 @@ function FieldStage({
           type="button"
           key={className}
           aria-label={`守備位置${number}`}
-          onClick={() => setFieldSelection(`position-${number}`)}
+          ref={(node) => setTargetRef(`position-${number}`, node)}
+          onClick={() => handleFieldTarget(makePositionTarget(className, number))}
         >
           {number}
         </button>
       ))}
+
+      {fieldPlay.nodes
+        .filter((node) => node.decision || node.id === fieldPlay.activeNodeId)
+        .map((node) => (
+          <div
+            className={`play-decision-bubble${node.decision ? ` is-${node.decision}` : ""}`}
+            key={node.id}
+            style={{ left: `${node.point.x}px`, top: `${node.point.y}px` }}
+          >
+            <div className="play-decision-subject">{node.subject}</div>
+            <div className="play-decision-actions">
+              <button
+                className={node.decision === "out" ? "selected danger-text" : "danger-text"}
+                type="button"
+                onClick={() => chooseDecision(node.id, "out")}
+              >
+                アウト
+              </button>
+              <button className={node.decision === "safe" ? "selected" : ""} type="button" onClick={() => chooseDecision(node.id, "safe")}>
+                セーフ
+              </button>
+            </div>
+          </div>
+        ))}
 
       {state.game.runnerFirst && (
         <button
@@ -635,11 +809,11 @@ function FieldStage({
           {state.game.inning}回{state.game.half}
         </div>
         <div className="broadcast-score">
-          <span className={`team ${slots[0].key}`}>{slots[0].name}</span>
+          <span className={`team side-left ${slots[0].key}${slots[0].key === battingTeamKey ? " batting" : ""}`}>{slots[0].name}</span>
           <strong className={slots[0].key}>{slots[0].score}</strong>
           <span className="separator">-</span>
           <strong className={slots[1].key}>{slots[1].score}</strong>
-          <span className={`team ${slots[1].key}`}>{slots[1].name}</span>
+          <span className={`team side-right ${slots[1].key}${slots[1].key === battingTeamKey ? " batting" : ""}`}>{slots[1].name}</span>
         </div>
         <div className="broadcast-counts" aria-label="カウント">
           <CountDots label="B" value={state.game.balls} max={3} activeClass="green" />
