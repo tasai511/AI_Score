@@ -642,10 +642,6 @@ i.red {
   filter: drop-shadow(0 4px 8px rgba(34, 39, 47, 0.24));
 }
 
-.runner-flipped {
-  transform: scaleX(-1) !important;
-}
-
 .runner-third {
   left: 122px;
   top: 276px;
