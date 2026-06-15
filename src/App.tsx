@@ -259,14 +259,14 @@ export function App() {
                 <p>バッター</p>
                 <strong>
                   <span className="player-name-text">{batterText}</span>
-                  <span className="edit-cue" aria-hidden="true">✎</span>
+                  <span className="edit-cue" aria-hidden="true">{"\u25be"}</span>
                 </strong>
               </button>
               <button className="pitcher-select" type="button" onClick={() => setDialogMode("pitcher")}>
                 <span>ピッチャー</span>
                 <b>
                   <span className="player-name-text">{pitcherText}</span>
-                  <span className="edit-cue" aria-hidden="true">✎</span>
+                  <span className="edit-cue" aria-hidden="true">{"\u25be"}</span>
                 </b>
               </button>
               <ScoreCell state={state} />

@@ -377,14 +377,14 @@ input {
 
 .player-row {
   display: grid;
-  grid-template-columns: 48px 1fr 144px;
+  grid-template-columns: 48px 1fr 128px;
   grid-template-areas:
     "icon batter score"
     "pitcher pitcher pitcher";
   column-gap: 12px;
-  row-gap: 8px;
+  row-gap: 4px;
   align-items: start;
-  padding: 12px 18px 0;
+  padding: 10px 18px 0;
 }
 
 .batter-icon {
@@ -478,13 +478,13 @@ input {
 .edit-cue {
   flex: 0 0 auto;
   display: inline-grid;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   place-items: center;
   border-radius: 50%;
   background: #e8f1ff;
   color: #1160c7;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 900;
   line-height: 1;
 }
@@ -493,6 +493,7 @@ input {
   grid-area: score;
   display: grid;
   gap: 5px;
+  margin-top: 8px;
 }
 
 .score-matrix {
@@ -592,8 +593,8 @@ i.red {
 
 .field-stage {
   position: relative;
-  min-height: 528px;
-  margin-top: -16px;
+  min-height: 542px;
+  margin-top: -28px;
 }
 
 .field-art {
@@ -659,8 +660,8 @@ i.red {
   position: absolute;
   z-index: 4;
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   place-items: center;
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 50%;
@@ -669,7 +670,7 @@ i.red {
   box-shadow:
     0 4px 10px rgba(34, 39, 47, 0.25),
     inset 0 1px 0 #fff;
-  font-size: 1.12rem;
+  font-size: 1.06rem;
   font-weight: 900;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -745,13 +746,13 @@ i.red {
 }
 
 .runner-third {
-  left: 12px;
-  top: 354px;
+  left: 24px;
+  top: 326px;
 }
 
 .runner-first {
-  right: 12px;
-  top: 354px;
+  right: 24px;
+  top: 326px;
 }
 
 .broadcast-board {
@@ -895,6 +896,7 @@ i.red {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
+  margin-top: 8px;
   padding: 0 10px 18px;
 }
 
@@ -1077,8 +1079,9 @@ i.red {
 
 @media (max-width: 380px) {
   .player-row {
-    grid-template-columns: 42px 1fr 128px;
-    gap: 8px;
+    grid-template-columns: 42px 1fr 116px;
+    column-gap: 8px;
+    row-gap: 4px;
     padding-inline: 12px;
   }
 
@@ -1098,7 +1101,7 @@ i.red {
   }
 
   .field-stage {
-    min-height: 500px;
+    min-height: 514px;
   }
 
   .field-art {
@@ -1111,7 +1114,15 @@ i.red {
 
   .runner-third,
   .runner-first {
-    top: 335px;
+    top: 310px;
+  }
+
+  .runner-third {
+    left: 18px;
+  }
+
+  .runner-first {
+    right: 18px;
   }
 
   .broadcast-board {
