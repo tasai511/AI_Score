@@ -697,9 +697,17 @@ i.red {
   stroke: #ef4d39;
 }
 
+#field-hit-arrow path {
+  fill: #ef4d39;
+}
+
 .field-play-line.throw {
   stroke: #1268d8;
   stroke-dasharray: 9 7;
+}
+
+#field-throw-arrow path {
+  fill: #1268d8;
 }
 
 .base-marker {

@@ -694,10 +694,14 @@ function FieldStage({
   function handleFieldTarget(target: FieldTarget) {
     const targetPoint = getTargetPoint(target.key);
     const homePoint = getTargetPoint("base-home");
+    const catcherThrowAfterPitch = state.plate.pitches.some((pitch) => pitch === "\u2715" || pitch === "\u25cf");
+    const initialThrowPoint = getTargetPoint(catcherThrowAfterPitch ? "position-2" : "position-1");
     setFieldSelection(target.key);
 
     setFieldPlay((current) => {
       const lastNode = current.nodes[current.nodes.length - 1];
+      const isFirstTarget = !lastNode;
+      const segmentKind = isFirstTarget && target.kind === "position" ? "hit" : "throw";
       const node: FieldPlayNode = {
         ...target,
         id: `${target.key}-${Date.now()}-${current.nodes.length}`,
@@ -712,9 +716,9 @@ function FieldStage({
           ...current.segments,
           {
             id: `segment-${Date.now()}-${current.segments.length}`,
-            from: lastNode?.point ?? homePoint,
+            from: lastNode?.point ?? (target.kind === "base" ? initialThrowPoint : homePoint),
             to: targetPoint,
-            kind: lastNode ? "throw" : "hit"
+            kind: segmentKind
           }
         ]
       };
@@ -733,6 +737,14 @@ function FieldStage({
       <img className="field-art" src="assets/baseball-field.png" alt="" />
 
       <svg className="field-play-lines" aria-hidden="true">
+        <defs>
+          <marker id="field-hit-arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" />
+          </marker>
+          <marker id="field-throw-arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" />
+          </marker>
+        </defs>
         {fieldPlay.segments.map((segment) => (
           <line
             className={`field-play-line ${segment.kind}`}
@@ -741,6 +753,7 @@ function FieldStage({
             y1={segment.from.y}
             x2={segment.to.x}
             y2={segment.to.y}
+            markerEnd={`url(#field-${segment.kind}-arrow)`}
           />
         ))}
       </svg>
