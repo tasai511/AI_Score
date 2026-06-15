@@ -807,6 +807,15 @@ i.red {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.32),
     0 4px 8px rgba(34, 39, 47, 0.14);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pitch-buttons button:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.28);
+  opacity: 0.58;
 }
 
 .pitch-buttons span {

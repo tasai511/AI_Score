@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { AppState, PitchType, Player, TabKey, TeamKey } from "./types";
 import { initialState } from "./data";
@@ -47,6 +47,7 @@ export function App() {
   const [dialogMode, setDialogMode] = useState<DialogMode>(null);
   const [forceRegistration, setForceRegistration] = useState(false);
   const [dragging, setDragging] = useState<{ teamKey: TeamKey; rowId: string } | null>(null);
+  const lastPitchPointerId = useRef<number | null>(null);
 
   const ownBatting = isOwnBattingNow(state);
   const battingTeamKey = getBattingTeamKey(state);
@@ -124,6 +125,20 @@ export function App() {
     }
 
     setState((current) => applyPitch(current, type));
+  }
+
+  function handlePitchPointer(type: PitchType, pointerId: number) {
+    lastPitchPointerId.current = pointerId;
+    handlePitch(type);
+  }
+
+  function handlePitchClick(type: PitchType) {
+    if (lastPitchPointerId.current !== null) {
+      lastPitchPointerId.current = null;
+      return;
+    }
+
+    handlePitch(type);
   }
 
   function closeDialog() {
@@ -250,16 +265,40 @@ export function App() {
             <FieldStage state={state} />
 
             <section className="pitch-buttons" aria-label="投球入力">
-              <button className="strike" type="button" onClick={() => handlePitch("strike")}>
+              <button
+                className="strike"
+                type="button"
+                disabled={Boolean(state.plate.result)}
+                onPointerUp={(event) => handlePitchPointer("strike", event.pointerId)}
+                onClick={() => handlePitchClick("strike")}
+              >
                 <span>{"\u2715"}</span>ストライク
               </button>
-              <button className="foul" type="button" onClick={() => handlePitch("foul")}>
+              <button
+                className="foul"
+                type="button"
+                disabled={Boolean(state.plate.result)}
+                onPointerUp={(event) => handlePitchPointer("foul", event.pointerId)}
+                onClick={() => handlePitchClick("foul")}
+              >
                 <span>{"\u25b3"}</span>ファール
               </button>
-              <button className="ball" type="button" onClick={() => handlePitch("ball")}>
+              <button
+                className="ball"
+                type="button"
+                disabled={Boolean(state.plate.result)}
+                onPointerUp={(event) => handlePitchPointer("ball", event.pointerId)}
+                onClick={() => handlePitchClick("ball")}
+              >
                 <span>{"\u25cf"}</span>ボール
               </button>
-              <button className="dead" type="button" onClick={() => handlePitch("dead")}>
+              <button
+                className="dead"
+                type="button"
+                disabled={Boolean(state.plate.result)}
+                onPointerUp={(event) => handlePitchPointer("dead", event.pointerId)}
+                onClick={() => handlePitchClick("dead")}
+              >
                 <span>DB</span>デッドボール
               </button>
             </section>
