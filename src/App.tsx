@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { Dispatch, SetStateAction } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { Dispatch, KeyboardEvent, PointerEvent, SetStateAction } from "react";
 import type { AppState, PitchType, Player, TabKey, TeamKey } from "./types";
 import { initialState } from "./data";
 import {
@@ -50,7 +50,6 @@ export function App() {
   const [dialogMode, setDialogMode] = useState<DialogMode>(null);
   const [forceRegistration, setForceRegistration] = useState(false);
   const [dragging, setDragging] = useState<{ teamKey: TeamKey; rowId: string } | null>(null);
-  const lastPitchPointerId = useRef<number | null>(null);
 
   const ownBatting = isOwnBattingNow(state);
   const battingTeamKey = getBattingTeamKey(state);
@@ -130,17 +129,18 @@ export function App() {
     setState((current) => applyPitch(current, type));
   }
 
-  function handlePitchPointer(type: PitchType, pointerId: number) {
-    lastPitchPointerId.current = pointerId;
+  function handlePitchPointer(type: PitchType, event: PointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0) return;
+    event.preventDefault();
     handlePitch(type);
   }
 
-  function handlePitchClick(type: PitchType) {
-    if (lastPitchPointerId.current !== null) {
-      lastPitchPointerId.current = null;
+  function handlePitchKey(type: PitchType, event: KeyboardEvent<HTMLButtonElement>) {
+    if (event.key !== "Enter" && event.key !== " ") {
       return;
     }
 
+    event.preventDefault();
     handlePitch(type);
   }
 
@@ -272,8 +272,8 @@ export function App() {
                 className="strike"
                 type="button"
                 disabled={Boolean(state.plate.result)}
-                onPointerUp={(event) => handlePitchPointer("strike", event.pointerId)}
-                onClick={() => handlePitchClick("strike")}
+                onPointerDown={(event) => handlePitchPointer("strike", event)}
+                onKeyDown={(event) => handlePitchKey("strike", event)}
               >
                 <span>{"\u2715"}</span>ストライク
               </button>
@@ -281,8 +281,8 @@ export function App() {
                 className="foul"
                 type="button"
                 disabled={Boolean(state.plate.result)}
-                onPointerUp={(event) => handlePitchPointer("foul", event.pointerId)}
-                onClick={() => handlePitchClick("foul")}
+                onPointerDown={(event) => handlePitchPointer("foul", event)}
+                onKeyDown={(event) => handlePitchKey("foul", event)}
               >
                 <span>{"\u25b3"}</span>ファール
               </button>
@@ -290,8 +290,8 @@ export function App() {
                 className="ball"
                 type="button"
                 disabled={Boolean(state.plate.result)}
-                onPointerUp={(event) => handlePitchPointer("ball", event.pointerId)}
-                onClick={() => handlePitchClick("ball")}
+                onPointerDown={(event) => handlePitchPointer("ball", event)}
+                onKeyDown={(event) => handlePitchKey("ball", event)}
               >
                 <span>{"\u25cf"}</span>ボール
               </button>
@@ -299,8 +299,8 @@ export function App() {
                 className="dead"
                 type="button"
                 disabled={Boolean(state.plate.result)}
-                onPointerUp={(event) => handlePitchPointer("dead", event.pointerId)}
-                onClick={() => handlePitchClick("dead")}
+                onPointerDown={(event) => handlePitchPointer("dead", event)}
+                onKeyDown={(event) => handlePitchKey("dead", event)}
               >
                 <span>DB</span>デッドボール
               </button>
