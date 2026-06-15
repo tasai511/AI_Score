@@ -484,9 +484,19 @@ input {
   border-radius: 50%;
   background: #e8f1ff;
   color: #1160c7;
-  font-size: 0.72rem;
+  font-size: 0;
   font-weight: 900;
   line-height: 1;
+}
+
+.edit-cue::before {
+  content: "";
+  width: 0;
+  height: 0;
+  margin-top: 2px;
+  border-top: 7px solid currentColor;
+  border-right: 6px solid transparent;
+  border-left: 6px solid transparent;
 }
 
 .score-cell {
@@ -600,7 +610,7 @@ i.red {
 .field-art {
   position: absolute;
   left: 50%;
-  top: 8px;
+  top: 78px;
   width: 134%;
   max-width: none;
   pointer-events: none;
@@ -626,8 +636,8 @@ i.red {
 .base-marker::before {
   content: "";
   display: block;
-  width: 21px;
-  height: 21px;
+  width: 26px;
+  height: 26px;
   border: 1px solid rgba(180, 188, 199, 0.8);
   background: linear-gradient(#fff, #f5f7fb);
   box-shadow: 0 3px 7px rgba(34, 39, 47, 0.22);
@@ -645,16 +655,16 @@ i.red {
 }
 
 .base-home::before {
-  width: 25px;
-  height: 20px;
+  width: 20px;
+  height: 22px;
   clip-path: polygon(0 0, 100% 0, 100% 66%, 50% 100%, 0 66%);
   transform: none;
 }
 
-.base-first { left: 75.5%; top: 63.1%; }
-.base-second { left: 50%; top: 45.4%; }
-.base-third { left: 24.5%; top: 63.1%; }
-.base-home { left: 50%; top: 84.4%; }
+.base-first { left: 80%; top: 61.8%; }
+.base-second { left: 49.8%; top: 37.7%; }
+.base-third { left: 19.7%; top: 61.8%; }
+.base-home { left: 49.8%; top: 85.7%; }
 
 .position {
   position: absolute;
@@ -689,8 +699,8 @@ i.red {
 .pos-second { right: 132px; top: 192px; }
 .pos-third { left: 88px; top: 264px; }
 .pos-first { right: 88px; top: 264px; }
-.pos-pitcher { left: 50%; top: 312px; transform: translateX(-50%); }
-.pos-catcher { left: 50%; top: 476px; transform: translateX(-50%); }
+.pos-pitcher { left: 50%; top: 326px; transform: translateX(-50%); }
+.pos-catcher { left: 50%; top: 496px; transform: translateX(-50%); }
 
 .decision-bubble {
   position: absolute;
@@ -746,12 +756,12 @@ i.red {
 }
 
 .runner-third {
-  left: 24px;
+  left: 16px;
   top: 326px;
 }
 
 .runner-first {
-  right: 24px;
+  right: 16px;
   top: 326px;
 }
 
@@ -1105,24 +1115,30 @@ i.red {
   }
 
   .field-art {
+    top: 75px;
     width: 142%;
   }
 
+  .base-first { left: 75%; top: 63%; }
+  .base-second { left: 49.9%; top: 38.9%; }
+  .base-third { left: 24.5%; top: 63%; }
+  .base-home { left: 49.4%; top: 87.4%; }
+
   .pos-catcher {
-    top: 454px;
+    top: 470px;
   }
 
   .runner-third,
   .runner-first {
-    top: 310px;
+    top: 318px;
   }
 
   .runner-third {
-    left: 18px;
+    left: 24px;
   }
 
   .runner-first {
-    right: 18px;
+    right: 24px;
   }
 
   .broadcast-board {
