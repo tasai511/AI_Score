@@ -69,7 +69,9 @@ input {
   align-items: center;
   width: min(100vw, 430px);
   padding: 10px 12px 8px;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 1px 0 rgba(24, 39, 65, 0.08);
+  backdrop-filter: blur(10px);
   transform: translateX(-50%);
 }
 

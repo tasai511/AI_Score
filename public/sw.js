@@ -1,4 +1,4 @@
-const CACHE_NAME = "ai-score-v11";
+const CACHE_NAME = "ai-score-v12";
 const APP_SHELL = [
   "./",
   "./index.html",
