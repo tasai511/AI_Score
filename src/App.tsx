@@ -6,6 +6,7 @@ import {
   advanceReasonLabels,
   advanceRunner,
   applyFieldOut,
+  applyHomeRun,
   applyHomeRunnerOut,
   applyInitialFieldError,
   applyPitch,
@@ -172,6 +173,7 @@ export function App() {
   const [pitchAdvanceRequest, setPitchAdvanceRequest] = useState<PitchAdvanceRequest | null>(null);
   const [pendingPitchContext, setPendingPitchContext] = useState<PendingPitchContext>(null);
   const [liveScorePreviewActive, setLiveScorePreviewActive] = useState(false);
+  const [plateActionsLocked, setPlateActionsLocked] = useState(false);
   const inputSnapshotRef = useRef<AppState | null>(null);
 
   const ownBatting = isOwnBattingNow(state);
@@ -402,6 +404,14 @@ export function App() {
     setNeedsPlateConfirm(true);
   }
 
+  function handleHomeRun() {
+    setState((current) => {
+      captureInputSnapshot(current);
+      return applyHomeRun(current);
+    });
+    setNeedsPlateConfirm(true);
+  }
+
   function resolvePendingFieldOutSource(current: AppState, fieldOut: PendingFieldOut): RunnerSource {
     if (fieldOut.source === "batter") return "batter";
 
@@ -440,6 +450,7 @@ export function App() {
     setPitchAdvanceRequest(null);
     setPendingPitchContext(null);
     setLiveScorePreviewActive(false);
+    setPlateActionsLocked(false);
     setNeedsPlateConfirm(false);
     setFieldSelection(null);
     setFieldResetToken((token) => token + 1);
@@ -453,6 +464,7 @@ export function App() {
     setPitchAdvanceRequest(null);
     setPendingPitchContext(null);
     setLiveScorePreviewActive(false);
+    setPlateActionsLocked(false);
     setNeedsPlateConfirm(false);
     setFieldSelection(null);
     setFieldResetToken((token) => token + 1);
@@ -626,7 +638,9 @@ export function App() {
               onFieldFoulStart={handleFieldFoulStart}
               onPitchAdvanceAnimationComplete={handlePitchAdvanceAnimationComplete}
               onFieldPlayStarted={handleFieldPlayStarted}
-            />
+              onHomeRun={handleHomeRun}
+              onPlateActionLockChange={setPlateActionsLocked}
+              />
 
             <section className="pitch-buttons" aria-label="pitch input">
               <button
@@ -671,7 +685,7 @@ export function App() {
               </button>
             </section>
 
-            {needsPlateConfirm && (
+            {needsPlateConfirm && !plateActionsLocked && (
               <section className="plate-actions" aria-label="plate actions">
                 <button className="plate-cancel-button" type="button" onClick={handleCancelPlate}>
                   取り消し
@@ -1086,6 +1100,8 @@ function FieldStage({
   onFieldFoulStart,
   onPitchAdvanceAnimationComplete,
   onFieldPlayStarted,
+  onHomeRun,
+  onPlateActionLockChange,
   setFieldSelection
 }: {
   state: AppState;
@@ -1111,9 +1127,11 @@ function FieldStage({
   onFieldFoulStart: () => boolean;
   onPitchAdvanceAnimationComplete: (type: PitchAdvanceType) => void;
   onFieldPlayStarted: () => void;
+  onHomeRun: () => void;
+  onPlateActionLockChange: (locked: boolean) => void;
   setFieldSelection: Dispatch<SetStateAction<string | null>>;
 }) {
-  type FieldDecision = "fly-out" | "out" | "safe" | "error";
+  type FieldDecision = "fly-out" | "out" | "safe" | "error" | "home-run";
   type FieldPoint = { x: number; y: number };
   type FieldTarget = {
     key: string;
@@ -1203,6 +1221,7 @@ function FieldStage({
   const positionMoveAnimationFrameRefs = useRef<Record<string, number>>({});
   const decisionBubbleTimerRefs = useRef<number[]>([]);
   const advanceTargetTimerRef = useRef<number | null>(null);
+  const homeRunAnimationTimerRefs = useRef<number[]>([]);
   const handledPitchAdvanceRequestRef = useRef<number | null>(null);
   const dragLockScrollRef = useRef<{ x: number; y: number } | null>(null);
   const ownBatting = isOwnBattingNow(state);
@@ -1227,6 +1246,7 @@ function FieldStage({
   const [manualAdvancePlay, setManualAdvancePlay] = useState<ManualAdvancePlay | null>(null);
   const [runnerDrag, setRunnerDrag] = useState<RunnerDrag | null>(null);
   const [runnerAnimations, setRunnerAnimations] = useState<RunnerAnimation[]>([]);
+  const [homeRunAnimating, setHomeRunAnimating] = useState(false);
   const [positionMovePoints, setPositionMovePoints] = useState<Record<string, FieldPoint>>({});
   const [scoredRunners, setScoredRunners] = useState<ScoredRunnerVisual[]>([]);
   const [fieldArtBox, setFieldArtBox] = useState<FieldArtBox | null>(null);
@@ -1313,6 +1333,11 @@ function FieldStage({
     );
   }
 
+  function clearHomeRunAnimationTimers() {
+    homeRunAnimationTimerRefs.current.forEach((timerId) => window.clearTimeout(timerId));
+    homeRunAnimationTimerRefs.current = [];
+  }
+
   useEffect(() => {
     setFieldPlay({
       activeNodeId: null,
@@ -1323,12 +1348,15 @@ function FieldStage({
     setAdvanceTarget(null);
     setManualAdvancePlay(null);
     setRunnerAnimations([]);
+    setHomeRunAnimating(false);
     setPositionMovePoints({});
     setScoredRunners([]);
+    onPlateActionLockChange(false);
     if (runnerAnimationTimerRef.current) {
       window.clearTimeout(runnerAnimationTimerRef.current);
       runnerAnimationTimerRef.current = null;
     }
+    clearHomeRunAnimationTimers();
     if (advanceTargetTimerRef.current) {
       window.clearTimeout(advanceTargetTimerRef.current);
       advanceTargetTimerRef.current = null;
@@ -1342,11 +1370,13 @@ function FieldStage({
   useEffect(() => {
     return () => {
       if (runnerAnimationTimerRef.current) window.clearTimeout(runnerAnimationTimerRef.current);
+      clearHomeRunAnimationTimers();
       if (advanceTargetTimerRef.current) window.clearTimeout(advanceTargetTimerRef.current);
       decisionBubbleTimerRefs.current.forEach((timerId) => window.clearTimeout(timerId));
       Object.values(positionMoveAnimationFrameRefs.current).forEach((frameId) => window.cancelAnimationFrame(frameId));
+      onPlateActionLockChange(false);
     };
-  }, []);
+  }, [onPlateActionLockChange]);
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -1911,6 +1941,14 @@ function FieldStage({
     return fieldPlay.nodes[0]?.id === node.id && (node.kind === "position" || node.kind === "foul");
   }
 
+  function isOutfieldOverNode(node: FieldPlayNode) {
+    return node.kind === "position" && node.key.endsWith("-over");
+  }
+
+  function isHomeRunDecisionNode(node: FieldPlayNode) {
+    return isInitialHitNode(node) && isOutfieldOverNode(node);
+  }
+
   function isFoulCatchNode(node: FieldPlayNode) {
     if (node.kind !== "position" || !node.decisionEnabled) return false;
     const segment = fieldPlay.segments.find((current) => current.toNodeId === node.id);
@@ -1920,7 +1958,7 @@ function FieldStage({
   }
 
   function isInitialHitDecisionNode(node: FieldPlayNode) {
-    return isInitialHitNode(node) && node.kind === "position";
+    return isInitialHitNode(node) && node.kind === "position" && !isHomeRunDecisionNode(node);
   }
 
   function isSingleDecisionActionNode(node: FieldPlayNode) {
@@ -2001,6 +2039,9 @@ function FieldStage({
   }
 
   function getDecisionBubbleSize(node: FieldPlayNode) {
+    if (isHomeRunDecisionNode(node)) {
+      return { width: 102, height: 42 };
+    }
     if (isSingleDecisionActionNode(node)) {
       return { width: 76, height: 42 };
     }
@@ -2010,8 +2051,9 @@ function FieldStage({
   function getDecisionBubbleEntries() {
     const visibleNodes = fieldPlay.nodes.filter((node) => {
       const canShowDecisionBubble =
-        !node.suppressDecisionBubble &&
-        (isFoulCatchNode(node) || isInitialHitNode(node) || (node.kind === "base" && node.decisionEnabled));
+        isHomeRunDecisionNode(node) ||
+        (!node.suppressDecisionBubble &&
+          (isFoulCatchNode(node) || isInitialHitNode(node) || (node.kind === "base" && node.decisionEnabled)));
       return canShowDecisionBubble && (node.decision || node.bubbleOpen || node.id === fieldPlay.activeNodeId);
     });
     const placementOrder = [...visibleNodes].sort((a, b) => {
@@ -2844,6 +2886,173 @@ function FieldStage({
     startForcedAdvanceAnimation(() => onAdvance("batter", "hit"));
   }
 
+  function startHomeRunAnimation() {
+    clearHomeRunAnimationTimers();
+    if (runnerAnimationTimerRef.current) {
+      window.clearTimeout(runnerAnimationTimerRef.current);
+      runnerAnimationTimerRef.current = null;
+    }
+    setRunnerAnimations([]);
+    setHomeRunAnimating(true);
+    onPlateActionLockChange(true);
+
+    const phases: RunnerAnimation[][] = [];
+    const phaseScores: RunnerSource[][] = [];
+    const pushPhaseAnimation = (phaseIndex: number, animation: RunnerAnimation) => {
+      if (!phases[phaseIndex]) phases[phaseIndex] = [];
+      phases[phaseIndex].push(animation);
+    };
+    const pushPhaseScore = (phaseIndex: number, source: RunnerSource) => {
+      if (!phaseScores[phaseIndex]) phaseScores[phaseIndex] = [];
+      phaseScores[phaseIndex].push(source);
+    };
+
+    const runnerImageSrc = ownBatting ? RUNNER_RED_ASSET : RUNNER_BLUE_ASSET;
+    const batterImageSrc = ownBatting ? "assets/batter-red.png" : "assets/batter-blue.png";
+    const homePoint = getHomePendingPoint();
+    const phaseDuration = 360;
+    const now = Date.now();
+
+    if (state.game.runners.third) {
+      pushPhaseAnimation(0, {
+        id: `hr-third-0-${now}`,
+        source: "third",
+        from: getTargetPoint("runner-third"),
+        to: homePoint,
+        imageSrc: runnerImageSrc,
+        batter: false,
+        mirrored: false
+      });
+      pushPhaseScore(0, "third");
+    }
+
+    if (state.game.runners.second) {
+      pushPhaseAnimation(0, {
+        id: `hr-second-0-${now}`,
+        source: "second",
+        from: getTargetPoint("runner-second"),
+        to: getTargetPoint("runner-slot-third"),
+        imageSrc: runnerImageSrc,
+        batter: false,
+        mirrored: false
+      });
+      pushPhaseAnimation(1, {
+        id: `hr-second-1-${now}`,
+        source: "second",
+        from: getTargetPoint("runner-slot-third"),
+        to: homePoint,
+        imageSrc: runnerImageSrc,
+        batter: false,
+        mirrored: false
+      });
+      pushPhaseScore(1, "second");
+    }
+
+    if (state.game.runners.first) {
+      pushPhaseAnimation(0, {
+        id: `hr-first-0-${now}`,
+        source: "first",
+        from: getTargetPoint("runner-first"),
+        to: getTargetPoint("runner-slot-second"),
+        imageSrc: runnerImageSrc,
+        batter: false,
+        mirrored: false
+      });
+      pushPhaseAnimation(1, {
+        id: `hr-first-1-${now}`,
+        source: "first",
+        from: getTargetPoint("runner-slot-second"),
+        to: getTargetPoint("runner-slot-third"),
+        imageSrc: runnerImageSrc,
+        batter: false,
+        mirrored: false
+      });
+      pushPhaseAnimation(2, {
+        id: `hr-first-2-${now}`,
+        source: "first",
+        from: getTargetPoint("runner-slot-third"),
+        to: homePoint,
+        imageSrc: runnerImageSrc,
+        batter: false,
+        mirrored: false
+      });
+      pushPhaseScore(2, "first");
+    }
+
+    pushPhaseAnimation(0, {
+      id: `hr-batter-0-${now}`,
+      source: "batter",
+      from: getTargetPoint("runner-batter"),
+      to: getTargetPoint("runner-slot-first"),
+      imageSrc: batterImageSrc,
+      batter: true,
+      mirrored: currentBatterBox === "left"
+    });
+    pushPhaseAnimation(1, {
+      id: `hr-batter-1-${now}`,
+      source: "batter",
+      from: getTargetPoint("runner-slot-first"),
+      to: getTargetPoint("runner-slot-second"),
+      imageSrc: runnerImageSrc,
+      batter: false,
+      mirrored: false
+    });
+    pushPhaseAnimation(2, {
+      id: `hr-batter-2-${now}`,
+      source: "batter",
+      from: getTargetPoint("runner-slot-second"),
+      to: getTargetPoint("runner-slot-third"),
+      imageSrc: runnerImageSrc,
+      batter: false,
+      mirrored: false
+    });
+    pushPhaseAnimation(3, {
+      id: `hr-batter-3-${now}`,
+      source: "batter",
+      from: getTargetPoint("runner-slot-third"),
+      to: homePoint,
+      imageSrc: runnerImageSrc,
+      batter: false,
+      mirrored: false
+    });
+    pushPhaseScore(3, "batter");
+
+    const effectivePhases = phases
+      .map((phase, index) => ({ phase, scores: phaseScores[index] ?? [] }))
+      .filter((entry) => entry.phase?.length);
+    if (!effectivePhases.length) {
+      setHomeRunAnimating(false);
+      onPlateActionLockChange(false);
+      onLiveScorePreview();
+      return;
+    }
+
+    effectivePhases.forEach(({ phase, scores }, phaseIndex) => {
+      const startTimer = window.setTimeout(() => {
+        setRunnerAnimations(phase);
+      }, phaseIndex * phaseDuration);
+      homeRunAnimationTimerRefs.current.push(startTimer);
+
+      const endTimer = window.setTimeout(() => {
+        setRunnerAnimations((current) => current.filter((animation) => !phase.some((step) => step.id === animation.id)));
+        scores.forEach((source) => addScoredRunner(source, true, true));
+        if (phaseIndex === effectivePhases.length - 1) {
+          setHomeRunAnimating(false);
+          onLiveScorePreview();
+          onPlateActionLockChange(false);
+        }
+      }, (phaseIndex + 1) * phaseDuration);
+      homeRunAnimationTimerRefs.current.push(endTimer);
+    });
+  }
+
+  function handleHomeRunLikePlay() {
+    setAdvanceTarget(null);
+    setManualAdvancePlay(null);
+    onHomeRun();
+    startHomeRunAnimation();
+  }
+
   function getDistance(a: FieldPoint, b: FieldPoint) {
     return Math.hypot(a.x - b.x, a.y - b.y);
   }
@@ -2992,6 +3201,7 @@ function FieldStage({
   }
 
   function handleFieldTarget(target: FieldTarget, runnerSourceOverride?: RunnerSource | null) {
+    if (homeRunAnimating) return;
     const lastNode = fieldPlay.nodes[fieldPlay.nodes.length - 1];
     const isPendingFoulCatch = lastNode?.kind === "foul" && target.kind === "position";
     if (target.kind === "position" && lastNode?.kind === "position" && target.label === lastNode.label) {
@@ -3043,7 +3253,8 @@ function FieldStage({
     const catcherThrowAfterPitch = state.plate.pitches.some((pitch) => pitch === "\u2715" || pitch === "\u25cf");
     const initialThrowPoint = getTargetPoint(catcherThrowAfterPitch ? "position-2" : "position-1");
     const currentBallHolderNode = getCurrentBallHolderNode();
-    const shouldAutoAdvanceBatterOnHit = !fieldPlay.nodes.length && target.kind === "position" && !runnerAdvanceModeActive;
+    const shouldAutoAdvanceBatterOnHit =
+      !fieldPlay.nodes.length && target.kind === "position" && !target.key.endsWith("-over") && !runnerAdvanceModeActive;
     const pendingHomeRunnerSource =
       getPendingHomeRunner()?.source ??
       [...fieldPlay.nodes]
@@ -3186,8 +3397,19 @@ function FieldStage({
   function chooseDecision(nodeId: string, decision: FieldDecision) {
     const decidedNode = fieldPlay.nodes.find((node) => node.id === nodeId);
     const isInitialHitErrorDecision = decision === "error" && Boolean(decidedNode && isInitialHitDecisionNode(decidedNode));
-    if (decidedNode?.kind !== "base" && decision !== "fly-out" && !isInitialHitErrorDecision) return;
+    const isHomeRunDecision = decision === "home-run" && Boolean(decidedNode && isHomeRunDecisionNode(decidedNode));
+    if (decidedNode?.kind !== "base" && decision !== "fly-out" && !isInitialHitErrorDecision && !isHomeRunDecision) return;
     if (decidedNode?.kind === "base" && !decidedNode.decisionEnabled) return;
+
+    if (isHomeRunDecision && decidedNode) {
+      setFieldPlay((current) => ({
+        ...current,
+        activeNodeId: nodeId,
+        nodes: current.nodes.map((node) => (node.id === nodeId ? { ...node, decision: "home-run" as FieldDecision } : node))
+      }));
+      handleHomeRunLikePlay();
+      return;
+    }
 
     const resolvedRunnerSource = decidedNode ? getResolvedRunnerSource(decidedNode) : null;
     const resolvedRunnerId = decidedNode?.runnerId ?? getRunnerIdForSource(resolvedRunnerSource);
@@ -3392,6 +3614,7 @@ function FieldStage({
   }
 
   function startRunnerDrag(source: RunnerSource, imageSrc: string, event: PointerEvent<HTMLButtonElement>, mirrored = false) {
+    if (homeRunAnimating) return;
     if (deadBallPending) return;
     if (liveCountPending && source === "batter") return;
 
@@ -3434,6 +3657,14 @@ function FieldStage({
   }
 
   function renderDecisionButtons(node: FieldPlayNode) {
+    if (isHomeRunDecisionNode(node)) {
+      return (
+        <button className={node.decision === "home-run" ? "selected" : ""} type="button" onClick={() => chooseDecision(node.id, "home-run")}>
+          ホームラン
+        </button>
+      );
+    }
+
     if (isInitialHitDecisionNode(node)) {
       return (
         <>
@@ -3796,7 +4027,7 @@ function FieldStage({
       <div className="field-bubble-layer">
         {getDecisionBubbleEntries().map(({ node, point, shift, zIndex }) => (
             <div
-              className={`play-decision-bubble${isSingleDecisionActionNode(node) ? " compact-bubble" : ""}${node.decision ? ` is-${node.decision}` : ""}`}
+              className={`play-decision-bubble${isSingleDecisionActionNode(node) ? " compact-bubble" : ""}${isHomeRunDecisionNode(node) ? " home-run-bubble" : ""}${node.decision ? ` is-${node.decision}` : ""}`}
               key={node.id}
               style={
                 {

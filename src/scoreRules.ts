@@ -354,6 +354,34 @@ export function applyInitialFieldError(state: AppState): AppState {
   return next;
 }
 
+export function applyHomeRun(state: AppState): AppState {
+  const next: AppState = structuredClone(state);
+  next.game.firstPitchEntered = true;
+  next.game.gameStarted = true;
+  next.game.hitType = "home-run";
+  next.plate.result = "本";
+  next.game.balls = 0;
+  next.game.strikes = 0;
+
+  const runnersToScore = (["third", "second", "first"] as BaseKey[])
+    .map((base) => next.game.runners[base])
+    .filter((runner): runner is RunnerState => Boolean(runner));
+
+  next.game.runners = {
+    first: null,
+    second: null,
+    third: null
+  };
+
+  runnersToScore.forEach((runner) => {
+    scoreRunner(next, withAdvanceNote(runner, "hit"));
+  });
+
+  scoreRunner(next, getCurrentBatterRunner(next, "hit"));
+  syncRunnerFirst(next);
+  return next;
+}
+
 export function moveRunnerToDestination(state: AppState, source: RunnerSource, destination: RunnerDestination, reason: AdvanceReason): AppState {
   if (!canMoveRunnerForward(state, source, destination)) return state;
 

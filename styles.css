@@ -1077,10 +1077,15 @@ i.red {
   width: 76px;
 }
 
+.play-decision-bubble.home-run-bubble {
+  width: 102px;
+}
+
 .play-decision-bubble.is-out,
 .play-decision-bubble.is-safe,
 .play-decision-bubble.is-fly-out,
-.play-decision-bubble.is-error {
+.play-decision-bubble.is-error,
+.play-decision-bubble.is-home-run {
   opacity: 0.62;
 }
 
@@ -1114,6 +1119,11 @@ i.red {
   font-size: 0.52rem;
 }
 
+.play-decision-bubble.home-run-bubble .play-decision-subject {
+  padding: 3px 5px 2px;
+  font-size: 0.52rem;
+}
+
 .play-decision-actions {
   position: relative;
   z-index: 1;
@@ -1139,6 +1149,12 @@ i.red {
   min-height: 23px;
   padding: 2px 4px;
   font-size: 0.6rem;
+}
+
+.play-decision-bubble.home-run-bubble .play-decision-actions button {
+  min-height: 23px;
+  padding: 2px 4px;
+  font-size: 0.64rem;
 }
 
 .play-decision-actions button + button {
