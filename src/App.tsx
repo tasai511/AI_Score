@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+﻿import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, Dispatch, KeyboardEvent, PointerEvent, SetStateAction } from "react";
 import type { AdvanceReason, AppState, BaseKey, BatterBox, PitchType, Player, RunnerDestination, RunnerSource, TabKey, TeamKey } from "./types";
 import { initialState } from "./data";
@@ -43,33 +43,33 @@ type PitchAdvanceRequest = {
   type: PitchAdvanceType;
 };
 
-const FIELD_IMAGE_WIDTH = 640;
-const FIELD_IMAGE_HEIGHT = 576;
+const FIELD_IMAGE_WIDTH = 1254;
+const FIELD_IMAGE_HEIGHT = 1254;
 
 const FIELD_IMAGE_POINTS = {
-  "base-first": { x: 462, y: 336 },
-  "base-second": { x: 318, y: 192 },
-  "base-third": { x: 174, y: 336 },
-  "base-home": { x: 318.4, y: 480 },
-  "foul-zone-left": { x: 108, y: 398 },
-  "foul-zone-right": { x: 528, y: 398 },
-  "position-1": { x: 320, y: 370.98 },
-  "position-2": { x: 320, y: 524.26 },
-  "position-3": { x: 421, y: 300 },
-  "position-4": { x: 388, y: 216 },
-  "position-5": { x: 219, y: 300 },
-  "position-6": { x: 252, y: 216 },
-  "position-7": { x: 132, y: 132 },
-  "position-8": { x: 320, y: 94 },
-  "position-9": { x: 508, y: 132 },
-  "position-7-over": { x: 132, y: 78 },
-  "position-8-over": { x: 320, y: 40 },
-  "position-9-over": { x: 508, y: 78 },
-  "runner-slot-first": { x: 520.6, y: 352.06 },
-  "runner-slot-second": { x: 343.88, y: 169.74 },
-  "runner-slot-third": { x: 119.4, y: 352.06 },
-  "batter-box-left": { x: 353.43, y: 474.65 },
-  "batter-box-right": { x: 286.57, y: 474.65 }
+  "base-first": { x: 913.03, y: 657.66 },
+  "base-second": { x: 626.48, y: 370.22 },
+  "base-third": { x: 340.97, y: 657.66 },
+  "base-home": { x: 626.39, y: 966.2 },
+  "foul-zone-left": { x: 211.61, y: 866.48 },
+  "foul-zone-right": { x: 1034.55, y: 866.48 },
+  "position-1": { x: 627, y: 706 },
+  "position-2": { x: 627, y: 1054 },
+  "position-3": { x: 824.9, y: 588 },
+  "position-4": { x: 760.24, y: 446 },
+  "position-5": { x: 429.1, y: 588 },
+  "position-6": { x: 493.76, y: 446 },
+  "position-7": { x: 258.64, y: 287.38 },
+  "position-8": { x: 627, y: 204.65 },
+  "position-9": { x: 995.36, y: 287.38 },
+  "position-7-over": { x: 258.64, y: 169.81 },
+  "position-8-over": { x: 627, y: 87.08 },
+  "position-9-over": { x: 995.36, y: 169.81 },
+  "runner-slot-first": { x: 1004, y: 708 },
+  "runner-slot-second": { x: 676, y: 340 },
+  "runner-slot-third": { x: 250, y: 708 },
+  "batter-box-left": { x: 682.85, y: 952 },
+  "batter-box-right": { x: 571.47, y: 952 }
 } as const;
 
 function moveRow<T>(rows: T[], fromIndex: number, toIndex: number) {
@@ -505,7 +505,11 @@ export function App() {
         {activeTab === "score" && (
           <section className="view score-view" data-view="score">
             <section className="player-row" aria-label="current players">
+              <div className="player-summary-card">
+                <div className="player-summary-main">
+                  <div className="player-battery-panel">
               <img className="batter-icon" src={ownBatting ? "assets/batter-red.png" : "assets/batter-blue.png"} alt="" />
+                    <div className="player-battery-copy">
               <button className="pitcher-select" type="button" onClick={() => setDialogMode("pitcher")}>
                 <span>ピッチャー</span>
                 <b>
@@ -520,8 +524,12 @@ export function App() {
                   <span className="edit-cue" aria-hidden="true" />
                 </strong>
               </button>
-              <RunnerScoreStrip state={state} />
-              <ScoreCell state={state} pendingOuts={pendingFieldOuts} />
+                    </div>
+                  </div>
+                  <ScoreCell state={state} pendingOuts={pendingFieldOuts} />
+                </div>
+                <RunnerScoreStrip state={state} />
+              </div>
             </section>
 
             <FieldStage
@@ -3258,7 +3266,7 @@ function FieldStage({
           }`}
           type="button"
           key={className}
-          aria-label={`螳亥ｙ菴咲ｽｮ${number}`}
+          aria-label={`\u5b88\u5099\u4f4d\u7f6e${number}`}
           style={getFieldAnchorStyle(`position-${number}` as keyof typeof FIELD_IMAGE_POINTS)}
           ref={(node) => setTargetRef(`position-${number}`, node)}
           onClick={() => handleFieldTarget(makePositionTarget(className, number))}
@@ -3382,7 +3390,7 @@ function FieldStage({
             }`}
             type="button"
             key={`${baseKey}-${runner.id}`}
-            aria-label={`${formatPlayerLabel(runner)} 繝ｩ繝ｳ繝翫・`}
+            aria-label={`${formatPlayerLabel(runner)} \u30e9\u30f3\u30ca\u30fc`}
             style={getFieldAnchorStyle(`runner-slot-${baseKey}` as keyof typeof FIELD_IMAGE_POINTS)}
             ref={(node) => setTargetRef(`runner-${baseKey}`, node)}
             onPointerDown={(event) => {

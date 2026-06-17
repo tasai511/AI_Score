@@ -1,4 +1,4 @@
-export type BattingSide = "top" | "bottom";
+﻿export type BattingSide = "top" | "bottom";
 export type TeamKey = "own" | "opponent";
 export type TabKey = "order" | "score" | "output";
 export type PitchType = "strike" | "foul" | "ball" | "dead";

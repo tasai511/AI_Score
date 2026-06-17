@@ -1,4 +1,4 @@
-import type { AdvanceReason, AppState, BaseKey, PitchType, RunnerDestination, RunnerSource, RunnerState, TeamKey } from "./types";
+﻿import type { AdvanceReason, AppState, BaseKey, PitchType, RunnerDestination, RunnerSource, RunnerState, TeamKey } from "./types";
 
 export const hitMarkAssets = {
   single: "assets/single.svg",

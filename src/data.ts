@@ -1,4 +1,4 @@
-import type { AppState, BatterBox, Player } from "./types";
+﻿import type { AppState, BatterBox, Player } from "./types";
 
 const ownPlayers: Omit<Player, "rowId" | "batterBox">[] = [
   { battingOrder: "1", positionNumber: "3", jerseyNumber: "3", name: "川崎 白輝" },
