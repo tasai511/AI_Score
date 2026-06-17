@@ -629,16 +629,6 @@ export function App() {
             />
 
             <section className="pitch-buttons" aria-label="pitch input">
-              {needsPlateConfirm && (
-                <>
-                  <button className="plate-cancel-button" type="button" onClick={handleCancelPlate}>
-                    取り消し
-                  </button>
-                  <button className="plate-confirm-button" type="button" onClick={handleConfirmPlate}>
-                    {"\u78ba\u5b9a"}
-                  </button>
-                </>
-              )}
               <button
                 className="strike"
                 type="button"
@@ -680,6 +670,17 @@ export function App() {
                 デッドボール
               </button>
             </section>
+
+            {needsPlateConfirm && (
+              <section className="plate-actions" aria-label="plate actions">
+                <button className="plate-cancel-button" type="button" onClick={handleCancelPlate}>
+                  取り消し
+                </button>
+                <button className="plate-confirm-button" type="button" onClick={handleConfirmPlate}>
+                  {"\u78ba\u5b9a"}
+                </button>
+              </section>
+            )}
 
           </section>
         )}
@@ -941,6 +942,39 @@ function getPitchSymbolCoordinate(index: number, total: number) {
   };
 }
 
+function renderScorePitchSymbol(symbol: string, x: number, y: number, key: string) {
+  if (symbol === "\u2715") {
+    return (
+      <g className="score-symbol-shape score-symbol-stroke" transform={`translate(${x} ${y})`} key={key}>
+        <path d="M -26 -26 L 26 26" />
+        <path d="M 26 -26 L -26 26" />
+      </g>
+    );
+  }
+
+  if (symbol === "\u25cf") {
+    return (
+      <g className="score-symbol-shape score-symbol-fill" transform={`translate(${x} ${y})`} key={key}>
+        <circle cx="0" cy="0" r="21" />
+      </g>
+    );
+  }
+
+  if (symbol === "\u25b3") {
+    return (
+      <g className="score-symbol-shape score-symbol-stroke" transform={`translate(${x} ${y})`} key={key}>
+        <path d="M 0 -31.2 L 36 31.2 L -36 31.2 Z" />
+      </g>
+    );
+  }
+
+  return (
+    <text className="score-symbol" x={x} y={y} key={key}>
+      {symbol}
+    </text>
+  );
+}
+
 function ScoreMatrixGraphic({
   pitches,
   hitType = "",
@@ -964,11 +998,7 @@ function ScoreMatrixGraphic({
         <g>
           {pitches.map((symbol, index) => {
             const coordinate = getPitchSymbolCoordinate(index, pitches.length);
-            return (
-              <text className="score-symbol" x={coordinate.x} y={coordinate.y} key={`${symbol}-${index}`}>
-                {symbol}
-              </text>
-            );
+            return renderScorePitchSymbol(symbol, coordinate.x, coordinate.y, `${symbol}-${index}`);
           })}
         </g>
         {outNumber > 0 && (
@@ -1217,14 +1247,22 @@ function FieldStage({
     (node) =>
       node.kind === "base" &&
       node.runnerSource &&
-      (Boolean(node.decision) || Boolean(node.decisionEnabled) || (!node.decision && (node.bubbleOpen || isPendingAdvanceDisplayNode(node))))
+      (Boolean(node.decision) || Boolean(node.decisionEnabled) || (!node.decision && (node.bubbleOpen || isPendingAdvanceDisplayNode(node)))) &&
+      !(
+        getBaseDestinationFromKey(node.key) !== "home" &&
+        (node.decision === "safe" || node.decision === "error") &&
+        isRunnerAlreadyOnNodeBase(node)
+      )
   );
   const homePlayRunnerNodes = basePlayRunnerNodes.filter((node) => getBaseDestinationFromKey(node.key) === "home");
   const basePlayHiddenRunnerNodes = fieldPlay.nodes.filter(
     (node) =>
       node.kind === "base" &&
       node.runnerSource &&
-      (getBaseDestinationFromKey(node.key) === "home" || node.decision === "out" || node.decisionEnabled || isPendingAdvanceDisplayNode(node))
+      (getBaseDestinationFromKey(node.key) === "home" ||
+        node.decision === "out" ||
+        (node.decisionEnabled && !(isRunnerAlreadyOnNodeBase(node) && (node.decision === "safe" || node.decision === "error"))) ||
+        isPendingAdvanceDisplayNode(node))
   );
   const basePlayRunnerIds = new Set(basePlayHiddenRunnerNodes.filter((node) => node.runnerId).map((node) => node.runnerId as string));
   const basePlayRunnerSources = new Set(basePlayHiddenRunnerNodes.filter((node) => !node.runnerId).map((node) => node.runnerSource));
@@ -1431,16 +1469,14 @@ function FieldStage({
       if (!canRunnerAdvanceToDestination(currentDrag.source, drop.destination, getRunnerIdForSource(currentDrag.source))) return;
       if (fieldHitModeActive) {
         if (drop.destination === "home") {
-          ensureManualAdvanceBaseNode(currentDrag.source, drop.destination, false, false, "hit");
           addScoredRunner(currentDrag.source, false);
-          openPreparedDecisionForRunner(currentDrag.source, drop.destination, "hit");
+          onRunnerMove(currentDrag.source, drop.destination, "hit");
           setAdvanceTarget(null);
           return;
         }
 
-        const forcedAdvanceStarted = beginForcedAdvanceDecisionFlow(currentDrag.source, drop.destination, "hit");
+        previewForcedAdvanceFlow(currentDrag.source, drop.destination);
         onRunnerMove(currentDrag.source, drop.destination, "hit");
-        if (!forcedAdvanceStarted) openPreparedDecisionForRunner(currentDrag.source, drop.destination, "hit");
         setAdvanceTarget(null);
         return;
       }
@@ -3352,9 +3388,6 @@ function FieldStage({
     }
 
     onRunnerMove(advanceTarget.source, advanceTarget.destination, reason);
-    if (!shouldOpenDecisionBubbles) {
-      openPreparedDecisionForRunner(advanceTarget.source, advanceTarget.destination, reason);
-    }
     setAdvanceTarget(null);
   }
 

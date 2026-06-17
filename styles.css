@@ -26,9 +26,11 @@ body {
   display: grid;
   min-width: 320px;
   min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
-  padding-top: 56px;
-  place-items: center;
+  padding-top: var(--app-top-offset);
+  align-items: start;
+  justify-items: center;
   background:
     radial-gradient(circle at top, #ffffff 0 18%, transparent 42%),
     linear-gradient(160deg, #dfe8f5, #f7f9fc 48%, #d8e2ef);
@@ -52,10 +54,16 @@ input {
   align-content: start;
   grid-template-columns: 1fr;
   width: min(100vw, 430px);
-  min-height: 100vh;
+  min-height: calc(100vh - var(--app-top-offset));
   overflow: hidden;
   background: #fff;
   box-shadow: 0 24px 80px rgba(24, 39, 65, 0.25);
+}
+
+@supports (height: 100dvh) {
+  .phone-shell {
+    min-height: calc(100dvh - var(--app-top-offset));
+  }
 }
 
 .main-tabs {
@@ -99,6 +107,7 @@ input {
 .score-view {
   display: grid;
   align-content: start;
+  min-height: 100%;
 }
 
 .order-view {
@@ -745,6 +754,22 @@ i.red {
 .score-symbol {
   fill: #e83b2e;
   font-size: 128px;
+}
+
+.score-symbol-shape {
+  color: #e83b2e;
+}
+
+.score-symbol-stroke path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 10;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.score-symbol-fill circle {
+  fill: currentColor;
 }
 
 .matrix-play {
@@ -1508,7 +1533,7 @@ i.red {
   z-index: 6;
   left: 6px;
   right: auto;
-  bottom: 12px;
+  bottom: 28px;
   display: grid;
   width: 124px;
   gap: 5px;
@@ -1685,13 +1710,12 @@ i.red {
 }
 
 .pitch-buttons {
-  position: relative;
   z-index: 5;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
-  margin-top: 12px;
-  padding: 0 10px 18px;
+  margin-top: 4px;
+  padding: 0 10px 0;
 }
 
 .pitch-buttons .foul {
@@ -1731,53 +1755,44 @@ i.red {
   line-height: 1;
 }
 
-.pitch-buttons .plate-cancel-button {
-  position: absolute;
-  right: 10px;
-  left: auto;
-  top: -80px;
-  z-index: 7;
+.plate-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 8px 10px 16px;
+}
+
+.plate-actions .plate-cancel-button,
+.plate-actions .plate-confirm-button {
   display: inline-grid;
-  width: 96px;
-  height: 30px;
-  min-height: 30px;
+  width: 100%;
+  min-height: 40px;
   place-items: center;
   margin: 0;
-  padding: 0 10px;
-  border: 1px solid rgba(116, 128, 148, 0.28);
+  padding: 0 12px;
   border-radius: 8px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.plate-actions .plate-cancel-button {
+  border: 1px solid rgba(116, 128, 148, 0.28);
   color: #1f2937;
   background: rgba(255, 255, 255, 0.96);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.7),
     0 4px 9px rgba(34, 39, 47, 0.16);
-  font-size: 0.82rem;
-  font-weight: 900;
-  line-height: 1;
+  font-size: 0.88rem;
 }
 
-.pitch-buttons .plate-confirm-button {
-  position: absolute;
-  right: 10px;
-  left: auto;
-  top: -45px;
-  z-index: 7;
-  width: 96px;
-  height: 34px;
-  min-height: 34px;
-  display: inline-grid;
-  place-items: center;
-  margin: 0;
-  padding: 0 10px;
+.plate-actions .plate-confirm-button {
   border-radius: 8px;
   color: #fff;
   background: linear-gradient(#287ae8, #0758c8);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.32),
     0 4px 9px rgba(7, 88, 200, 0.22);
-  font-size: 0.92rem;
-  font-weight: 900;
-  line-height: 1;
+  font-size: 0.96rem;
 }
 
 .batter-dialog {
@@ -2010,11 +2025,12 @@ i.red {
     width: 118px;
     left: 4px;
     right: auto;
-    bottom: 12px;
+    bottom: 22px;
   }
 }
 
 :root {
+  --app-top-offset: 56px;
   --team-red-bright: var(--own-team-color);
   --red-art-tone: saturate(2.08) brightness(0.98) hue-rotate(-10deg) contrast(1.14);
 }
@@ -2320,8 +2336,8 @@ i.red {
 
 .pitch-buttons {
   gap: 5px;
-  margin-top: 8px;
-  padding: 0 8px 12px;
+  margin-top: 2px;
+  padding: 0 8px 0;
 }
 
 .pitch-buttons button {
@@ -2340,26 +2356,78 @@ i.red {
   height: 24px;
 }
 
-.pitch-buttons .plate-cancel-button {
-  top: -70px;
-  width: 88px;
-  height: 28px;
-  min-height: 28px;
-  font-size: 0.76rem;
+.plate-actions {
+  gap: 6px;
+  padding: 7px 8px 12px;
 }
 
-.pitch-buttons .plate-confirm-button {
-  top: -38px;
-  width: 88px;
-  height: 30px;
-  min-height: 30px;
-  font-size: 0.84rem;
+.plate-actions .plate-cancel-button,
+.plate-actions .plate-confirm-button {
+  min-height: 36px;
+}
+
+.plate-actions .plate-cancel-button {
+  font-size: 0.8rem;
+}
+
+.plate-actions .plate-confirm-button {
+  font-size: 0.88rem;
+}
+
+@media (max-width: 430px) {
+  .player-row {
+    padding: 6px 10px 0;
+  }
+
+  .player-summary-card {
+    gap: 8px;
+    padding: 10px 10px 8px;
+  }
+
+  .runner-score-strip {
+    gap: 8px;
+  }
+
+  .runner-score-matrix {
+    width: clamp(66px, 20vw, 78px);
+  }
+
+  .field-stage {
+    min-height: 492px;
+    margin-top: 4px;
+  }
+
+  .broadcast-board {
+    bottom: 16px;
+  }
+
+  .pitch-buttons {
+    gap: 4px;
+    margin-top: 0;
+    padding: 0 8px 0;
+  }
+
+  .pitch-buttons button {
+    min-height: 44px;
+    gap: 2px;
+    font-size: 0.7rem;
+  }
+
+  .plate-actions {
+    gap: 6px;
+    padding: 6px 8px 10px;
+  }
+
+  .plate-actions .plate-cancel-button,
+  .plate-actions .plate-confirm-button {
+    min-height: 34px;
+  }
 }
 
 @media (max-width: 380px) {
   .field-stage {
-    min-height: 500px;
-    margin-top: 8px;
+    min-height: 474px;
+    margin-top: 4px;
   }
 
   .field-art {
@@ -2368,6 +2436,6 @@ i.red {
 
   .broadcast-board {
     width: 110px;
-    bottom: 8px;
+    bottom: 12px;
   }
 }
