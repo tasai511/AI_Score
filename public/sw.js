@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = "ai-score-v24";
+const CACHE_NAME = "ai-score-v25";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -41,9 +41,10 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
   const requestUrl = new URL(event.request.url);
+  const networkFirstExtensions = [".html", ".css", ".js", ".webmanifest", ".png", ".svg", ".jpg", ".jpeg", ".webp", ".gif", ".ico"];
   const shouldUseNetworkFirst =
     event.request.mode === "navigate" ||
-    [".html", ".css", ".js", ".webmanifest"].some((extension) => requestUrl.pathname.endsWith(extension));
+    networkFirstExtensions.some((extension) => requestUrl.pathname.endsWith(extension));
 
   if (shouldUseNetworkFirst) {
     event.respondWith(

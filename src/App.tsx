@@ -51,14 +51,14 @@ const FIELD_IMAGE_POINTS = {
   "base-second": { x: 626.48, y: 370.22 },
   "base-third": { x: 340.97, y: 657.66 },
   "base-home": { x: 626.39, y: 966.2 },
-  "foul-zone-left": { x: 211.61, y: 866.48 },
-  "foul-zone-right": { x: 1034.55, y: 866.48 },
-  "position-1": { x: 627, y: 706 },
+  "foul-zone-left": { x: 238, y: 838 },
+  "foul-zone-right": { x: 1008, y: 838 },
+  "position-1": { x: 627, y: 680 },
   "position-2": { x: 627, y: 1054 },
   "position-3": { x: 824.9, y: 588 },
-  "position-4": { x: 760.24, y: 446 },
+  "position-4": { x: 760.24, y: 420 },
   "position-5": { x: 429.1, y: 588 },
-  "position-6": { x: 493.76, y: 446 },
+  "position-6": { x: 493.76, y: 420 },
   "position-7": { x: 258.64, y: 287.38 },
   "position-8": { x: 627, y: 204.65 },
   "position-9": { x: 995.36, y: 287.38 },
@@ -68,8 +68,8 @@ const FIELD_IMAGE_POINTS = {
   "runner-slot-first": { x: 1004, y: 708 },
   "runner-slot-second": { x: 676, y: 340 },
   "runner-slot-third": { x: 250, y: 708 },
-  "batter-box-left": { x: 682.85, y: 952 },
-  "batter-box-right": { x: 571.47, y: 952 }
+  "batter-box-left": { x: 682.85, y: 920 },
+  "batter-box-right": { x: 571.47, y: 920 }
 } as const;
 
 function moveRow<T>(rows: T[], fromIndex: number, toIndex: number) {

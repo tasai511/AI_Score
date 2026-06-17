@@ -1,4 +1,4 @@
-﻿if ("serviceWorker" in navigator) {
+if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     let refreshing = false;
 
@@ -9,7 +9,7 @@
     });
 
     navigator.serviceWorker
-      .register("./sw.js")
+      .register("./sw.js", { updateViaCache: "none" })
       .then((registration) => registration.update())
       .catch((error) => {
         console.warn("Service worker registration failed:", error);

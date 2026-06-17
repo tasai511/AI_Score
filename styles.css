@@ -876,18 +876,27 @@ i.red {
   position: absolute;
   z-index: 4;
   display: grid;
+  overflow: hidden;
   width: 32px;
   height: 32px;
   place-items: center;
   border: 2px solid var(--defense-position-border-color);
   border-radius: 50%;
   color: #fff;
-  background: var(--defense-position-color);
+  background:
+    radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.46) 0 16%, rgba(255, 255, 255, 0.16) 17%, rgba(255, 255, 255, 0) 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.03) 48%, rgba(0, 0, 0, 0.14) 100%),
+    var(--defense-position-color);
   box-shadow:
-    0 3px 8px rgba(34, 39, 47, 0.24),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    0 5px 10px rgba(34, 39, 47, 0.26),
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.16) inset,
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset;
   font-size: 0.9rem;
   font-weight: 900;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.24),
+    0 0 3px rgba(0, 0, 0, 0.14);
   transform: translate(-50%, -50%);
   transition:
     opacity 160ms ease,
@@ -914,18 +923,27 @@ i.red {
   position: absolute;
   z-index: 7;
   display: grid;
+  overflow: hidden;
   width: 32px;
   height: 32px;
   place-items: center;
   border: 2px solid var(--defense-position-border-color);
   border-radius: 50%;
   color: #fff;
-  background: var(--defense-position-color);
+  background:
+    radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.46) 0 16%, rgba(255, 255, 255, 0.16) 17%, rgba(255, 255, 255, 0) 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.03) 48%, rgba(0, 0, 0, 0.14) 100%),
+    var(--defense-position-color);
   box-shadow:
-    0 4px 10px rgba(34, 39, 47, 0.27),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    0 6px 12px rgba(34, 39, 47, 0.3),
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.16) inset,
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset;
   font-size: 0.9rem;
   font-weight: 900;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.24),
+    0 0 3px rgba(0, 0, 0, 0.14);
   transform: translate(-50%, -50%);
   transition:
     left 260ms ease,
