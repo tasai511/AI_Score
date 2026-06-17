@@ -43,6 +43,12 @@ export interface RunnerState {
   battingOrder: number;
   jerseyNumber: string;
   name: string;
+  scoreCard: {
+    pitches: string[];
+    result: string;
+    outNumber: number;
+    hitType: HitType;
+  };
   scoreNotes: string[];
 }
 

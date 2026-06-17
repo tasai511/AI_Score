@@ -119,7 +119,26 @@ function getRunnerId(state: AppState, runner: { jerseyNumber?: string; name?: st
   return `${teamKey}-${state.game.battingOrder}-${jerseyNumber || normalizeNumber(runner.name) || "unknown"}`;
 }
 
-export function getCurrentBatterRunner(state: AppState): RunnerState {
+function getBatterScoreCardResult(state: AppState, reachReason?: AdvanceReason) {
+  if (state.plate.result) return state.plate.result;
+  if (reachReason === "walk") return "B";
+  if (reachReason === "dead-ball") return "DB";
+  if (reachReason === "dropped-third-strike") return advanceReasonLabels["dropped-third-strike"];
+  if (reachReason === "catcher-interference") return advanceReasonLabels["catcher-interference"];
+  if (reachReason === "error") return "E";
+  return "";
+}
+
+function getCurrentBatterScoreCard(state: AppState, reachReason?: AdvanceReason) {
+  return {
+    pitches: [...state.plate.pitches],
+    result: getBatterScoreCardResult(state, reachReason),
+    outNumber: state.plate.outNumber,
+    hitType: reachReason === "error" ? "" : state.game.hitType
+  };
+}
+
+export function getCurrentBatterRunner(state: AppState, reachReason?: AdvanceReason): RunnerState {
   const batter = getCurrentBatter(state);
   return {
     id: getRunnerId(state, batter ?? {}),
@@ -127,6 +146,7 @@ export function getCurrentBatterRunner(state: AppState): RunnerState {
     battingOrder: state.game.battingOrder,
     jerseyNumber: normalizeNumber(batter?.jerseyNumber),
     name: normalizeNumber(batter?.name),
+    scoreCard: getCurrentBatterScoreCard(state, reachReason),
     scoreNotes: []
   };
 }
@@ -179,10 +199,10 @@ function scoreRunner(state: AppState, runner: RunnerState) {
   }
 }
 
-function placeRunnerOnBase(state: AppState, base: BaseKey, runner: RunnerState, reason: AdvanceReason) {
+function placeRunnerOnBase(state: AppState, base: BaseKey, runner: RunnerState, reason: AdvanceReason, appendAdvanceNote = true) {
   const occupyingRunner = state.game.runners[base];
   if (occupyingRunner) advanceExistingRunnerInPlace(state, base, reason);
-  state.game.runners[base] = withAdvanceNote(runner, reason);
+  state.game.runners[base] = appendAdvanceNote ? withAdvanceNote(runner, reason) : runner;
 }
 
 function advanceExistingRunnerInPlace(state: AppState, source: BaseKey, reason: AdvanceReason) {
@@ -199,7 +219,7 @@ function advanceExistingRunnerInPlace(state: AppState, source: BaseKey, reason: 
 }
 
 function advanceBatterToFirstInPlace(state: AppState, reason: AdvanceReason) {
-  placeRunnerOnBase(state, "first", getCurrentBatterRunner(state), reason);
+  placeRunnerOnBase(state, "first", getCurrentBatterRunner(state, reason), reason, false);
   syncRunnerFirst(state);
 }
 
@@ -247,8 +267,8 @@ function removeCurrentBatterFromBases(state: AppState) {
   return null;
 }
 
-function removeRunnerFromSource(state: AppState, source: RunnerSource): RunnerState | null {
-  if (source === "batter") return removeCurrentBatterFromBases(state) ?? getCurrentBatterRunner(state);
+function removeRunnerFromSource(state: AppState, source: RunnerSource, batterReachReason?: AdvanceReason): RunnerState | null {
+  if (source === "batter") return removeCurrentBatterFromBases(state) ?? getCurrentBatterRunner(state, batterReachReason);
 
   const runner = state.game.runners[source];
   state.game.runners[source] = null;
@@ -318,7 +338,12 @@ export function applyInitialFieldError(state: AppState): AppState {
     if (runner) {
       next.game.runners[currentBatterBase] = {
         ...runner,
-        scoreNotes: [...runner.scoreNotes.filter((note) => note !== advanceReasonLabels.hit && note !== advanceReasonLabels.error), advanceReasonLabels.error]
+        scoreCard: {
+          ...runner.scoreCard,
+          result: "E",
+          hitType: ""
+        },
+        scoreNotes: runner.scoreNotes.filter((note) => note !== advanceReasonLabels.hit && note !== advanceReasonLabels.error)
       };
     }
   } else {
@@ -333,7 +358,7 @@ export function moveRunnerToDestination(state: AppState, source: RunnerSource, d
   if (!canMoveRunnerForward(state, source, destination)) return state;
 
   const next: AppState = structuredClone(state);
-  const runner = removeRunnerFromSource(next, source);
+  const runner = removeRunnerFromSource(next, source, source === "batter" ? reason : undefined);
   if (!runner) return state;
 
   next.game.firstPitchEntered = true;

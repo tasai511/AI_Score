@@ -1,5 +1,5 @@
 ﻿:root {
-  --own-team-color: #ef4d39;
+  --own-team-color: #ff4048;
   color: #222;
   background: #e8edf4;
   font-family:
@@ -446,8 +446,8 @@ input {
 
 .player-battery-panel {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
   align-items: start;
   min-width: 0;
 }
@@ -458,10 +458,23 @@ input {
   min-width: 0;
 }
 
+.battery-row {
+  min-width: 0;
+}
+
+.batter-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 8px;
+  align-items: end;
+  min-width: 0;
+}
+
 .batter-icon {
-  width: 40px;
-  height: 66px;
-  margin-top: 2px;
+  width: 32px;
+  height: 52px;
+  margin: 0 0 1px;
+  align-self: end;
   object-fit: contain;
   filter: drop-shadow(0 4px 7px rgba(34, 39, 47, 0.2));
 }
@@ -500,7 +513,7 @@ input {
 }
 
 .pitcher-select span {
-  font-size: 1rem;
+  font-size: 0.94rem;
   font-weight: 800;
 }
 
@@ -513,7 +526,7 @@ input {
   max-width: 100%;
   overflow: hidden;
   color: #1160c7;
-  font-size: 1.08rem;
+  font-size: 1rem;
   font-weight: 900;
 }
 
@@ -528,7 +541,7 @@ input {
 .player-copy p {
   margin: 0;
   color: #333;
-  font-size: 1rem;
+  font-size: 0.92rem;
   font-weight: 800;
 }
 
@@ -539,7 +552,7 @@ input {
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
-  font-size: 1.32rem;
+  font-size: 1.2rem;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -632,13 +645,21 @@ input {
   box-shadow: 0 3px 9px rgba(34, 39, 47, 0.12);
 }
 
-.runner-score-note {
+.runner-score-notes {
   position: absolute;
-  right: 8px;
-  bottom: 7px;
+  right: 6px;
+  bottom: 6px;
+  display: grid;
+  justify-items: end;
+  gap: 1px;
+}
+
+.runner-score-note {
   color: #e83b2e;
-  font-size: 0.62rem;
+  font-size: 0.56rem;
   font-weight: 900;
+  line-height: 1.05;
+  text-shadow: 0 0 2px rgba(255, 255, 255, 0.92);
 }
 
 .score-matrix {
@@ -738,7 +759,7 @@ i.red {
 
 .field-stage {
   position: relative;
-  --hit-line-color: #ef4d39;
+  --hit-line-color: var(--own-team-color);
   --throw-line-color: #1268d8;
   --defense-position-color: #1268d8;
   --defense-position-border-color: rgba(255, 255, 255, 0.9);
@@ -749,8 +770,8 @@ i.red {
 
 .field-stage.opponent-batting {
   --hit-line-color: #1268d8;
-  --throw-line-color: #ef4d39;
-  --defense-position-color: #ef4d39;
+  --throw-line-color: var(--own-team-color);
+  --defense-position-color: var(--own-team-color);
 }
 
 .field-art {
@@ -778,6 +799,13 @@ i.red {
   width: 100%;
   height: 100%;
   overflow: visible;
+  pointer-events: none;
+}
+
+.field-bubble-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
   pointer-events: none;
 }
 
@@ -1008,7 +1036,7 @@ i.red {
   --bubble-shift-x: 0px;
   --bubble-shift-y: 0px;
   position: absolute;
-  z-index: 8;
+  z-index: 20;
   display: grid;
   width: 112px;
   overflow: hidden;
@@ -1017,6 +1045,11 @@ i.red {
   background: #fff;
   box-shadow: 0 8px 18px rgba(34, 39, 47, 0.22);
   transform: translate(calc(-50% + var(--bubble-shift-x)), calc(-100% - 22px + var(--bubble-shift-y)));
+  pointer-events: auto;
+}
+
+.play-decision-bubble.compact-bubble {
+  width: 76px;
 }
 
 .play-decision-bubble.is-out,
@@ -1051,6 +1084,11 @@ i.red {
   white-space: nowrap;
 }
 
+.play-decision-bubble.compact-bubble .play-decision-subject {
+  padding: 3px 5px 2px;
+  font-size: 0.52rem;
+}
+
 .play-decision-actions {
   position: relative;
   z-index: 1;
@@ -1070,6 +1108,12 @@ i.red {
   background: #fff;
   font-size: 0.64rem;
   font-weight: 900;
+}
+
+.play-decision-bubble.compact-bubble .play-decision-actions button {
+  min-height: 23px;
+  padding: 2px 4px;
+  font-size: 0.6rem;
 }
 
 .play-decision-actions button + button {
@@ -1108,6 +1152,7 @@ i.red {
   background: #fff;
   box-shadow: 0 8px 18px rgba(34, 39, 47, 0.24);
   transform: translate(-50%, calc(-100% - 12px));
+  pointer-events: auto;
 }
 
 .advance-bubble::after {
@@ -1365,6 +1410,41 @@ i.red {
   min-width: 118px;
   pointer-events: none;
   transform: translateX(-50%);
+}
+
+.pending-home-runner {
+  position: absolute;
+  z-index: 13;
+  width: 34px;
+  height: 42px;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 5px 8px rgba(34, 39, 47, 0.3));
+  transform: translate(-50%, -50%);
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease,
+    filter 160ms ease;
+}
+
+.pending-home-runner.batter-scored {
+  width: 26px;
+  height: 40px;
+  filter:
+    drop-shadow(1px 0 0 #fff)
+    drop-shadow(-1px 0 0 #fff)
+    drop-shadow(0 1px 0 #fff)
+    drop-shadow(0 -1px 0 #fff)
+    drop-shadow(0 5px 8px rgba(34, 39, 47, 0.3));
+}
+
+.pending-home-runner.runner-out {
+  opacity: 0.42;
+  filter: grayscale(1) drop-shadow(0 4px 7px rgba(34, 39, 47, 0.2));
+}
+
+.pending-home-runner.runner-decision-target {
+  transform: translate(-50%, -50%) scale(1.16);
 }
 
 .scored-runner-icon {
@@ -1860,31 +1940,36 @@ i.red {
   }
 
   .player-battery-panel {
-    grid-template-columns: 38px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
   }
 
+  .batter-row {
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 7px;
+  }
+
   .batter-icon {
-    width: 36px;
-    height: 58px;
-    margin-top: 4px;
+    width: 30px;
+    height: 48px;
+    margin: 0 0 1px;
   }
 
   .player-copy strong {
-    font-size: 1.14rem;
+    font-size: 1.08rem;
   }
 
   .player-copy p,
   .player-copy small {
-    font-size: 0.9rem;
+    font-size: 0.84rem;
   }
 
   .pitcher-select span {
-    font-size: 0.92rem;
+    font-size: 0.86rem;
   }
 
   .pitcher-select b {
-    font-size: 1rem;
+    font-size: 0.94rem;
   }
 
   .runner-score-strip {
@@ -1926,5 +2011,363 @@ i.red {
     left: 4px;
     right: auto;
     bottom: 12px;
+  }
+}
+
+:root {
+  --team-red-bright: var(--own-team-color);
+  --red-art-tone: saturate(2.08) brightness(0.98) hue-rotate(-10deg) contrast(1.14);
+}
+
+.player-row {
+  padding: 8px 12px 0;
+}
+
+.player-summary-card {
+  gap: 10px;
+  padding: 12px 12px 10px;
+}
+
+.player-summary-main {
+  grid-template-columns: minmax(0, 1fr) 100px;
+  gap: 10px;
+}
+
+.player-battery-panel {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+
+.player-battery-copy {
+  gap: 6px;
+}
+
+.batter-row {
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 7px;
+}
+
+.batter-icon {
+  width: 30px;
+  height: 50px;
+  margin: 0 0 1px;
+  align-self: end;
+  filter: drop-shadow(0 4px 7px rgba(34, 39, 47, 0.2));
+}
+
+.batter-icon[src*="batter-red"] {
+  filter: var(--red-art-tone) drop-shadow(0 4px 7px rgba(34, 39, 47, 0.2));
+}
+
+.runner-score-strip {
+  gap: 10px;
+}
+
+.runner-score-title span,
+.runner-score-title b {
+  font-size: 0.64rem;
+}
+
+.runner-score-matrix {
+  width: clamp(70px, 22vw, 84px);
+}
+
+.field-stage {
+  --hit-line-color: var(--own-team-color);
+  min-height: 522px;
+  margin-top: 8px;
+}
+
+.field-stage.opponent-batting {
+  --throw-line-color: var(--own-team-color);
+  --defense-position-color: var(--own-team-color);
+}
+
+.field-art {
+  width: 126%;
+  opacity: 0.8;
+}
+
+.field-play-line {
+  filter:
+    drop-shadow(0 0 4px rgba(255, 255, 255, 0.95))
+    drop-shadow(0 0 8px rgba(255, 255, 255, 0.72))
+    drop-shadow(0 4px 5px rgba(0, 0, 0, 0.28));
+}
+
+#field-hit-arrow path,
+#field-throw-arrow path {
+  filter:
+    drop-shadow(0 0 3px rgba(255, 255, 255, 0.92))
+    drop-shadow(0 0 6px rgba(255, 255, 255, 0.7))
+    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.28));
+}
+
+.foul-zone-marker {
+  width: 40px;
+  height: 40px;
+  font-size: 0;
+  line-height: 0;
+}
+
+.pitch-mark-icon {
+  display: block;
+  width: 22px;
+  height: 22px;
+  color: currentColor;
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.pitch-mark-icon.stroke-mark path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pitch-mark-icon.fill-mark circle {
+  fill: currentColor;
+}
+
+.pitch-mark-icon.text-mark text {
+  fill: currentColor;
+  font-family:
+    Meiryo,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Hiragino Sans",
+    "Yu Gothic",
+    "Segoe UI",
+    sans-serif;
+  font-size: 8.8px;
+  font-weight: 900;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.pitch-mark-icon.dead-mark {
+  width: 30px;
+  height: 22px;
+}
+
+.pitch-mark-icon.dead-mark text {
+  font-size: 10.8px;
+  letter-spacing: 0.24px;
+}
+
+.foul-zone-icon {
+  width: 20px;
+  height: 20px;
+  filter:
+    drop-shadow(0 1px 0 rgba(0, 0, 0, 0.08))
+    drop-shadow(0 2px 6px rgba(0, 0, 0, 0.16));
+}
+
+.batter-runner-button img {
+  filter:
+    drop-shadow(1px 0 0 #fff)
+    drop-shadow(-1px 0 0 #fff)
+    drop-shadow(0 1px 0 #fff)
+    drop-shadow(0 -1px 0 #fff)
+    drop-shadow(1px 1px 0 #fff)
+    drop-shadow(-1px -1px 0 #fff)
+    drop-shadow(0 5px 6px rgba(34, 39, 47, 0.28));
+}
+
+.batter-runner-button img[src*="batter-red"] {
+  filter:
+    var(--red-art-tone)
+    drop-shadow(1px 0 0 #fff)
+    drop-shadow(-1px 0 0 #fff)
+    drop-shadow(0 1px 0 #fff)
+    drop-shadow(0 -1px 0 #fff)
+    drop-shadow(1px 1px 0 #fff)
+    drop-shadow(-1px -1px 0 #fff)
+    drop-shadow(0 5px 6px rgba(34, 39, 47, 0.28));
+}
+
+.runner-icon {
+  filter: drop-shadow(0 5px 6px rgba(34, 39, 47, 0.28));
+}
+
+.runner-icon[src*="runner-red-outline"] {
+  filter: var(--red-art-tone) drop-shadow(0 5px 6px rgba(34, 39, 47, 0.28));
+}
+
+.field-decision-runner {
+  filter: drop-shadow(0 7px 11px rgba(34, 39, 47, 0.32));
+}
+
+.field-decision-runner[src*="runner-red-outline"] {
+  filter: var(--red-art-tone) drop-shadow(0 7px 11px rgba(34, 39, 47, 0.32));
+}
+
+.runner-auto-advance {
+  filter: drop-shadow(0 8px 12px rgba(34, 39, 47, 0.32));
+}
+
+.runner-auto-advance[src*="runner-red-outline"] {
+  filter: var(--red-art-tone) drop-shadow(0 8px 12px rgba(34, 39, 47, 0.32));
+}
+
+.runner-auto-advance.batter-advance {
+  filter:
+    drop-shadow(1px 0 0 #fff)
+    drop-shadow(-1px 0 0 #fff)
+    drop-shadow(0 1px 0 #fff)
+    drop-shadow(0 -1px 0 #fff)
+    drop-shadow(1px 1px 0 #fff)
+    drop-shadow(-1px -1px 0 #fff)
+    drop-shadow(0 8px 12px rgba(34, 39, 47, 0.32));
+}
+
+.runner-auto-advance.batter-advance[src*="batter-red"] {
+  filter:
+    var(--red-art-tone)
+    drop-shadow(1px 0 0 #fff)
+    drop-shadow(-1px 0 0 #fff)
+    drop-shadow(0 1px 0 #fff)
+    drop-shadow(0 -1px 0 #fff)
+    drop-shadow(1px 1px 0 #fff)
+    drop-shadow(-1px -1px 0 #fff)
+    drop-shadow(0 8px 12px rgba(34, 39, 47, 0.32));
+}
+
+.scored-runner-icon {
+  filter: drop-shadow(0 5px 8px rgba(34, 39, 47, 0.3));
+}
+
+.scored-runner-icon[src*="runner-red-outline"] {
+  filter: var(--red-art-tone) drop-shadow(0 5px 8px rgba(34, 39, 47, 0.3));
+}
+
+.pending-home-runner[src*="runner-red-outline"] {
+  filter: var(--red-art-tone) drop-shadow(0 5px 8px rgba(34, 39, 47, 0.3));
+}
+
+.pending-home-runner {
+  filter: drop-shadow(0 5px 8px rgba(34, 39, 47, 0.3));
+}
+
+.scored-runner-icon.batter-scored {
+  filter:
+    drop-shadow(1px 0 0 #fff)
+    drop-shadow(-1px 0 0 #fff)
+    drop-shadow(0 1px 0 #fff)
+    drop-shadow(0 -1px 0 #fff)
+    drop-shadow(0 5px 8px rgba(34, 39, 47, 0.3));
+}
+
+.scored-runner-icon.batter-scored[src*="batter-red"] {
+  filter:
+    var(--red-art-tone)
+    drop-shadow(1px 0 0 #fff)
+    drop-shadow(-1px 0 0 #fff)
+    drop-shadow(0 1px 0 #fff)
+    drop-shadow(0 -1px 0 #fff)
+    drop-shadow(0 5px 8px rgba(34, 39, 47, 0.3));
+}
+
+.pending-home-runner.batter-scored[src*="batter-red"] {
+  filter:
+    var(--red-art-tone)
+    drop-shadow(1px 0 0 #fff)
+    drop-shadow(-1px 0 0 #fff)
+    drop-shadow(0 1px 0 #fff)
+    drop-shadow(0 -1px 0 #fff)
+    drop-shadow(0 5px 8px rgba(34, 39, 47, 0.3));
+}
+
+.runner-drag-preview {
+  filter: drop-shadow(0 8px 13px rgba(34, 39, 47, 0.3));
+}
+
+.runner-drag-preview[src*="runner-red-outline"] {
+  filter: var(--red-art-tone) drop-shadow(0 8px 13px rgba(34, 39, 47, 0.3));
+}
+
+.runner-button.runner-out .runner-icon,
+.batter-runner-button.runner-out img,
+.field-decision-runner.runner-out,
+.pending-home-runner.runner-out,
+.scored-runner-icon.runner-out {
+  filter: grayscale(1) saturate(0) brightness(0.88) drop-shadow(0 4px 7px rgba(34, 39, 47, 0.2));
+}
+
+.broadcast-board {
+  width: 116px;
+  gap: 4px;
+  padding: 5px 6px 5px;
+}
+
+.broadcast-inning {
+  font-size: 0.8rem;
+}
+
+.broadcast-score strong {
+  font-size: 1.3rem;
+}
+
+.team {
+  font-size: 0.62rem;
+}
+
+.broadcast-counts span {
+  font-size: 0.74rem;
+}
+
+.pitch-buttons {
+  gap: 5px;
+  margin-top: 8px;
+  padding: 0 8px 12px;
+}
+
+.pitch-buttons button {
+  min-height: 48px;
+  gap: 3px;
+  font-size: 0.72rem;
+}
+
+.pitch-buttons .pitch-mark-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.pitch-buttons .pitch-mark-icon.dead-mark {
+  width: 32px;
+  height: 24px;
+}
+
+.pitch-buttons .plate-cancel-button {
+  top: -70px;
+  width: 88px;
+  height: 28px;
+  min-height: 28px;
+  font-size: 0.76rem;
+}
+
+.pitch-buttons .plate-confirm-button {
+  top: -38px;
+  width: 88px;
+  height: 30px;
+  min-height: 30px;
+  font-size: 0.84rem;
+}
+
+@media (max-width: 380px) {
+  .field-stage {
+    min-height: 500px;
+    margin-top: 8px;
+  }
+
+  .field-art {
+    width: 124%;
+  }
+
+  .broadcast-board {
+    width: 110px;
+    bottom: 8px;
   }
 }

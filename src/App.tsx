@@ -38,6 +38,8 @@ type PendingFieldOut = {
   resultLabel?: string;
 };
 type PitchAdvanceType = Extract<PitchType, "ball" | "dead">;
+type PendingPitchContext = "live-count" | "dead-ball" | null;
+type PitchInputOrigin = "button" | "field-foul";
 type PitchAdvanceRequest = {
   id: number;
   type: PitchAdvanceType;
@@ -51,13 +53,13 @@ const FIELD_IMAGE_POINTS = {
   "base-second": { x: 626.48, y: 370.22 },
   "base-third": { x: 340.97, y: 657.66 },
   "base-home": { x: 626.39, y: 966.2 },
-  "foul-zone-left": { x: 238, y: 838 },
-  "foul-zone-right": { x: 1008, y: 838 },
+  "foul-zone-left": { x: 274, y: 812 },
+  "foul-zone-right": { x: 980, y: 812 },
   "position-1": { x: 627, y: 680 },
   "position-2": { x: 627, y: 1054 },
-  "position-3": { x: 824.9, y: 588 },
+  "position-3": { x: 824.9, y: 598 },
   "position-4": { x: 760.24, y: 420 },
-  "position-5": { x: 429.1, y: 588 },
+  "position-5": { x: 429.1, y: 598 },
   "position-6": { x: 493.76, y: 420 },
   "position-7": { x: 258.64, y: 287.38 },
   "position-8": { x: 627, y: 204.65 },
@@ -71,6 +73,44 @@ const FIELD_IMAGE_POINTS = {
   "batter-box-left": { x: 682.85, y: 920 },
   "batter-box-right": { x: 571.47, y: 920 }
 } as const;
+
+const RUNNER_RED_ASSET = "assets/runner-red-outline.png?v=20260618-2";
+const RUNNER_BLUE_ASSET = "assets/runner-blue-outline.png?v=20260618-2";
+
+function ScoreMarkIcon({ type, className = "" }: { type: "strike" | "ball" | "foul" | "dead"; className?: string }) {
+  if (type === "strike") {
+    return (
+      <svg className={`pitch-mark-icon stroke-mark ${className}`.trim()} viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 6 L18 18" />
+        <path d="M18 6 L6 18" />
+      </svg>
+    );
+  }
+
+  if (type === "ball") {
+    return (
+      <svg className={`pitch-mark-icon fill-mark ${className}`.trim()} viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="6.6" />
+      </svg>
+    );
+  }
+
+  if (type === "foul") {
+    return (
+      <svg className={`pitch-mark-icon stroke-mark ${className}`.trim()} viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 5 L19 18 H5 Z" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg className={`pitch-mark-icon text-mark dead-mark ${className}`.trim()} viewBox="0 0 28 20" aria-hidden="true">
+      <text x="14" y="10.5">
+        DB
+      </text>
+    </svg>
+  );
+}
 
 function moveRow<T>(rows: T[], fromIndex: number, toIndex: number) {
   const next = [...rows];
@@ -130,6 +170,8 @@ export function App() {
   const [fieldResetToken, setFieldResetToken] = useState(0);
   const [pendingFieldOuts, setPendingFieldOuts] = useState<PendingFieldOut[]>([]);
   const [pitchAdvanceRequest, setPitchAdvanceRequest] = useState<PitchAdvanceRequest | null>(null);
+  const [pendingPitchContext, setPendingPitchContext] = useState<PendingPitchContext>(null);
+  const [liveScorePreviewActive, setLiveScorePreviewActive] = useState(false);
   const inputSnapshotRef = useRef<AppState | null>(null);
 
   const ownBatting = isOwnBattingNow(state);
@@ -138,10 +180,13 @@ export function App() {
   const currentOwnBatter = getCurrentOwnBatter(state);
   const currentOpponentBatter = getCurrentOpponentBatter(state);
   const scoreDisplayState = needsPlateConfirm && inputSnapshotRef.current ? inputSnapshotRef.current : state;
+  const scoreBoardState = liveScorePreviewActive ? state : scoreDisplayState;
   const currentPitcher =
     state.ownOrder.find((player) => player.jerseyNumber === state.game.currentPitcherJerseyNumber) ??
     state.ownOrder.find((player) => player.positionNumber === "1");
-  const opponentPitcher = state.opponentOrder.find((player) => player.jerseyNumber === state.game.currentOpponentPitcherJerseyNumber);
+  const opponentPitcher =
+    state.opponentOrder.find((player) => player.jerseyNumber === state.game.currentOpponentPitcherJerseyNumber) ??
+    state.opponentOrder.find((player) => player.positionNumber === "1");
 
   useEffect(() => {
     document.documentElement.style.setProperty("--own-team-color", state.ownTeam.colorHex);
@@ -188,12 +233,16 @@ export function App() {
 
       const ownBatter = getCurrentOwnBatter(next);
       const opponentBatter = getCurrentOpponentBatter(next);
+      const ownPitcherJerseyNumber = normalizeNumber(next.ownOrder.find((player) => player.positionNumber === "1")?.jerseyNumber);
+      const opponentPitcherJerseyNumber = normalizeNumber(next.opponentOrder.find((player) => player.positionNumber === "1")?.jerseyNumber);
       return {
         ...next,
         game: {
           ...next.game,
           currentBatterJerseyNumber: ownBatter?.jerseyNumber ?? "",
-          currentOpponentBatterJerseyNumber: opponentBatter?.jerseyNumber ?? next.game.currentOpponentBatterJerseyNumber
+          currentOpponentBatterJerseyNumber: opponentBatter?.jerseyNumber ?? next.game.currentOpponentBatterJerseyNumber,
+          currentPitcherJerseyNumber: ownPitcherJerseyNumber || next.game.currentPitcherJerseyNumber,
+          currentOpponentPitcherJerseyNumber: opponentPitcherJerseyNumber || next.game.currentOpponentPitcherJerseyNumber
         }
       };
     });
@@ -213,7 +262,7 @@ export function App() {
     });
   }
 
-  function requestPitchInput(type: PitchType) {
+  function requestPitchInput(type: PitchType, origin: PitchInputOrigin = "button") {
     if (!normalizeNumber(currentBatter?.jerseyNumber)) {
       const key = getCurrentBatterPromptKey(state);
       const alreadyPrompted = state.promptedBatterKeys.includes(key);
@@ -234,6 +283,7 @@ export function App() {
     }
 
     if (type === "dead" || (type === "ball" && state.game.balls >= 3)) {
+      setPendingPitchContext("dead-ball");
       setPitchAdvanceRequest({ id: Date.now(), type });
       return true;
     }
@@ -242,6 +292,14 @@ export function App() {
       captureInputSnapshot(current);
       return applyPitch(current, type);
     });
+    setNeedsPlateConfirm(true);
+    if (type === "strike" || type === "ball") {
+      setPendingPitchContext("live-count");
+    } else if (origin === "field-foul") {
+      setPendingPitchContext(null);
+    } else {
+      setPendingPitchContext("dead-ball");
+    }
     return true;
   }
 
@@ -250,7 +308,7 @@ export function App() {
   }
 
   function handleFieldFoulStart() {
-    return requestPitchInput("foul");
+    return requestPitchInput("foul", "field-foul");
   }
 
   function handlePitchAdvanceAnimationComplete(type: PitchAdvanceType) {
@@ -259,6 +317,8 @@ export function App() {
       captureInputSnapshot(current);
       return applyPitch(current, type);
     });
+    setNeedsPlateConfirm(true);
+    setPendingPitchContext("dead-ball");
   }
 
   function handlePitchPointer(type: PitchType, event: PointerEvent<HTMLButtonElement>) {
@@ -378,6 +438,8 @@ export function App() {
     inputSnapshotRef.current = null;
     setPendingFieldOuts([]);
     setPitchAdvanceRequest(null);
+    setPendingPitchContext(null);
+    setLiveScorePreviewActive(false);
     setNeedsPlateConfirm(false);
     setFieldSelection(null);
     setFieldResetToken((token) => token + 1);
@@ -389,6 +451,8 @@ export function App() {
     inputSnapshotRef.current = null;
     setPendingFieldOuts([]);
     setPitchAdvanceRequest(null);
+    setPendingPitchContext(null);
+    setLiveScorePreviewActive(false);
     setNeedsPlateConfirm(false);
     setFieldSelection(null);
     setFieldResetToken((token) => token + 1);
@@ -441,14 +505,25 @@ export function App() {
   function setOpponentPitcher(jerseyNumber: string) {
     const normalized = normalizeNumber(jerseyNumber);
     setState((current) => {
-      const exists = current.opponentOrder.some((player) => normalizeNumber(player.jerseyNumber) === normalized);
-      let used = false;
+      if (!normalized) return current;
+
+      const existingIndex = current.opponentOrder.findIndex((player) => normalizeNumber(player.jerseyNumber) === normalized);
+      const assignedIndex =
+        existingIndex >= 0 ? existingIndex : current.opponentOrder.findIndex((player) => !normalizeNumber(player.jerseyNumber));
+
       return {
         ...current,
-        opponentOrder: current.opponentOrder.map((player) => {
-          if (!normalized || exists || used || normalizeNumber(player.jerseyNumber)) return player;
-          used = true;
-          return { ...player, jerseyNumber: normalized };
+        opponentOrder: current.opponentOrder.map((player, index) => {
+          const nextPlayer =
+            existingIndex < 0 && index === assignedIndex ? { ...player, jerseyNumber: normalized } : player;
+
+          if (index === assignedIndex) {
+            return { ...nextPlayer, positionNumber: "1" };
+          }
+          if (nextPlayer.positionNumber === "1") {
+            return { ...nextPlayer, positionNumber: "" };
+          }
+          return nextPlayer;
         }),
         game: {
           ...current.game,
@@ -508,22 +583,22 @@ export function App() {
               <div className="player-summary-card">
                 <div className="player-summary-main">
                   <div className="player-battery-panel">
-              <img className="batter-icon" src={ownBatting ? "assets/batter-red.png" : "assets/batter-blue.png"} alt="" />
-                    <div className="player-battery-copy">
-              <button className="pitcher-select" type="button" onClick={() => setDialogMode("pitcher")}>
-                <span>ピッチャー</span>
-                <b>
-                  <span className="player-name-text">{pitcherText}</span>
-                  <span className="edit-cue" aria-hidden="true" />
-                </b>
-              </button>
-              <button className="player-copy batter-select" type="button" onClick={() => setDialogMode("batter")}>
-                <p>バッター</p>
-                <strong>
-                  <span className="player-name-text">{batterText}</span>
-                  <span className="edit-cue" aria-hidden="true" />
-                </strong>
-              </button>
+                    <button className="pitcher-select battery-row pitcher-row" type="button" onClick={() => setDialogMode("pitcher")}>
+                      <span>ピッチャー</span>
+                      <b>
+                        <span className="player-name-text">{pitcherText}</span>
+                        <span className="edit-cue" aria-hidden="true" />
+                      </b>
+                    </button>
+                    <div className="batter-row">
+                      <img className="batter-icon" src={ownBatting ? "assets/batter-red.png" : "assets/batter-blue.png"} alt="" />
+                      <button className="player-copy batter-select battery-row" type="button" onClick={() => setDialogMode("batter")}>
+                        <p>バッター</p>
+                        <strong>
+                          <span className="player-name-text">{batterText}</span>
+                          <span className="edit-cue" aria-hidden="true" />
+                        </strong>
+                      </button>
                     </div>
                   </div>
                   <ScoreCell state={state} pendingOuts={pendingFieldOuts} />
@@ -534,11 +609,13 @@ export function App() {
 
             <FieldStage
               state={state}
-              displayOwnScore={scoreDisplayState.game.ownScore}
-              displayOpponentScore={scoreDisplayState.game.opponentScore}
+              displayOwnScore={scoreBoardState.game.ownScore}
+              displayOpponentScore={scoreBoardState.game.opponentScore}
               fieldSelection={fieldSelection}
               resetToken={fieldResetToken}
               pitchAdvanceRequest={pitchAdvanceRequest}
+              pendingPitchContext={pendingPitchContext}
+              onLiveScorePreview={() => setLiveScorePreviewActive(true)}
               setFieldSelection={setFieldSelection}
               onAdvance={handleAdvance}
               onRunnerMove={handleRunnerMove}
@@ -569,7 +646,8 @@ export function App() {
                 onPointerDown={(event) => handlePitchPointer("strike", event)}
                 onKeyDown={(event) => handlePitchKey("strike", event)}
               >
-                <span>{"\u2715"}</span>ストライク
+                <ScoreMarkIcon type="strike" />
+                ストライク
               </button>
               <button
                 className="foul"
@@ -578,7 +656,8 @@ export function App() {
                 onPointerDown={(event) => handlePitchPointer("foul", event)}
                 onKeyDown={(event) => handlePitchKey("foul", event)}
               >
-                <span>{"\u25b3"}</span>ファール
+                <ScoreMarkIcon type="foul" />
+                ファール
               </button>
               <button
                 className="ball"
@@ -587,7 +666,8 @@ export function App() {
                 onPointerDown={(event) => handlePitchPointer("ball", event)}
                 onKeyDown={(event) => handlePitchKey("ball", event)}
               >
-                <span>{"\u25cf"}</span>ボール
+                <ScoreMarkIcon type="ball" />
+                ボール
               </button>
               <button
                 className="dead"
@@ -596,7 +676,8 @@ export function App() {
                 onPointerDown={(event) => handlePitchPointer("dead", event)}
                 onKeyDown={(event) => handlePitchKey("dead", event)}
               >
-                <span>DB</span>デッドボール
+                <ScoreMarkIcon type="dead" />
+                デッドボール
               </button>
             </section>
 
@@ -860,6 +941,60 @@ function getPitchSymbolCoordinate(index: number, total: number) {
   };
 }
 
+function ScoreMatrixGraphic({
+  pitches,
+  hitType = "",
+  outNumber = 0,
+  result = "",
+  notes = [],
+  className = ""
+}: {
+  pitches: string[];
+  hitType?: keyof typeof hitMarkAssets | "";
+  outNumber?: number;
+  result?: string;
+  notes?: string[];
+  className?: string;
+}) {
+  return (
+    <div className={`score-matrix ${className}`.trim()}>
+      <img src="assets/score_matrix.png" alt="" />
+      {hitType && <img className="matrix-hit-mark" src={hitMarkAssets[hitType]} alt="" data-hit-mark={hitType} />}
+      <svg className="matrix-overlay" viewBox="0 0 1382 1025" aria-hidden="true">
+        <g>
+          {pitches.map((symbol, index) => {
+            const coordinate = getPitchSymbolCoordinate(index, pitches.length);
+            return (
+              <text className="score-symbol" x={coordinate.x} y={coordinate.y} key={`${symbol}-${index}`}>
+                {symbol}
+              </text>
+            );
+          })}
+        </g>
+        {outNumber > 0 && (
+          <text className="matrix-out" x="725" y="505">
+            {outSymbols[outNumber]}
+          </text>
+        )}
+        {result && (
+          <text className="matrix-play" x="1045" y="720">
+            {result}
+          </text>
+        )}
+      </svg>
+      {notes.length > 0 && (
+        <div className="runner-score-notes" aria-hidden="true">
+          {notes.map((note) => (
+            <span className="runner-score-note" key={note}>
+              {note}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ScoreCell({ state, pendingOuts = [] }: { state: AppState; pendingOuts?: PendingFieldOut[] }) {
   const hitType = state.game.hitType;
   const pendingBatterOutIndex = pendingOuts.findIndex((fieldOut) => fieldOut.source === "batter");
@@ -869,32 +1004,7 @@ function ScoreCell({ state, pendingOuts = [] }: { state: AppState; pendingOuts?:
   const result = state.plate.result || pendingBatterOut?.resultLabel || "";
   return (
     <article className="score-cell" aria-label="current score cell">
-      <div className="score-matrix score-matrix-current">
-        <img src="assets/score_matrix.png" alt="" />
-        {hitType && <img className="matrix-hit-mark" src={hitMarkAssets[hitType]} alt="" data-hit-mark={hitType} />}
-        <svg className="matrix-overlay" viewBox="0 0 1382 1025" aria-hidden="true">
-          <g>
-            {state.plate.pitches.map((symbol, index) => {
-              const coordinate = getPitchSymbolCoordinate(index, state.plate.pitches.length);
-              return (
-                <text className="score-symbol" x={coordinate.x} y={coordinate.y} key={`${symbol}-${index}`}>
-                  {symbol}
-                </text>
-              );
-            })}
-          </g>
-          {outNumber > 0 && (
-            <text className="matrix-out" x="725" y="505">
-              {outSymbols[outNumber]}
-            </text>
-          )}
-          {result && (
-            <text className="matrix-play" x="1045" y="720">
-              {result}
-            </text>
-          )}
-        </svg>
-      </div>
+      <ScoreMatrixGraphic pitches={state.plate.pitches} hitType={hitType} outNumber={outNumber} result={result} className="score-matrix-current" />
     </article>
   );
 }
@@ -914,14 +1024,14 @@ function RunnerScoreStrip({ state }: { state: AppState }) {
             <span>{cell.label}</span>
             {cell.runner && <b>{formatPlayerLabel(cell.runner)}</b>}
           </div>
-          <div className="score-matrix runner-score-matrix">
-            <img src="assets/score_matrix.png" alt="" />
-            {cell.runner?.scoreNotes.slice(-1).map((note) => (
-              <span className="runner-score-note" key={note}>
-                {note}
-              </span>
-            ))}
-          </div>
+          <ScoreMatrixGraphic
+            pitches={cell.runner?.scoreCard.pitches ?? []}
+            hitType={cell.runner?.scoreCard.hitType ?? ""}
+            outNumber={cell.runner?.scoreCard.outNumber ?? 0}
+            result={cell.runner?.scoreCard.result ?? ""}
+            notes={cell.runner?.scoreNotes ?? []}
+            className="runner-score-matrix"
+          />
         </article>
       ))}
     </section>
@@ -935,6 +1045,8 @@ function FieldStage({
   fieldSelection,
   resetToken,
   pitchAdvanceRequest,
+  pendingPitchContext,
+  onLiveScorePreview,
   onAdvance,
   onRunnerMove,
   onFieldOutDecision,
@@ -952,6 +1064,8 @@ function FieldStage({
   fieldSelection: string | null;
   resetToken: number;
   pitchAdvanceRequest: PitchAdvanceRequest | null;
+  pendingPitchContext: PendingPitchContext;
+  onLiveScorePreview: () => void;
   onAdvance: (source: RunnerSource, reason: AdvanceReason) => void;
   onRunnerMove: (source: RunnerSource, destination: RunnerDestination, reason: AdvanceReason) => void;
   onFieldOutDecision: (
@@ -1041,6 +1155,7 @@ function FieldStage({
     teamKey: TeamKey;
     imageSrc: string;
     batter: boolean;
+    arrived: boolean;
     committed: boolean;
   };
   type FieldArtBox = {
@@ -1069,10 +1184,12 @@ function FieldStage({
   const showBatterRunner = !currentBatterIsOnBase && !state.plate.result;
   const [fieldPlay, setFieldPlay] = useState<{
     activeNodeId: string | null;
+    ballNodeId: string | null;
     nodes: FieldPlayNode[];
     segments: FieldPlaySegment[];
   }>({
     activeNodeId: null,
+    ballNodeId: null,
     nodes: [],
     segments: []
   });
@@ -1104,7 +1221,10 @@ function FieldStage({
   );
   const homePlayRunnerNodes = basePlayRunnerNodes.filter((node) => getBaseDestinationFromKey(node.key) === "home");
   const basePlayHiddenRunnerNodes = fieldPlay.nodes.filter(
-    (node) => node.kind === "base" && node.runnerSource && (node.decision === "out" || node.decisionEnabled || isPendingAdvanceDisplayNode(node))
+    (node) =>
+      node.kind === "base" &&
+      node.runnerSource &&
+      (getBaseDestinationFromKey(node.key) === "home" || node.decision === "out" || node.decisionEnabled || isPendingAdvanceDisplayNode(node))
   );
   const basePlayRunnerIds = new Set(basePlayHiddenRunnerNodes.filter((node) => node.runnerId).map((node) => node.runnerId as string));
   const basePlayRunnerSources = new Set(basePlayHiddenRunnerNodes.filter((node) => !node.runnerId).map((node) => node.runnerSource));
@@ -1139,6 +1259,10 @@ function FieldStage({
     score: displayOpponentScore
   };
   const slots = state.ownTeam.battingSide === "top" ? [ownSlot, opponentSlot] : [opponentSlot, ownSlot];
+  const liveCountPending = pendingPitchContext === "live-count";
+  const deadBallPending = pendingPitchContext === "dead-ball" || Boolean(pitchAdvanceRequest);
+  const pendingScoredRunners = scoredRunners.filter((runner) => !runner.committed);
+  const committedScoredRunners = scoredRunners.filter((runner) => runner.committed);
 
   function hasHitPlay() {
     return fieldPlay.segments.some((segment) => segment.kind === "hit");
@@ -1154,6 +1278,7 @@ function FieldStage({
   useEffect(() => {
     setFieldPlay({
       activeNodeId: null,
+      ballNodeId: null,
       nodes: [],
       segments: []
     });
@@ -1308,12 +1433,14 @@ function FieldStage({
         if (drop.destination === "home") {
           ensureManualAdvanceBaseNode(currentDrag.source, drop.destination, false, false, "hit");
           addScoredRunner(currentDrag.source, false);
+          openPreparedDecisionForRunner(currentDrag.source, drop.destination, "hit");
           setAdvanceTarget(null);
           return;
         }
 
         const forcedAdvanceStarted = beginForcedAdvanceDecisionFlow(currentDrag.source, drop.destination, "hit");
         onRunnerMove(currentDrag.source, drop.destination, "hit");
+        if (!forcedAdvanceStarted) openPreparedDecisionForRunner(currentDrag.source, drop.destination, "hit");
         setAdvanceTarget(null);
         return;
       }
@@ -1802,9 +1929,46 @@ function FieldStage({
     return node.displayPoint ?? node.point;
   }
 
+  function getCurrentBallHolderNode(play = fieldPlay) {
+    if (play.ballNodeId) {
+      const explicitBallHolder = play.nodes.find((node) => node.id === play.ballNodeId) ?? null;
+      if (explicitBallHolder) return explicitBallHolder;
+    }
+
+    const lastSegmentTargetNode = [...play.segments]
+      .reverse()
+      .map((segment) => play.nodes.find((node) => node.id === segment.toNodeId) ?? null)
+      .find((node): node is FieldPlayNode => Boolean(node));
+    if (lastSegmentTargetNode) return lastSegmentTargetNode;
+
+    return [...play.nodes]
+      .reverse()
+      .find((node) => node.kind === "position" || node.kind === "base" || node.kind === "foul") ?? null;
+  }
+
+  function getBallHolderJudgementDestination(node: FieldPlayNode | null) {
+    if (!node) return null;
+    if (node.kind === "base") return getBaseDestinationFromKey(node.key);
+    if (node.kind === "position") return getJudgementDestination(node);
+    return null;
+  }
+
   function getNodeBubblePoint(node: FieldPlayNode) {
+    if (node.kind === "foul") {
+      return {
+        x: node.point.x + (node.key.endsWith("left") ? 34 : -34),
+        y: node.point.y - 8
+      };
+    }
     if (isInitialHitNode(node)) return node.point;
     return getNodeActionPoint(node);
+  }
+
+  function getDecisionBubbleSize(node: FieldPlayNode) {
+    if (isSingleDecisionActionNode(node)) {
+      return { width: 76, height: 42 };
+    }
+    return { width: 112, height: 48 };
   }
 
   function getDecisionBubbleEntries() {
@@ -1821,7 +1985,6 @@ function FieldStage({
     });
     const placedRects: { left: number; right: number; top: number; bottom: number }[] = [];
     const entries = new Map<string, { point: FieldPoint; shift: FieldPoint; zIndex: number }>();
-    const bubbleSize = { width: 112, height: 48 };
     const bubbleInset = 6;
     const placementBounds = {
       left: bubbleInset,
@@ -1859,7 +2022,7 @@ function FieldStage({
         })
     ];
 
-    const makeRect = (point: FieldPoint, shift: FieldPoint) => {
+    const makeRect = (point: FieldPoint, shift: FieldPoint, bubbleSize: { width: number; height: number }) => {
       const bottom = point.y + shift.y - 22;
       return {
         left: point.x + shift.x - bubbleSize.width / 2,
@@ -1868,8 +2031,8 @@ function FieldStage({
         bottom
       };
     };
-    const clampPlacement = (point: FieldPoint, shift: FieldPoint) => {
-      const rect = makeRect(point, shift);
+    const clampPlacement = (point: FieldPoint, shift: FieldPoint, bubbleSize: { width: number; height: number }) => {
+      const rect = makeRect(point, shift, bubbleSize);
       let adjustX = 0;
       let adjustY = 0;
 
@@ -1884,7 +2047,7 @@ function FieldStage({
       };
       return {
         shift: clampedShift,
-        rect: makeRect(point, clampedShift),
+        rect: makeRect(point, clampedShift, bubbleSize),
         penalty: (Math.abs(adjustX) + Math.abs(adjustY)) * 260
       };
     };
@@ -1924,9 +2087,10 @@ function FieldStage({
 
     for (const node of placementOrder) {
       const point = getNodeBubblePoint(node);
+      const bubbleSize = getDecisionBubbleSize(node);
       const ranked = candidates
         .map((shift) => {
-          const clamped = clampPlacement(point, shift);
+          const clamped = clampPlacement(point, shift, bubbleSize);
           const rect = clamped.rect;
           const bubbleOverlap = placedRects.reduce((sum, placed) => sum + getOverlapArea(rect, placed) * 2, 0);
           const obstacleOverlap = fieldObstacles.reduce((sum, obstacle) => {
@@ -1949,13 +2113,13 @@ function FieldStage({
       entries.set(node.id, {
         point,
         shift: selected.shift,
-        zIndex: node.id === fieldPlay.activeNodeId ? 13 : 10
+        zIndex: node.id === fieldPlay.activeNodeId ? 32 : 28
       });
     }
 
     return visibleNodes.map((node) => ({
       node,
-      ...(entries.get(node.id) ?? { point: getNodeBubblePoint(node), shift: { x: 0, y: 0 }, zIndex: 10 })
+      ...(entries.get(node.id) ?? { point: getNodeBubblePoint(node), shift: { x: 0, y: 0 }, zIndex: 28 })
     }));
   }
 
@@ -2307,7 +2471,7 @@ function FieldStage({
 
     steps.forEach((step) => {
       startFieldRunnerAnimation(step.source, step.destination);
-      if (step.destination === "home") addScoredRunner(step.source);
+      if (step.destination === "home") addScoredRunner(step.source, false, true);
     });
 
     if (nodeIds.length > 0) {
@@ -2471,12 +2635,21 @@ function FieldStage({
   }
 
   function getRunnerDestinationPoint(destination: RunnerDestination) {
-    if (destination === "home") return getTargetPoint("base-home");
+    if (destination === "home") return getHomePendingPoint();
     return getTargetPoint(`runner-slot-${destination}`);
   }
 
+  function getHomePendingPoint(index = 0, total = 1): FieldPoint {
+    const homePoint = getTargetPoint("base-home");
+    const verticalSpread = (index - (total - 1) / 2) * 24;
+    return {
+      x: homePoint.x + 48,
+      y: homePoint.y - 6 + verticalSpread
+    };
+  }
+
   function getFieldRunnerImageForSource(source: RunnerSource) {
-    const runnerImageSrc = ownBatting ? "assets/runner-red-outline.png" : "assets/runner-blue-outline.png";
+    const runnerImageSrc = ownBatting ? RUNNER_RED_ASSET : RUNNER_BLUE_ASSET;
     if (source !== "batter") return runnerImageSrc;
     return currentBatterIsOnBase ? runnerImageSrc : ownBatting ? "assets/batter-red.png" : "assets/batter-blue.png";
   }
@@ -2503,7 +2676,7 @@ function FieldStage({
   }
 
   function buildForcedHitAdvanceAnimations(): RunnerAnimation[] {
-    const runnerImageSrc = ownBatting ? "assets/runner-red-outline.png" : "assets/runner-blue-outline.png";
+    const runnerImageSrc = ownBatting ? RUNNER_RED_ASSET : RUNNER_BLUE_ASSET;
     const batterImageSrc = ownBatting ? "assets/batter-red.png" : "assets/batter-blue.png";
     const animations: RunnerAnimation[] = [
       {
@@ -2546,7 +2719,7 @@ function FieldStage({
         id: `advance-third-${Date.now()}`,
         source: "third",
         from: getTargetPoint("runner-third"),
-        to: getTargetPoint("base-home"),
+        to: getHomePendingPoint(),
         imageSrc: runnerImageSrc,
         batter: false,
         mirrored: false
@@ -2558,10 +2731,10 @@ function FieldStage({
 
   function getRunnerImageForSource(source: RunnerSource) {
     if (source === "batter") return ownBatting ? "assets/batter-red.png" : "assets/batter-blue.png";
-    return ownBatting ? "assets/runner-red-outline.png" : "assets/runner-blue-outline.png";
+    return ownBatting ? RUNNER_RED_ASSET : RUNNER_BLUE_ASSET;
   }
 
-  function addScoredRunner(source: RunnerSource, committed = true) {
+  function addScoredRunner(source: RunnerSource, committed = true, arrived = committed) {
     const batterRunner = Object.values(state.game.runners).find(
       (runner) => runner?.teamKey === battingTeamKey && runner.battingOrder === state.game.battingOrder
     );
@@ -2572,8 +2745,10 @@ function FieldStage({
     setScoredRunners((current) => {
       const existingRunner = current.find((runner) => runner.id === visualId);
       if (existingRunner) {
-        if (existingRunner.committed === committed) return current;
-        return current.map((runner) => (runner.id === visualId ? { ...runner, committed: runner.committed || committed } : runner));
+        if (existingRunner.committed === committed && existingRunner.arrived === arrived) return current;
+        return current.map((runner) =>
+          runner.id === visualId ? { ...runner, committed: runner.committed || committed, arrived: runner.arrived || arrived } : runner
+        );
       }
 
       return [
@@ -2584,10 +2759,33 @@ function FieldStage({
           teamKey: battingTeamKey,
           imageSrc: isBatterIcon ? getRunnerImageForSource("batter") : getRunnerImageForSource("first"),
           batter: isBatterIcon,
+          arrived,
           committed
         }
       ];
     });
+  }
+
+  function commitScoredRunner(source: RunnerSource | null, runnerId?: string) {
+    if (!source && !runnerId) return;
+
+    setScoredRunners((current) =>
+      current.map((runner) =>
+        (runnerId && runner.id === runnerId) || (!runnerId && source && runner.source === source)
+          ? { ...runner, arrived: true, committed: true }
+          : runner
+      )
+    );
+  }
+
+  function markScoredRunnerArrived(source: RunnerSource | null, runnerId?: string) {
+    if (!source && !runnerId) return;
+
+    setScoredRunners((current) =>
+      current.map((runner) =>
+        (runnerId && runner.id === runnerId) || (!runnerId && source && runner.source === source) ? { ...runner, arrived: true } : runner
+      )
+    );
   }
 
   function getScoredRunnerDecisionNode(runner: ScoredRunnerVisual) {
@@ -2599,7 +2797,7 @@ function FieldStage({
     const thirdRunnerWillScore = Boolean(state.game.runners.first && state.game.runners.second && state.game.runners.third);
     setRunnerAnimations(buildForcedHitAdvanceAnimations());
     runnerAnimationTimerRef.current = window.setTimeout(() => {
-      if (thirdRunnerWillScore) addScoredRunner("third");
+      if (thirdRunnerWillScore) addScoredRunner("third", false, true);
       onComplete();
       setRunnerAnimations([]);
       runnerAnimationTimerRef.current = null;
@@ -2721,6 +2919,42 @@ function FieldStage({
     return flyOutLabels[positionNumber] ?? "飛";
   }
 
+  function resolveAdvanceReasonForNode(node: FieldPlayNode, resolvedRunnerSource: RunnerSource, decision: "safe" | "error") {
+    if (decision === "error") return "error";
+    if (node.advanceReason) return node.advanceReason;
+    if (manualAdvancePlay?.source === resolvedRunnerSource && manualAdvancePlay.destination === getJudgementDestination(node) && manualAdvancePlay.reason) {
+      return manualAdvancePlay.reason;
+    }
+    return hasHitPlay() ? "hit" : "passed-ball";
+  }
+
+  function finalizeHomeRunnerIfSafe(node: FieldPlayNode) {
+    const resolvedRunnerSource = getResolvedRunnerSource(node);
+    if (!resolvedRunnerSource) return;
+
+    const resolvedRunnerId = node.runnerId ?? getRunnerIdForSource(resolvedRunnerSource);
+    const homeRunnerVisual = resolvedRunnerId ? scoredRunners.find((runner) => runner.id === resolvedRunnerId) : null;
+
+    if (!homeRunnerVisual?.arrived && canRunnerBeJudgedAtDestination(resolvedRunnerSource, "home", resolvedRunnerId)) {
+      onRunnerMove(resolvedRunnerSource, "home", resolveAdvanceReasonForNode(node, resolvedRunnerSource, "safe"));
+      markScoredRunnerArrived(resolvedRunnerSource, resolvedRunnerId);
+    }
+    commitScoredRunner(resolvedRunnerSource, resolvedRunnerId);
+    onLiveScorePreview();
+  }
+
+  function openPreparedDecisionForRunner(source: RunnerSource, destination: RunnerDestination, advanceReason: AdvanceReason) {
+    const ballHolderNode = getCurrentBallHolderNode();
+    if (!ballHolderNode) return false;
+    if (getBallHolderJudgementDestination(ballHolderNode) !== destination) return false;
+
+    const nodeId = ensureManualAdvanceBaseNode(source, destination, true, true, advanceReason);
+    if (!nodeId) return false;
+    scheduleFieldDecisionBubbles([nodeId], nodeId, 0);
+    if (destination === "home") addScoredRunner(source, false);
+    return true;
+  }
+
   function handleFieldTarget(target: FieldTarget, runnerSourceOverride?: RunnerSource | null) {
     const lastNode = fieldPlay.nodes[fieldPlay.nodes.length - 1];
     const isPendingFoulCatch = lastNode?.kind === "foul" && target.kind === "position";
@@ -2736,6 +2970,23 @@ function FieldStage({
     const baseDestination = target.kind === "base" ? getBaseDestinationFromKey(target.key) : null;
     const occupiedBaseRunnerSource = baseDestination ? getOccupiedBaseRunnerSource(baseDestination) : null;
     const pickoffModeActive = target.kind === "base" && !fieldHitModeActive && !runnerAdvanceModeActive && Boolean(occupiedBaseRunnerSource);
+    const runnerFieldSequenceActive = !fieldHitModeActive && (runnerAdvanceModeActive || pickoffModeActive || lastNode?.kind === "base");
+
+    if (deadBallPending) {
+      return;
+    }
+    if (liveCountPending) {
+      if (target.kind === "foul") {
+        return;
+      }
+      if (target.key.endsWith("-over")) {
+        return;
+      }
+      if (target.kind === "position" && !runnerFieldSequenceActive) {
+        return;
+      }
+    }
+
     const baseDecisionRunnerSource = baseDestination
       ? getBaseDecisionRunnerSource(baseDestination, runnerSourceOverride, pickoffModeActive)
       : null;
@@ -2755,8 +3006,14 @@ function FieldStage({
     const homePoint = getTargetPoint("base-home");
     const catcherThrowAfterPitch = state.plate.pitches.some((pitch) => pitch === "\u2715" || pitch === "\u25cf");
     const initialThrowPoint = getTargetPoint(catcherThrowAfterPitch ? "position-2" : "position-1");
+    const currentBallHolderNode = getCurrentBallHolderNode();
     const shouldAutoAdvanceBatterOnHit = !fieldPlay.nodes.length && target.kind === "position" && !runnerAdvanceModeActive;
-    const pendingHomeRunnerSource = getPendingHomeRunner()?.source ?? null;
+    const pendingHomeRunnerSource =
+      getPendingHomeRunner()?.source ??
+      [...fieldPlay.nodes]
+        .reverse()
+        .find((node) => node.kind === "base" && getBaseDestinationFromKey(node.key) === "home" && !node.decision)?.runnerSource ??
+      null;
     const runnerSource =
       isPendingFoulCatch
         ? "batter"
@@ -2801,6 +3058,23 @@ function FieldStage({
       const currentFoulCatchMode = lastNode?.kind === "foul" && target.kind === "position";
       const lastNodeHasIncomingSegment = lastNode ? current.segments.some((segment) => segment.toNodeId === lastNode.id) : false;
       const shouldUseInitialThrowFromPendingBase = target.kind === "position" && lastNode?.kind === "base" && !lastNodeHasIncomingSegment;
+      const ballHolderNodeForSegment =
+        shouldUseInitialThrowFromPendingBase && currentBallHolderNode && currentBallHolderNode.id !== lastNode?.id ? currentBallHolderNode : null;
+      const shouldUseBallHolderFromPendingBase = Boolean(ballHolderNodeForSegment);
+      const segmentSourceNodeId = shouldUseBallHolderFromPendingBase
+        ? ballHolderNodeForSegment?.id ?? null
+        : shouldUseInitialThrowFromPendingBase
+          ? null
+          : lastNode?.id ?? null;
+      const segmentSourcePoint = shouldUseBallHolderFromPendingBase
+        ? getNodeActionPoint(ballHolderNodeForSegment!)
+        : shouldUseInitialThrowFromPendingBase
+          ? initialThrowPoint
+          : lastNode
+            ? getNodeActionPoint(lastNode)
+            : isInitialHit
+              ? homePoint
+              : initialThrowPoint;
       const segmentKind =
         isInitialHit ? "hit" : currentFoulCatchMode ? "run" : target.kind === "base" && isFirstTarget ? "throw" : target.kind === "base" ? "run" : "throw";
       const node: FieldPlayNode = {
@@ -2821,6 +3095,7 @@ function FieldStage({
 
       return {
         activeNodeId: shouldDelayBaseDecisionBubble ? null : node.id,
+        ballNodeId: target.kind === "position" || target.kind === "base" || target.kind === "foul" ? node.id : current.ballNodeId,
         nodes: [
           ...current.nodes.map((currentNode) =>
             delayedBaseDecisionSourceNode && currentNode.id === delayedBaseDecisionSourceNode.id && currentNode.kind === "position"
@@ -2833,15 +3108,9 @@ function FieldStage({
           ...current.segments,
           {
             id: `segment-${Date.now()}-${current.segments.length}`,
-            fromNodeId: shouldUseInitialThrowFromPendingBase ? null : lastNode?.id ?? null,
+            fromNodeId: segmentSourceNodeId,
             toNodeId: node.id,
-            from: shouldUseInitialThrowFromPendingBase
-              ? initialThrowPoint
-              : lastNode
-                ? getNodeActionPoint(lastNode)
-                : isInitialHit
-                  ? homePoint
-                  : initialThrowPoint,
+            from: segmentSourcePoint,
             to: targetPoint,
             kind: segmentKind
           }
@@ -2993,24 +3262,20 @@ function FieldStage({
     if ((decision === "safe" || decision === "error") && resolvedRunnerSource) {
       const destination = decidedNode.kind === "base" ? getBaseDestinationFromKey(decidedNode.key) : getClosestBaseDestination(decidedNode.point);
       const currentRunnerLocation = getRunnerCurrentLocation(resolvedRunnerSource, resolvedRunnerId);
-      const committedScoredRunner =
+      const homeRunnerVisual =
         destination === "home" && resolvedRunnerId
-          ? scoredRunners.find((runner) => runner.id === resolvedRunnerId && runner.committed)
+          ? scoredRunners.find((runner) => runner.id === resolvedRunnerId)
           : null;
-      const runnerAlreadyThere = currentRunnerLocation === destination || Boolean(committedScoredRunner);
+      const runnerAlreadyThere =
+        destination === "home" ? Boolean(homeRunnerVisual?.arrived) : currentRunnerLocation === destination;
       if (!runnerAlreadyThere) {
-        if (destination === "home") addScoredRunner(resolvedRunnerSource);
-        const advanceReason =
-          decision === "error"
-            ? "error"
-            : decidedNode.advanceReason
-              ? decidedNode.advanceReason
-              : manualAdvancePlay?.source === resolvedRunnerSource && manualAdvancePlay.destination === destination && manualAdvancePlay.reason
-              ? manualAdvancePlay.reason
-              : hasHitPlay()
-                ? "hit"
-                : "passed-ball";
-        onRunnerMove(resolvedRunnerSource, destination, advanceReason);
+        if (destination === "home") addScoredRunner(resolvedRunnerSource, false);
+        onRunnerMove(resolvedRunnerSource, destination, resolveAdvanceReasonForNode(decidedNode, resolvedRunnerSource, decision));
+        if (destination === "home") markScoredRunnerArrived(resolvedRunnerSource, resolvedRunnerId);
+      }
+      if (destination === "home") {
+        commitScoredRunner(resolvedRunnerSource, resolvedRunnerId);
+        onLiveScorePreview();
       }
       setManualAdvancePlay(null);
     }
@@ -3074,6 +3339,10 @@ function FieldStage({
         .map((step) => ensureManualAdvanceBaseNode(step.source, step.destination, true, false, step.advanceReason))
         .filter((nodeId): nodeId is string => Boolean(nodeId));
 
+      steps.forEach((step) => {
+        if (step.destination === "home") addScoredRunner(step.source, false, true);
+      });
+
       if (nodeIds.length > 0) {
         scheduleFieldDecisionBubbles(nodeIds, nodeIds[0], 0);
       }
@@ -3083,10 +3352,16 @@ function FieldStage({
     }
 
     onRunnerMove(advanceTarget.source, advanceTarget.destination, reason);
+    if (!shouldOpenDecisionBubbles) {
+      openPreparedDecisionForRunner(advanceTarget.source, advanceTarget.destination, reason);
+    }
     setAdvanceTarget(null);
   }
 
   function startRunnerDrag(source: RunnerSource, imageSrc: string, event: PointerEvent<HTMLButtonElement>, mirrored = false) {
+    if (deadBallPending) return;
+    if (liveCountPending && source === "batter") return;
+
     event.preventDefault();
     event.stopPropagation();
     if (advanceTargetTimerRef.current) {
@@ -3105,6 +3380,11 @@ function FieldStage({
   }
 
   function dismissOpenBubbles() {
+    const pendingHomeSafeNodes = fieldPlay.nodes.filter(
+      (node) => node.kind === "base" && getBaseDestinationFromKey(node.key) === "home" && node.decisionEnabled && node.bubbleOpen && !node.decision
+    );
+
+    pendingHomeSafeNodes.forEach((node) => finalizeHomeRunnerIfSafe(node));
     if (advanceTargetTimerRef.current) {
       window.clearTimeout(advanceTargetTimerRef.current);
       advanceTargetTimerRef.current = null;
@@ -3225,7 +3505,7 @@ function FieldStage({
           ref={(node) => setTargetRef(`foul-${side}`, node)}
           onClick={() => handleFieldTarget(makeFoulTarget(side))}
         >
-          {"\u25b3"}
+          <ScoreMarkIcon type="foul" className="foul-zone-icon" />
         </button>
       ))}
 
@@ -3395,10 +3675,10 @@ function FieldStage({
             ref={(node) => setTargetRef(`runner-${baseKey}`, node)}
             onPointerDown={(event) => {
               setFieldSelection(`runner-${baseKey}`);
-              startRunnerDrag(baseKey, ownBatting ? "assets/runner-red-outline.png" : "assets/runner-blue-outline.png", event);
+              startRunnerDrag(baseKey, ownBatting ? RUNNER_RED_ASSET : RUNNER_BLUE_ASSET, event);
             }}
           >
-            <img className="runner-icon" src={ownBatting ? "assets/runner-red-outline.png" : "assets/runner-blue-outline.png"} alt="" />
+            <img className="runner-icon" src={ownBatting ? RUNNER_RED_ASSET : RUNNER_BLUE_ASSET} alt="" />
           </button>
         );
       })}
@@ -3418,7 +3698,7 @@ function FieldStage({
             }`}
             key={`runner-at-${node.id}`}
             style={isHomePlay ? ({ left: `${node.point.x}px`, top: `${node.point.y}px` } as CSSProperties) : getRunnerSlotStyle(destination, node.point)}
-            src={ownBatting ? "assets/runner-red-outline.png" : "assets/runner-blue-outline.png"}
+            src={ownBatting ? RUNNER_RED_ASSET : RUNNER_BLUE_ASSET}
             alt=""
           />
         );
@@ -3444,9 +3724,25 @@ function FieldStage({
         );
       })}
 
-      {scoredRunners.length > 0 && (
+      {pendingScoredRunners.map((runner, index) => {
+        const decisionNode = getScoredRunnerDecisionNode(runner);
+        const point = getHomePendingPoint(index, pendingScoredRunners.length);
+        return (
+          <img
+            className={`pending-home-runner${runner.batter ? " batter-scored" : ""}${decisionNode?.decision === "out" ? " runner-out" : ""}${
+              decisionNode?.decisionEnabled && (decisionNode.bubbleOpen || decisionNode.decision) ? " runner-decision-target" : ""
+            }`}
+            src={runner.imageSrc}
+            alt=""
+            key={`pending-home-${runner.id}`}
+            style={{ left: `${point.x}px`, top: `${point.y}px` }}
+          />
+        );
+      })}
+
+      {committedScoredRunners.length > 0 && (
         <div className="scored-runner-lane" aria-label="ホームイン済みランナー">
-          {scoredRunners.map((runner) => {
+          {committedScoredRunners.map((runner) => {
             const decisionNode = getScoredRunnerDecisionNode(runner);
             return (
               <img
@@ -3464,39 +3760,41 @@ function FieldStage({
         </div>
       )}
 
-      {getDecisionBubbleEntries().map(({ node, point, shift, zIndex }) => (
-          <div
-            className={`play-decision-bubble${node.decision ? ` is-${node.decision}` : ""}`}
-            key={node.id}
-            style={
-              {
-                left: `${point.x}px`,
-                top: `${point.y}px`,
-                zIndex,
-                "--bubble-shift-x": `${shift.x}px`,
-                "--bubble-shift-y": `${shift.y}px`
-              } as CSSProperties & Record<"--bubble-shift-x" | "--bubble-shift-y", string>
-            }
-          >
-            <div className="play-decision-subject">{node.subject}</div>
-            <div className={`play-decision-actions${isSingleDecisionActionNode(node) ? " single-action" : ""}`}>
-              {renderDecisionButtons(node)}
+      <div className="field-bubble-layer">
+        {getDecisionBubbleEntries().map(({ node, point, shift, zIndex }) => (
+            <div
+              className={`play-decision-bubble${isSingleDecisionActionNode(node) ? " compact-bubble" : ""}${node.decision ? ` is-${node.decision}` : ""}`}
+              key={node.id}
+              style={
+                {
+                  left: `${point.x}px`,
+                  top: `${point.y}px`,
+                  zIndex,
+                  "--bubble-shift-x": `${shift.x}px`,
+                  "--bubble-shift-y": `${shift.y}px`
+                } as CSSProperties & Record<"--bubble-shift-x" | "--bubble-shift-y", string>
+              }
+            >
+              <div className="play-decision-subject">{node.subject}</div>
+              <div className={`play-decision-actions${isSingleDecisionActionNode(node) ? " single-action" : ""}`}>
+                {renderDecisionButtons(node)}
+              </div>
+            </div>
+          ))}
+
+        {advanceTarget && (
+          <div className="advance-bubble" style={{ left: `${advanceTarget.point.x}px`, top: `${advanceTarget.point.y}px` }}>
+            <div className="advance-bubble-title">{advanceTarget.title}</div>
+            <div className="advance-actions">
+              {advanceTarget.choices.map((choice) => (
+                <button type="button" key={choice.reason} onClick={() => chooseAdvance(choice.reason)}>
+                  {choice.label}
+                </button>
+              ))}
             </div>
           </div>
-        ))}
-
-      {advanceTarget && (
-        <div className="advance-bubble" style={{ left: `${advanceTarget.point.x}px`, top: `${advanceTarget.point.y}px` }}>
-          <div className="advance-bubble-title">{advanceTarget.title}</div>
-          <div className="advance-actions">
-            {advanceTarget.choices.map((choice) => (
-              <button type="button" key={choice.reason} onClick={() => chooseAdvance(choice.reason)}>
-                {choice.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+        )}
+      </div>
         </div>
       )}
 

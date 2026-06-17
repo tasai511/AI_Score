@@ -28,7 +28,7 @@ export const initialState: AppState = {
     name: "東村山ドリーム",
     shortName: "東村山",
     color: "red",
-    colorHex: "#ef4d39",
+    colorHex: "#ff4048",
     battingSide: "top"
   },
   opponentTeam: {
