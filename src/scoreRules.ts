@@ -1,4 +1,4 @@
-import type { AdvanceReason, AppState, BaseKey, PitchType, RunnerSource, RunnerState, TeamKey } from "./types";
+import type { AdvanceReason, AppState, BaseKey, PitchType, RunnerDestination, RunnerSource, RunnerState, TeamKey } from "./types";
 
 export const hitMarkAssets = {
   single: "assets/single.svg",
@@ -7,16 +7,22 @@ export const hitMarkAssets = {
   "home-run": "assets/home-run.svg"
 } as const;
 
-export const pitchSymbolCoordinates = [
-  { x: 190, y: 250 },
-  { x: 190, y: 375 },
-  { x: 190, y: 500 },
-  { x: 190, y: 625 }
-];
-
 export const outSymbols = ["", "I", "II", "III"];
 
+export const fieldOutResultLabels: Record<number, string> = {
+  1: "投ゴ",
+  2: "捕ゴ",
+  3: "一ゴ",
+  4: "二ゴ",
+  5: "三ゴ",
+  6: "遊ゴ",
+  7: "左飛",
+  8: "中飛",
+  9: "右飛"
+};
+
 export const advanceReasonLabels: Record<AdvanceReason, string> = {
+  error: "失策",
   walk: "四球",
   "dead-ball": "死球",
   "dropped-third-strike": "振り逃げ",
@@ -32,6 +38,14 @@ const nextBaseMap: Record<BaseKey, BaseKey | "home"> = {
   first: "second",
   second: "third",
   third: "home"
+};
+
+const runnerProgressRank: Record<RunnerSource | RunnerDestination, number> = {
+  batter: 0,
+  first: 1,
+  second: 2,
+  third: 3,
+  home: 4
 };
 
 export function normalizeNumber(value: unknown) {
@@ -52,6 +66,23 @@ export function isOwnBattingNow(state: AppState) {
 
 export function getBattingTeamKey(state: AppState): TeamKey {
   return isOwnBattingNow(state) ? "own" : "opponent";
+}
+
+function getTeamBattingOrder(state: AppState, teamKey: TeamKey) {
+  return teamKey === "own" ? state.game.ownBattingOrder : state.game.opponentBattingOrder;
+}
+
+function setTeamBattingOrder(state: AppState, teamKey: TeamKey, order: number) {
+  if (teamKey === "own") {
+    state.game.ownBattingOrder = order;
+    return;
+  }
+
+  state.game.opponentBattingOrder = order;
+}
+
+function syncActiveBattingOrder(state: AppState) {
+  state.game.battingOrder = getTeamBattingOrder(state, getBattingTeamKey(state));
 }
 
 export function getCurrentBattingIndex(state: AppState) {
@@ -100,6 +131,38 @@ export function getCurrentBatterRunner(state: AppState): RunnerState {
   };
 }
 
+function getCurrentBatterBase(state: AppState) {
+  const teamKey = getBattingTeamKey(state);
+  return (["first", "second", "third"] as BaseKey[]).find((base) => {
+    const runner = state.game.runners[base];
+    return runner?.teamKey === teamKey && runner.battingOrder === state.game.battingOrder;
+  });
+}
+
+function getRunnerCurrentRank(state: AppState, source: RunnerSource) {
+  if (source === "batter") {
+    const currentBatterBase = getCurrentBatterBase(state);
+    return currentBatterBase ? runnerProgressRank[currentBatterBase] : runnerProgressRank.batter;
+  }
+
+  if (!state.game.runners[source]) return null;
+  return runnerProgressRank[source];
+}
+
+function canMoveRunnerForward(state: AppState, source: RunnerSource, destination: RunnerDestination) {
+  const currentRank = getRunnerCurrentRank(state, source);
+  if (currentRank === null) return false;
+  return runnerProgressRank[destination] > currentRank;
+}
+
+export function isCurrentBatterPlateAppearanceComplete(state: AppState) {
+  return Boolean(state.plate.result) || Boolean(getCurrentBatterBase(state));
+}
+
+export function shouldResetPlateAfterConfirm(state: AppState) {
+  return isCurrentBatterPlateAppearanceComplete(state) || state.game.outs >= 3;
+}
+
 function withAdvanceNote(runner: RunnerState, reason: AdvanceReason): RunnerState {
   const label = advanceReasonLabels[reason];
   return {
@@ -143,6 +206,7 @@ function advanceBatterToFirstInPlace(state: AppState, reason: AdvanceReason) {
 export function advanceRunner(state: AppState, source: RunnerSource, reason: AdvanceReason): AppState {
   const next: AppState = structuredClone(state);
   next.game.firstPitchEntered = true;
+  next.game.gameStarted = true;
 
   if (reason === "dropped-third-strike") {
     const strikeCount = next.plate.pitches.filter((pitch) => pitch === "\u2715").length;
@@ -170,6 +234,143 @@ export function advanceRunner(state: AppState, source: RunnerSource, reason: Adv
   return next;
 }
 
+function removeCurrentBatterFromBases(state: AppState) {
+  const teamKey = getBattingTeamKey(state);
+  for (const base of ["first", "second", "third"] as BaseKey[]) {
+    const runner = state.game.runners[base];
+    if (runner?.teamKey === teamKey && runner.battingOrder === state.game.battingOrder) {
+      state.game.runners[base] = null;
+      return runner;
+    }
+  }
+
+  return null;
+}
+
+function removeRunnerFromSource(state: AppState, source: RunnerSource): RunnerState | null {
+  if (source === "batter") return removeCurrentBatterFromBases(state) ?? getCurrentBatterRunner(state);
+
+  const runner = state.game.runners[source];
+  state.game.runners[source] = null;
+  return runner;
+}
+
+export function applyFieldOut(state: AppState, source: RunnerSource, resultLabel?: string): AppState {
+  const next: AppState = structuredClone(state);
+  next.game.firstPitchEntered = true;
+  next.game.gameStarted = true;
+
+  if (source === "batter") {
+    removeCurrentBatterFromBases(next);
+    next.plate.result = resultLabel || next.plate.result || "アウト";
+    next.game.balls = 0;
+    next.game.strikes = 0;
+  } else {
+    const runner = next.game.runners[source];
+    if (runner) {
+      next.game.runners[source] = null;
+    }
+  }
+
+  next.game.outs = Math.min(3, next.game.outs + 1);
+  if (source === "batter") next.plate.outNumber = next.game.outs;
+  syncRunnerFirst(next);
+  return next;
+}
+
+export function applyHomeRunnerOut(state: AppState, source: RunnerSource, resultLabel?: string): AppState {
+  const next: AppState = structuredClone(state);
+  next.game.firstPitchEntered = true;
+  next.game.gameStarted = true;
+
+  const battingTeamKey = getBattingTeamKey(next);
+  if (battingTeamKey === "own") {
+    next.game.ownScore = Math.max(0, next.game.ownScore - 1);
+  } else {
+    next.game.opponentScore = Math.max(0, next.game.opponentScore - 1);
+  }
+
+  if (source === "batter") {
+    removeCurrentBatterFromBases(next);
+    next.plate.result = resultLabel || next.plate.result || "\u30a2\u30a6\u30c8";
+    next.game.balls = 0;
+    next.game.strikes = 0;
+  }
+
+  next.game.outs = Math.min(3, next.game.outs + 1);
+  if (source === "batter") next.plate.outNumber = next.game.outs;
+  syncRunnerFirst(next);
+  return next;
+}
+
+export function applyInitialFieldError(state: AppState): AppState {
+  const next: AppState = structuredClone(state);
+  next.game.firstPitchEntered = true;
+  next.game.gameStarted = true;
+  next.plate.result = "E";
+  next.game.balls = 0;
+  next.game.strikes = 0;
+  next.game.hitType = "";
+
+  const currentBatterBase = getCurrentBatterBase(next);
+  if (currentBatterBase) {
+    const runner = next.game.runners[currentBatterBase];
+    if (runner) {
+      next.game.runners[currentBatterBase] = {
+        ...runner,
+        scoreNotes: [...runner.scoreNotes.filter((note) => note !== advanceReasonLabels.hit && note !== advanceReasonLabels.error), advanceReasonLabels.error]
+      };
+    }
+  } else {
+    advanceBatterToFirstInPlace(next, "error");
+  }
+
+  syncRunnerFirst(next);
+  return next;
+}
+
+export function moveRunnerToDestination(state: AppState, source: RunnerSource, destination: RunnerDestination, reason: AdvanceReason): AppState {
+  if (!canMoveRunnerForward(state, source, destination)) return state;
+
+  const next: AppState = structuredClone(state);
+  const runner = removeRunnerFromSource(next, source);
+  if (!runner) return state;
+
+  next.game.firstPitchEntered = true;
+  next.game.gameStarted = true;
+  if (destination === "home") {
+    scoreRunner(next, withAdvanceNote(runner, reason));
+  } else {
+    placeRunnerOnBase(next, destination, runner, reason);
+  }
+
+  if (reason === "dropped-third-strike") {
+    const strikeCount = next.plate.pitches.filter((pitch) => pitch === "\u2715").length;
+    if (strikeCount < 3) next.plate.pitches.push("\u2715");
+    if (next.plate.result === "K" && next.game.outs > 0) next.game.outs -= 1;
+    next.plate.outNumber = 0;
+    next.plate.result = advanceReasonLabels[reason];
+    next.game.balls = 0;
+    next.game.strikes = 0;
+  }
+
+  if (reason === "catcher-interference") {
+    next.plate.result = advanceReasonLabels[reason];
+    next.game.balls = 0;
+    next.game.strikes = 0;
+  }
+
+  if (reason === "error" && source === "batter") {
+    next.plate.result = "E";
+    next.game.balls = 0;
+    next.game.strikes = 0;
+    next.game.hitType = "";
+  }
+
+  syncRunnerFirst(next);
+  return next;
+}
+
 export function canUseDroppedThirdStrike(state: AppState) {
   const strikeCount = state.plate.pitches.filter((pitch) => pitch === "\u2715").length;
   const hasTwoStrikes = state.game.strikes >= 2 || strikeCount >= 2 || state.plate.result === "K";
@@ -178,30 +379,40 @@ export function canUseDroppedThirdStrike(state: AppState) {
 
 export function confirmPlateAppearance(state: AppState): AppState {
   const next: AppState = structuredClone(state);
-  const nextBattingOrder = next.game.battingOrder >= 9 ? 1 : next.game.battingOrder + 1;
-  next.game.battingOrder = nextBattingOrder;
-  next.game.balls = 0;
-  next.game.strikes = 0;
-  next.game.hitType = "";
-  next.game.firstPitchEntered = false;
+  const battingTeamKey = getBattingTeamKey(next);
+  const plateCompleted = isCurrentBatterPlateAppearanceComplete(next);
+  const inningEnded = next.game.outs >= 3;
 
-  if (next.game.outs >= 3) {
+  if (plateCompleted) {
+    const currentTeamBattingOrder = getTeamBattingOrder(next, battingTeamKey);
+    const nextBattingOrder = currentTeamBattingOrder >= 9 ? 1 : currentTeamBattingOrder + 1;
+    setTeamBattingOrder(next, battingTeamKey, nextBattingOrder);
+  }
+
+  if (inningEnded) {
     next.game.outs = 0;
-    next.game.battingOrder = 1;
     next.game.runners = { first: null, second: null, third: null };
     next.game.half = next.game.half === "表" ? "裏" : "表";
     if (next.game.half === "表") next.game.inning += 1;
   }
 
+  if (plateCompleted || inningEnded) {
+    next.game.balls = 0;
+    next.game.strikes = 0;
+    next.game.hitType = "";
+    next.game.firstPitchEntered = false;
+    next.plate = {
+      pitches: [],
+      result: "",
+      outNumber: 0
+    };
+  }
+
+  syncActiveBattingOrder(next);
   const ownBatter = getCurrentOwnBatter(next);
   const opponentBatter = getCurrentOpponentBatter(next);
   next.game.currentBatterJerseyNumber = ownBatter?.jerseyNumber ?? "";
   next.game.currentOpponentBatterJerseyNumber = opponentBatter?.jerseyNumber ?? next.game.currentOpponentBatterJerseyNumber;
-  next.plate = {
-    pitches: [],
-    result: "",
-    outNumber: 0
-  };
   syncRunnerFirst(next);
   return next;
 }
@@ -230,6 +441,7 @@ export function applyPitch(state: AppState, type: PitchType): AppState {
 
   const next: AppState = structuredClone(state);
   next.game.firstPitchEntered = true;
+  next.game.gameStarted = true;
 
   const addSymbol = (pitchType: PitchType) => {
     const symbol = pitchSymbolMap[pitchType];

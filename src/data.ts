@@ -1,6 +1,6 @@
-import type { AppState, Player } from "./types";
+import type { AppState, BatterBox, Player } from "./types";
 
-const ownPlayers: Omit<Player, "rowId">[] = [
+const ownPlayers: Omit<Player, "rowId" | "batterBox">[] = [
   { battingOrder: "1", positionNumber: "3", jerseyNumber: "3", name: "川崎 白輝" },
   { battingOrder: "2", positionNumber: "8", jerseyNumber: "5", name: "小山 翔平" },
   { battingOrder: "3", positionNumber: "1", jerseyNumber: "10", name: "高市 瑛翔" },
@@ -18,6 +18,10 @@ const ownPlayers: Omit<Player, "rowId">[] = [
 
 export const maxOrderRows = 21;
 
+function getDefaultBatterBox(jerseyNumber: string): BatterBox {
+  return jerseyNumber === "10" || jerseyNumber === "11" || jerseyNumber === "13" ? "left" : "right";
+}
+
 export const initialState: AppState = {
   ownTeam: {
     id: "higashimurayama-dream",
@@ -34,6 +38,7 @@ export const initialState: AppState = {
   },
   ownOrder: ownPlayers.map((player, index) => ({
     ...player,
+    batterBox: getDefaultBatterBox(player.jerseyNumber),
     rowId: `own-${player.jerseyNumber || index}`
   })),
   opponentOrder: Array.from({ length: maxOrderRows }, (_, index) => ({
@@ -41,7 +46,8 @@ export const initialState: AppState = {
     battingOrder: "",
     positionNumber: "",
     jerseyNumber: "",
-    name: ""
+    name: "",
+    batterBox: "right"
   })),
   game: {
     inning: 1,
@@ -51,6 +57,8 @@ export const initialState: AppState = {
     outs: 0,
     ownScore: 0,
     opponentScore: 0,
+    ownBattingOrder: 1,
+    opponentBattingOrder: 1,
     battingOrder: 1,
     currentBatterJerseyNumber: "3",
     currentOpponentBatterJerseyNumber: "",
@@ -58,6 +66,7 @@ export const initialState: AppState = {
     currentOpponentPitcherJerseyNumber: "",
     hitType: "",
     firstPitchEntered: false,
+    gameStarted: false,
     runnerFirst: false,
     runners: {
       first: null,

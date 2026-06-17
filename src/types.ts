@@ -4,12 +4,15 @@ export type TabKey = "order" | "score" | "output";
 export type PitchType = "strike" | "foul" | "ball" | "dead";
 export type HitType = "" | "single" | "two-base" | "three-base" | "home-run";
 export type BaseKey = "first" | "second" | "third";
+export type RunnerDestination = BaseKey | "home";
 export type RunnerSource = "batter" | BaseKey;
+export type BatterBox = "right" | "left";
 export type AdvanceReason =
   | "walk"
   | "dead-ball"
   | "dropped-third-strike"
   | "catcher-interference"
+  | "error"
   | "steal"
   | "passed-ball"
   | "balk"
@@ -22,6 +25,7 @@ export interface Player {
   positionNumber: string;
   jerseyNumber: string;
   name: string;
+  batterBox: BatterBox;
 }
 
 export interface Team {
@@ -52,6 +56,8 @@ export interface GameState {
   outs: number;
   ownScore: number;
   opponentScore: number;
+  ownBattingOrder: number;
+  opponentBattingOrder: number;
   battingOrder: number;
   currentBatterJerseyNumber: string;
   currentOpponentBatterJerseyNumber: string;
@@ -59,6 +65,7 @@ export interface GameState {
   currentOpponentPitcherJerseyNumber: string;
   hitType: HitType;
   firstPitchEntered: boolean;
+  gameStarted: boolean;
   runnerFirst: boolean;
   runners: BaseRunners;
 }
