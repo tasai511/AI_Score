@@ -77,6 +77,13 @@ const FIELD_IMAGE_POINTS = {
 
 const RUNNER_RED_ASSET = "assets/runner-red-outline.png?v=20260618-2";
 const RUNNER_BLUE_ASSET = "assets/runner-blue-outline.png?v=20260618-2";
+const RUNNER_PROGRESS_RANK: Record<RunnerSource | RunnerDestination, number> = {
+  batter: 0,
+  first: 1,
+  second: 2,
+  third: 3,
+  home: 4
+};
 
 function ScoreMarkIcon({ type, className = "" }: { type: "strike" | "ball" | "foul" | "dead"; className?: string }) {
   if (type === "strike") {
@@ -1879,14 +1886,6 @@ function FieldStage({
         : "batter";
   }
 
-  const runnerProgressRank: Record<RunnerSource | RunnerDestination, number> = {
-    batter: 0,
-    first: 1,
-    second: 2,
-    third: 3,
-    home: 4
-  };
-
   function isCurrentBatterRunner(runner: { teamKey: TeamKey; battingOrder: number } | null | undefined) {
     return Boolean(runner && runner.teamKey === battingTeamKey && runner.battingOrder === state.game.battingOrder);
   }
@@ -1933,13 +1932,13 @@ function FieldStage({
     if (!source) return false;
     const currentLocation = getRunnerCurrentLocation(source, runnerId);
     if (!currentLocation) return false;
-    return runnerProgressRank[destination] >= runnerProgressRank[currentLocation];
+    return RUNNER_PROGRESS_RANK[destination] >= RUNNER_PROGRESS_RANK[currentLocation];
   }
 
   function canRunnerAdvanceToDestination(source: RunnerSource, destination: RunnerDestination, runnerId?: string) {
     const currentLocation = getRunnerCurrentLocation(source, runnerId);
     if (!currentLocation) return false;
-    return runnerProgressRank[destination] > runnerProgressRank[currentLocation];
+    return RUNNER_PROGRESS_RANK[destination] > RUNNER_PROGRESS_RANK[currentLocation];
   }
 
   function getRunnerSourceAtBase(destination: RunnerDestination): RunnerSource | null {
@@ -2028,7 +2027,7 @@ function FieldStage({
     const nodeRunnerId = node.runnerId ?? getRunnerIdForSource(node.runnerSource);
     const currentLocation = getRunnerCurrentLocation(node.runnerSource, nodeRunnerId);
     if (!currentLocation) return false;
-    return runnerProgressRank[currentLocation] > runnerProgressRank[destination];
+    return RUNNER_PROGRESS_RANK[currentLocation] > RUNNER_PROGRESS_RANK[destination];
   }
 
   function isRunnerOut(source: RunnerSource, runnerId?: string) {
@@ -2983,6 +2982,12 @@ function FieldStage({
     );
   }
 
+  function commitArrivedScoredRunners() {
+    setScoredRunners((current) =>
+      current.map((runner) => (runner.arrived && !runner.committed ? { ...runner, committed: true } : runner))
+    );
+  }
+
   function getScoredRunnerDecisionNode(runner: ScoredRunnerVisual) {
     return homePlayRunnerNodes.find((node) => (node.runnerId && node.runnerId === runner.id) || node.runnerSource === runner.source) ?? null;
   }
@@ -3013,6 +3018,7 @@ function FieldStage({
       runnerAnimationTimerRef.current = null;
     }
     setRunnerAnimations([]);
+    commitArrivedScoredRunners();
     setHomeRunAnimating(true);
     onPlateActionLockChange(true);
 
