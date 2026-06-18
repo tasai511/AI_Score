@@ -362,10 +362,19 @@ export function applyHomeRun(state: AppState): AppState {
   next.plate.result = "本";
   next.game.balls = 0;
   next.game.strikes = 0;
+  const currentBatterBase = getCurrentBatterBase(next);
 
   const runnersToScore = (["third", "second", "first"] as BaseKey[])
     .map((base) => next.game.runners[base])
-    .filter((runner): runner is RunnerState => Boolean(runner));
+    .filter((runner): runner is RunnerState => Boolean(runner))
+    .map((runner) =>
+      runner.teamKey === getBattingTeamKey(next) && runner.battingOrder === next.game.battingOrder
+        ? {
+            ...runner,
+            scoreCard: getCurrentBatterScoreCard(next, "hit")
+          }
+        : runner
+    );
 
   next.game.runners = {
     first: null,
@@ -377,7 +386,9 @@ export function applyHomeRun(state: AppState): AppState {
     scoreRunner(next, withAdvanceNote(runner, "hit"));
   });
 
-  scoreRunner(next, getCurrentBatterRunner(next, "hit"));
+  if (!currentBatterBase) {
+    scoreRunner(next, getCurrentBatterRunner(next, "hit"));
+  }
   syncRunnerFirst(next);
   return next;
 }

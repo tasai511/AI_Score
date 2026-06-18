@@ -34,7 +34,7 @@ export const initialState: AppState = {
   opponentTeam: {
     name: "",
     color: "blue",
-    colorHex: "#1268d8"
+    colorHex: "#2a8dff"
   },
   ownOrder: ownPlayers.map((player, index) => ({
     ...player,

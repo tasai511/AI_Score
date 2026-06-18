@@ -1,5 +1,8 @@
 ﻿:root {
   --own-team-color: #ff4048;
+  --own-team-color-rgb: 255 64 72;
+  --opponent-team-color: #2a8dff;
+  --opponent-team-color-rgb: 42 141 255;
   color: #222;
   background: #e8edf4;
   font-family:
@@ -182,23 +185,23 @@ input {
   width: min(190px, 58%);
   height: 32px;
   padding: 0 9px;
-  border: 1px solid rgba(18, 104, 216, 0.22);
+  border: 1px solid rgb(var(--opponent-team-color-rgb) / 0.22);
   border-radius: 8px;
   background: #f8fbff;
-  color: #1268d8;
+  color: var(--opponent-team-color);
   font-size: 0.92rem;
   font-weight: 900;
   text-align: right;
 }
 
 .team-name-input::placeholder {
-  color: rgba(18, 104, 216, 0.55);
+  color: rgb(var(--opponent-team-color-rgb) / 0.55);
 }
 
 .team-name-input:focus {
-  border-color: #1268d8;
+  border-color: var(--opponent-team-color);
   background: #fff;
-  outline: 2px solid rgba(18, 104, 216, 0.16);
+  outline: 2px solid rgb(var(--opponent-team-color-rgb) / 0.16);
 }
 
 .order-error {
@@ -224,12 +227,12 @@ input {
 }
 
 .opponent-order {
-  border-color: rgba(18, 104, 216, 0.26);
+  border-color: rgb(var(--opponent-team-color-rgb) / 0.26);
 }
 
 .opponent-order header span,
 .opponent-order header strong {
-  color: #1268d8;
+  color: var(--opponent-team-color);
 }
 
 .order-list {
@@ -259,7 +262,7 @@ input {
 
 .opponent-order .order-row.is-current-batter {
   background: #edf5ff;
-  box-shadow: inset 3px 0 0 #1268d8;
+  box-shadow: inset 3px 0 0 var(--opponent-team-color);
 }
 
 .order-header {
@@ -357,9 +360,9 @@ input {
 }
 
 .order-input:focus {
-  border-color: #1268d8;
+  border-color: var(--opponent-team-color);
   background: #fff;
-  outline: 2px solid rgba(18, 104, 216, 0.16);
+  outline: 2px solid rgb(var(--opponent-team-color-rgb) / 0.16);
 }
 
 .own-order .order-input:focus {
@@ -606,6 +609,7 @@ input {
 }
 
 .runner-score-card {
+  --runner-score-matrix-width: clamp(78px, 24vw, 92px);
   display: grid;
   gap: 5px;
   min-width: 0;
@@ -619,11 +623,11 @@ input {
 
 .runner-score-title {
   display: flex;
-  width: 100%;
+  width: var(--runner-score-matrix-width);
   min-width: 0;
   align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
 }
 
 .runner-score-title span,
@@ -639,6 +643,7 @@ input {
 }
 
 .runner-score-title b {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   color: #111;
@@ -648,7 +653,7 @@ input {
 }
 
 .runner-score-matrix {
-  width: clamp(78px, 24vw, 92px);
+  width: var(--runner-score-matrix-width);
   border: 2px solid rgba(0, 173, 88, 0.72);
   border-radius: 5px;
   box-shadow: 0 3px 9px rgba(34, 39, 47, 0.12);
@@ -785,8 +790,8 @@ i.red {
 .field-stage {
   position: relative;
   --hit-line-color: var(--own-team-color);
-  --throw-line-color: #1268d8;
-  --defense-position-color: #1268d8;
+  --throw-line-color: var(--opponent-team-color);
+  --defense-position-color: var(--opponent-team-color);
   --defense-position-border-color: rgba(255, 255, 255, 0.9);
   min-height: 566px;
   margin-top: 14px;
@@ -794,7 +799,7 @@ i.red {
 }
 
 .field-stage.opponent-batting {
-  --hit-line-color: #1268d8;
+  --hit-line-color: var(--opponent-team-color);
   --throw-line-color: var(--own-team-color);
   --defense-position-color: var(--own-team-color);
 }
@@ -1078,7 +1083,7 @@ i.red {
 }
 
 .play-decision-bubble.home-run-bubble {
-  width: 102px;
+  width: 116px;
 }
 
 .play-decision-bubble.is-out,
@@ -1143,6 +1148,7 @@ i.red {
   background: #fff;
   font-size: 0.64rem;
   font-weight: 900;
+  white-space: nowrap;
 }
 
 .play-decision-bubble.compact-bubble .play-decision-actions button {
@@ -1155,6 +1161,7 @@ i.red {
   min-height: 23px;
   padding: 2px 4px;
   font-size: 0.64rem;
+  letter-spacing: 0;
 }
 
 .play-decision-actions button + button {
@@ -1601,7 +1608,7 @@ i.red {
 }
 
 .broadcast-score .opponent {
-  color: #1268d8;
+  color: var(--opponent-team-color);
 }
 
 .team {
@@ -2048,7 +2055,8 @@ i.red {
 :root {
   --app-top-offset: 56px;
   --team-red-bright: var(--own-team-color);
-  --red-art-tone: saturate(2.08) brightness(0.98) hue-rotate(-10deg) contrast(1.14);
+  --red-art-tone: saturate(1.92) brightness(1.02) hue-rotate(-4deg) contrast(1.08);
+  --blue-art-tone: saturate(1.34) brightness(1.14) hue-rotate(-4deg) contrast(1.06);
 }
 
 .player-row {
@@ -2091,17 +2099,21 @@ i.red {
   filter: var(--red-art-tone) drop-shadow(0 4px 7px rgba(34, 39, 47, 0.2));
 }
 
+.batter-icon[src*="batter-blue"] {
+  filter: var(--blue-art-tone) drop-shadow(0 4px 7px rgba(34, 39, 47, 0.2));
+}
+
 .runner-score-strip {
   gap: 10px;
+}
+
+.runner-score-card {
+  --runner-score-matrix-width: clamp(70px, 22vw, 84px);
 }
 
 .runner-score-title span,
 .runner-score-title b {
   font-size: 0.64rem;
-}
-
-.runner-score-matrix {
-  width: clamp(70px, 22vw, 84px);
 }
 
 .field-stage {
@@ -2121,18 +2133,12 @@ i.red {
 }
 
 .field-play-line {
-  filter:
-    drop-shadow(0 0 4px rgba(255, 255, 255, 0.95))
-    drop-shadow(0 0 8px rgba(255, 255, 255, 0.72))
-    drop-shadow(0 4px 5px rgba(0, 0, 0, 0.28));
+  filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.28));
 }
 
 #field-hit-arrow path,
 #field-throw-arrow path {
-  filter:
-    drop-shadow(0 0 3px rgba(255, 255, 255, 0.92))
-    drop-shadow(0 0 6px rgba(255, 255, 255, 0.7))
-    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.28));
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.28));
 }
 
 .foul-zone-marker {
@@ -2220,12 +2226,28 @@ i.red {
     drop-shadow(0 5px 6px rgba(34, 39, 47, 0.28));
 }
 
+.batter-runner-button img[src*="batter-blue"] {
+  filter:
+    var(--blue-art-tone)
+    drop-shadow(1px 0 0 #fff)
+    drop-shadow(-1px 0 0 #fff)
+    drop-shadow(0 1px 0 #fff)
+    drop-shadow(0 -1px 0 #fff)
+    drop-shadow(1px 1px 0 #fff)
+    drop-shadow(-1px -1px 0 #fff)
+    drop-shadow(0 5px 6px rgba(34, 39, 47, 0.28));
+}
+
 .runner-icon {
   filter: drop-shadow(0 5px 6px rgba(34, 39, 47, 0.28));
 }
 
 .runner-icon[src*="runner-red-outline"] {
   filter: var(--red-art-tone) drop-shadow(0 5px 6px rgba(34, 39, 47, 0.28));
+}
+
+.runner-icon[src*="runner-blue-outline"] {
+  filter: var(--blue-art-tone) drop-shadow(0 5px 6px rgba(34, 39, 47, 0.28));
 }
 
 .field-decision-runner {
@@ -2236,12 +2258,20 @@ i.red {
   filter: var(--red-art-tone) drop-shadow(0 7px 11px rgba(34, 39, 47, 0.32));
 }
 
+.field-decision-runner[src*="runner-blue-outline"] {
+  filter: var(--blue-art-tone) drop-shadow(0 7px 11px rgba(34, 39, 47, 0.32));
+}
+
 .runner-auto-advance {
   filter: drop-shadow(0 8px 12px rgba(34, 39, 47, 0.32));
 }
 
 .runner-auto-advance[src*="runner-red-outline"] {
   filter: var(--red-art-tone) drop-shadow(0 8px 12px rgba(34, 39, 47, 0.32));
+}
+
+.runner-auto-advance[src*="runner-blue-outline"] {
+  filter: var(--blue-art-tone) drop-shadow(0 8px 12px rgba(34, 39, 47, 0.32));
 }
 
 .runner-auto-advance.batter-advance {
@@ -2267,6 +2297,18 @@ i.red {
     drop-shadow(0 8px 12px rgba(34, 39, 47, 0.32));
 }
 
+.runner-auto-advance.batter-advance[src*="batter-blue"] {
+  filter:
+    var(--blue-art-tone)
+    drop-shadow(1px 0 0 #fff)
+    drop-shadow(-1px 0 0 #fff)
+    drop-shadow(0 1px 0 #fff)
+    drop-shadow(0 -1px 0 #fff)
+    drop-shadow(1px 1px 0 #fff)
+    drop-shadow(-1px -1px 0 #fff)
+    drop-shadow(0 8px 12px rgba(34, 39, 47, 0.32));
+}
+
 .scored-runner-icon {
   filter: drop-shadow(0 5px 8px rgba(34, 39, 47, 0.3));
 }
@@ -2275,8 +2317,16 @@ i.red {
   filter: var(--red-art-tone) drop-shadow(0 5px 8px rgba(34, 39, 47, 0.3));
 }
 
+.scored-runner-icon[src*="runner-blue-outline"] {
+  filter: var(--blue-art-tone) drop-shadow(0 5px 8px rgba(34, 39, 47, 0.3));
+}
+
 .pending-home-runner[src*="runner-red-outline"] {
   filter: var(--red-art-tone) drop-shadow(0 5px 8px rgba(34, 39, 47, 0.3));
+}
+
+.pending-home-runner[src*="runner-blue-outline"] {
+  filter: var(--blue-art-tone) drop-shadow(0 5px 8px rgba(34, 39, 47, 0.3));
 }
 
 .pending-home-runner {
@@ -2302,9 +2352,29 @@ i.red {
     drop-shadow(0 5px 8px rgba(34, 39, 47, 0.3));
 }
 
+.scored-runner-icon.batter-scored[src*="batter-blue"] {
+  filter:
+    var(--blue-art-tone)
+    drop-shadow(1px 0 0 #fff)
+    drop-shadow(-1px 0 0 #fff)
+    drop-shadow(0 1px 0 #fff)
+    drop-shadow(0 -1px 0 #fff)
+    drop-shadow(0 5px 8px rgba(34, 39, 47, 0.3));
+}
+
 .pending-home-runner.batter-scored[src*="batter-red"] {
   filter:
     var(--red-art-tone)
+    drop-shadow(1px 0 0 #fff)
+    drop-shadow(-1px 0 0 #fff)
+    drop-shadow(0 1px 0 #fff)
+    drop-shadow(0 -1px 0 #fff)
+    drop-shadow(0 5px 8px rgba(34, 39, 47, 0.3));
+}
+
+.pending-home-runner.batter-scored[src*="batter-blue"] {
+  filter:
+    var(--blue-art-tone)
     drop-shadow(1px 0 0 #fff)
     drop-shadow(-1px 0 0 #fff)
     drop-shadow(0 1px 0 #fff)
@@ -2318,6 +2388,10 @@ i.red {
 
 .runner-drag-preview[src*="runner-red-outline"] {
   filter: var(--red-art-tone) drop-shadow(0 8px 13px rgba(34, 39, 47, 0.3));
+}
+
+.runner-drag-preview[src*="runner-blue-outline"] {
+  filter: var(--blue-art-tone) drop-shadow(0 8px 13px rgba(34, 39, 47, 0.3));
 }
 
 .runner-button.runner-out .runner-icon,
@@ -2404,8 +2478,8 @@ i.red {
     gap: 8px;
   }
 
-  .runner-score-matrix {
-    width: clamp(66px, 20vw, 78px);
+  .runner-score-card {
+    --runner-score-matrix-width: clamp(66px, 20vw, 78px);
   }
 
   .field-stage {
