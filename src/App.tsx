@@ -1,6 +1,18 @@
 ﻿import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, Dispatch, KeyboardEvent, PointerEvent, SetStateAction } from "react";
-import type { AdvanceReason, AppState, BaseKey, BatterBox, PitchType, Player, RunnerDestination, RunnerSource, TabKey, TeamKey } from "./types";
+import type {
+  AdvanceReason,
+  AppState,
+  BaseKey,
+  BatterBox,
+  PitchType,
+  Player,
+  RunnerDestination,
+  RunnerSource,
+  ScoreCellMark,
+  TabKey,
+  TeamKey
+} from "./types";
 import { initialState } from "./data";
 import {
   advanceReasonLabels,
@@ -10,6 +22,8 @@ import {
   applyHomeRunnerOut,
   applyInitialFieldError,
   applyPitch,
+  buildCurrentScoreCellMarks,
+  buildRunnerScoreCellMarks,
   canUseDroppedThirdStrike,
   confirmPlateAppearance,
   fieldOutResultLabels,
@@ -26,7 +40,6 @@ import {
   isOwnBattingNow,
   moveRunnerToDestination,
   normalizeNumber,
-  outSymbols,
   shouldResetPlateAfterConfirm
 } from "./scoreRules";
 
@@ -726,7 +739,7 @@ export function App() {
                   </div>
                   <ScoreCell state={state} pendingOuts={pendingFieldOuts} />
                 </div>
-                <RunnerScoreStrip state={state} />
+                <RunnerScoreStrip state={state} pendingOuts={pendingFieldOuts} />
               </div>
             </section>
 
@@ -1101,47 +1114,46 @@ function renderScorePitchSymbol(symbol: string, x: number, y: number, key: strin
 }
 
 function ScoreMatrixGraphic({
-  pitches,
+  marks,
   hitType = "",
-  outNumber = 0,
-  result = "",
-  notes = [],
   className = ""
 }: {
-  pitches: string[];
+  marks: ScoreCellMark[];
   hitType?: keyof typeof hitMarkAssets | "";
-  outNumber?: number;
-  result?: string;
-  notes?: string[];
   className?: string;
 }) {
+  const pitchMarks = marks.filter((mark) => mark.kind === "pitch");
+  const resultMark = marks.find((mark) => mark.kind === "result");
+  const outMark = marks.find((mark) => mark.kind === "out");
+  const noteMarks = marks.filter((mark) => mark.kind === "note");
+
   return (
     <div className={`score-matrix ${className}`.trim()}>
       <img src="assets/score_matrix.png" alt="" />
       {hitType && <img className="matrix-hit-mark" src={hitMarkAssets[hitType]} alt="" data-hit-mark={hitType} />}
       <svg className="matrix-overlay" viewBox="0 0 1382 1025" aria-hidden="true">
         <g>
-          {pitches.map((symbol, index) => {
-            const coordinate = getPitchSymbolCoordinate(index, pitches.length);
-            return renderScorePitchSymbol(symbol, coordinate.x, coordinate.y, `${symbol}-${index}`);
+          {pitchMarks.map((mark, index) => {
+            const coordinate = getPitchSymbolCoordinate(index, pitchMarks.length);
+            return renderScorePitchSymbol(mark.text, coordinate.x, coordinate.y, `${mark.text}-${index}`);
           })}
         </g>
-        {outNumber > 0 && (
+        {outMark && (
           <text className="matrix-out" x="725" y="505">
-            {outSymbols[outNumber]}
+            {outMark.text}
           </text>
         )}
-        {result && (
+        {resultMark && (
           <text className="matrix-play" x="1045" y="720">
-            {result}
+            {resultMark.text}
           </text>
         )}
       </svg>
-      {notes.length > 0 && (
+      {noteMarks.length > 0 && (
         <div className="runner-score-notes" aria-hidden="true">
-          {notes.map((note) => (
-            <span className="runner-score-note" key={note}>
-              {note}
+          {noteMarks.map((note, index) => (
+            <span className="runner-score-note" key={`${note.text}-${index}`}>
+              {note.text}
             </span>
           ))}
         </div>
@@ -1152,19 +1164,15 @@ function ScoreMatrixGraphic({
 
 function ScoreCell({ state, pendingOuts = [] }: { state: AppState; pendingOuts?: PendingFieldOut[] }) {
   const hitType = state.game.hitType;
-  const pendingBatterOutIndex = pendingOuts.findIndex((fieldOut) => fieldOut.source === "batter");
-  const pendingBatterOut = pendingBatterOutIndex >= 0 ? pendingOuts[pendingBatterOutIndex] : null;
-  const previewOutNumber = pendingBatterOut ? Math.min(3, state.game.outs + pendingBatterOutIndex + 1) : 0;
-  const outNumber = state.plate.outNumber || previewOutNumber;
-  const result = state.plate.result || pendingBatterOut?.resultLabel || "";
+  const marks = buildCurrentScoreCellMarks(state, pendingOuts);
   return (
     <article className="score-cell" aria-label="current score cell">
-      <ScoreMatrixGraphic pitches={state.plate.pitches} hitType={hitType} outNumber={outNumber} result={result} className="score-matrix-current" />
+      <ScoreMatrixGraphic marks={marks} hitType={hitType} className="score-matrix-current" />
     </article>
   );
 }
 
-function RunnerScoreStrip({ state }: { state: AppState }) {
+function RunnerScoreStrip({ state, pendingOuts = [] }: { state: AppState; pendingOuts?: PendingFieldOut[] }) {
   const runnerCells = [
     { key: "third", label: "3塁", runner: state.game.runners.third },
     { key: "second", label: "2塁", runner: state.game.runners.second },
@@ -1180,11 +1188,13 @@ function RunnerScoreStrip({ state }: { state: AppState }) {
             {cell.runner && <b>{formatPlayerLabel(cell.runner)}</b>}
           </div>
           <ScoreMatrixGraphic
-            pitches={cell.runner?.scoreCard.pitches ?? []}
+            marks={buildRunnerScoreCellMarks(
+              cell.runner,
+              cell.runner
+                ? pendingOuts.find((fieldOut) => fieldOut.source !== "batter" && (fieldOut.runnerId ? fieldOut.runnerId === cell.runner?.id : fieldOut.source === cell.key))
+                : null
+            )}
             hitType={cell.runner?.scoreCard.hitType ?? ""}
-            outNumber={cell.runner?.scoreCard.outNumber ?? 0}
-            result={cell.runner?.scoreCard.result ?? ""}
-            notes={cell.runner?.scoreNotes ?? []}
             className="runner-score-matrix"
           />
         </article>

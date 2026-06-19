@@ -1,5 +1,7 @@
 ﻿import type { AdvanceReason, AppState, BaseKey, PitchType, RunnerDestination, RunnerSource, RunnerState, TeamKey } from "./types";
 
+import type { ScoreCellMark } from "./types";
+
 export const hitMarkAssets = {
   single: "assets/single.svg",
   "two-base": "assets/two-base.svg",
@@ -26,13 +28,97 @@ export const advanceReasonLabels: Record<AdvanceReason, string> = {
   walk: "四球",
   "dead-ball": "死球",
   "dropped-third-strike": "振り逃げ",
-  "catcher-interference": "打撃妨害",
+  "catcher-interference": "捕手妨害",
   steal: "盗塁",
-  "passed-ball": "後逸",
+  "passed-ball": "捕逸",
   balk: "ボーク",
   "runner-interference": "走塁妨害",
   hit: "安打"
 };
+
+type ScoreCellPendingOut = {
+  source: RunnerSource;
+  runnerId?: string;
+  resultLabel?: string;
+};
+
+function buildPitchMarks(pitches: string[]): ScoreCellMark[] {
+  return pitches.map((text) => ({
+    kind: "pitch",
+    text,
+    area: "pitch"
+  }));
+}
+
+export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCellPendingOut[] = []): ScoreCellMark[] {
+  const marks = buildPitchMarks(state.plate.pitches);
+  const pendingBatterOutIndex = pendingOuts.findIndex((fieldOut) => fieldOut.source === "batter");
+  const previewOutIndex = pendingBatterOutIndex >= 0 ? pendingBatterOutIndex : pendingOuts.length > 0 ? 0 : -1;
+  const pendingBatterOut = pendingBatterOutIndex >= 0 ? pendingOuts[pendingBatterOutIndex] : null;
+  const pendingRunnerOut = pendingOuts.find((fieldOut) => fieldOut.source !== "batter") ?? null;
+  const previewOutNumber = previewOutIndex >= 0 ? Math.min(3, state.game.outs + previewOutIndex + 1) : 0;
+  const result = state.plate.result || pendingBatterOut?.resultLabel || (pendingRunnerOut ? pendingRunnerOut.resultLabel || "走死" : "");
+  const outNumber = state.plate.outNumber || previewOutNumber;
+
+  if (result) {
+    marks.push({
+      kind: "result",
+      text: result,
+      area: "result"
+    });
+  }
+
+  if (outNumber > 0) {
+    marks.push({
+      kind: "out",
+      text: outSymbols[outNumber] ?? "?",
+      area: "center"
+    });
+  }
+
+  return marks;
+}
+
+export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut?: ScoreCellPendingOut | null): ScoreCellMark[] {
+  if (!runner) return [];
+
+  const marks = buildPitchMarks(runner.scoreCard.pitches);
+  const lastNote = runner.scoreNotes.length > 0 ? runner.scoreNotes[runner.scoreNotes.length - 1] : "";
+
+  if (runner.scoreCard.result) {
+    marks.push({
+      kind: "result",
+      text: runner.scoreCard.result,
+      area: "result"
+    });
+  }
+
+  if (runner.scoreCard.outNumber > 0) {
+    marks.push({
+      kind: "out",
+      text: outSymbols[runner.scoreCard.outNumber] ?? "?",
+      area: "center"
+    });
+  }
+
+  if (lastNote) {
+    marks.push({
+      kind: "note",
+      text: lastNote,
+      area: "result"
+    });
+  }
+
+  if (pendingOut) {
+    marks.push({
+      kind: "note",
+      text: pendingOut.resultLabel || "走死",
+      area: "result"
+    });
+  }
+
+  return marks;
+}
 
 const nextBaseMap: Record<BaseKey, BaseKey | "home"> = {
   first: "second",
@@ -219,7 +305,7 @@ function advanceExistingRunnerInPlace(state: AppState, source: BaseKey, reason: 
 }
 
 function advanceBatterToFirstInPlace(state: AppState, reason: AdvanceReason) {
-  placeRunnerOnBase(state, "first", getCurrentBatterRunner(state, reason), reason, false);
+  placeRunnerOnBase(state, "first", getCurrentBatterRunner(state, reason), reason, reason !== "error");
   syncRunnerFirst(state);
 }
 

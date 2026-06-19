@@ -52,6 +52,12 @@ export interface RunnerState {
   scoreNotes: string[];
 }
 
+export type ScoreCellMark = {
+  kind: "pitch" | "result" | "out" | "note";
+  text: string;
+  area?: "pitch" | "center" | "result" | "first" | "second" | "third" | "home";
+};
+
 export type BaseRunners = Record<BaseKey, RunnerState | null>;
 
 export interface GameState {
