@@ -749,6 +749,7 @@ export function App() {
               displayOpponentScore={scoreBoardState.game.opponentScore}
               fieldSelection={fieldSelection}
               resetToken={fieldResetToken}
+              needsPlateConfirm={needsPlateConfirm}
               pitchAdvanceRequest={pitchAdvanceRequest}
               pendingPitchContext={pendingPitchContext}
               onLiveScorePreview={() => setLiveScorePreviewActive(true)}
@@ -1209,6 +1210,7 @@ function FieldStage({
   displayOpponentScore,
   fieldSelection,
   resetToken,
+  needsPlateConfirm,
   pitchAdvanceRequest,
   pendingPitchContext,
   onLiveScorePreview,
@@ -1230,6 +1232,7 @@ function FieldStage({
   displayOpponentScore: number;
   fieldSelection: string | null;
   resetToken: number;
+  needsPlateConfirm: boolean;
   pitchAdvanceRequest: PitchAdvanceRequest | null;
   pendingPitchContext: PendingPitchContext;
   onLiveScorePreview: () => void;
@@ -1352,7 +1355,6 @@ function FieldStage({
   const currentBatterIsOnBase = Object.values(state.game.runners).some(
     (runner) => runner?.teamKey === battingTeamKey && runner.battingOrder === state.game.battingOrder
   );
-  const showBatterRunner = !currentBatterIsOnBase && !state.plate.result;
   const [fieldPlay, setFieldPlay] = useState<{
     activeNodeId: string | null;
     ballNodeId: string | null;
@@ -1371,6 +1373,8 @@ function FieldStage({
   const [homeRunAnimating, setHomeRunAnimating] = useState(false);
   const [positionMovePoints, setPositionMovePoints] = useState<Record<string, FieldPoint>>({});
   const [scoredRunners, setScoredRunners] = useState<ScoredRunnerVisual[]>([]);
+  const currentBatterScored = scoredRunners.some((runner) => runner.source === "batter");
+  const showBatterRunner = !currentBatterIsOnBase && !currentBatterScored && !state.plate.result;
   const [fieldArtBox, setFieldArtBox] = useState<FieldArtBox | null>(null);
   const isPendingAdvanceDisplayNode = (node: FieldPlayNode) => {
     if (node.kind !== "base" || !node.runnerSource || node.decision || node.decisionEnabled) return false;
@@ -1442,7 +1446,9 @@ function FieldStage({
   };
   const slots = state.ownTeam.battingSide === "top" ? [ownSlot, opponentSlot] : [opponentSlot, ownSlot];
   const liveCountPending = pendingPitchContext === "live-count";
-  const deadBallPending = pendingPitchContext === "dead-ball" || Boolean(pitchAdvanceRequest);
+  const catcherInterferencePending =
+    needsPlateConfirm && state.plate.result === advanceReasonLabels["catcher-interference"];
+  const deadBallPending = pendingPitchContext === "dead-ball" || Boolean(pitchAdvanceRequest) || catcherInterferencePending;
   const pendingScoredRunners = scoredRunners.filter((runner) => !runner.committed);
   const committedScoredRunners = scoredRunners.filter((runner) => runner.committed);
 
@@ -1622,9 +1628,11 @@ function FieldStage({
       if (currentDrag.source !== "batter" && currentDrag.source === drop.destination) return;
       if (!canRunnerAdvanceToDestination(currentDrag.source, drop.destination, getRunnerIdForSource(currentDrag.source))) return;
       if (fieldHitModeActive) {
+        clearHomeRunCandidateBubble();
         if (drop.destination === "home") {
+          ensureManualAdvanceBaseNode(currentDrag.source, drop.destination, false, false, "hit");
           addScoredRunner(currentDrag.source, false);
-          onRunnerMove(currentDrag.source, drop.destination, "hit");
+          openPreparedDecisionForRunner(currentDrag.source, "home", "hit");
           setAdvanceTarget(null);
           return;
         }
@@ -1912,19 +1920,20 @@ function FieldStage({
   }
 
   function getPendingHomeRunner() {
-    return [...scoredRunners].reverse().find((runner) => !getScoredRunnerDecisionNode(runner)) ?? null;
+    return [...scoredRunners].reverse().find((runner) => !runner.committed) ?? null;
   }
 
   function getRunnerCurrentLocation(source: RunnerSource, runnerId?: string): RunnerSource | RunnerDestination | null {
     const baseById = getRunnerBaseById(runnerId);
     if (baseById) return baseById;
-    if (runnerId && scoredRunners.some((runner) => runner.id === runnerId && runner.committed)) return "home";
+    if (runnerId && scoredRunners.some((runner) => runner.id === runnerId)) return "home";
 
     if (source === "batter") {
       return getCurrentBatterBase() ?? (showBatterRunner ? "batter" : null);
     }
 
     if (state.game.runners[source]) return source;
+    if (scoredRunners.some((runner) => runner.source === source)) return "home";
 
     const fieldNode = [...fieldPlay.nodes]
       .reverse()
@@ -2016,7 +2025,7 @@ function FieldStage({
 
   function getPendingScoredRunnerId(source: RunnerSource | null) {
     if (!source) return undefined;
-    return [...scoredRunners].reverse().find((runner) => runner.source === source && !getScoredRunnerDecisionNode(runner))?.id;
+    return [...scoredRunners].reverse().find((runner) => runner.source === source && !runner.committed)?.id;
   }
 
   function isRunnerAlreadyOnNodeBase(node: FieldPlayNode) {
@@ -2663,6 +2672,17 @@ function FieldStage({
     });
 
     return true;
+  }
+
+  function clearHomeRunCandidateBubble() {
+    setFieldPlay((current) => ({
+      ...current,
+      activeNodeId:
+        current.activeNodeId && current.nodes.some((node) => node.id === current.activeNodeId && isHomeRunDecisionNode(node))
+          ? null
+          : current.activeNodeId,
+      nodes: current.nodes.map((node) => (isHomeRunDecisionNode(node) && !node.decision ? { ...node, bubbleOpen: false } : node))
+    }));
   }
 
   function beginForcedAdvanceDecisionFlow(source: RunnerSource, destination: RunnerDestination, advanceReason: AdvanceReason) {
@@ -3395,7 +3415,6 @@ function FieldStage({
 
     const nodeId = ensureManualAdvanceBaseNode(source, destination, true, true, advanceReason);
     if (!nodeId) return false;
-    scheduleFieldDecisionBubbles([nodeId], nodeId, 0);
     if (destination === "home") addScoredRunner(source, false);
     return true;
   }
@@ -3594,8 +3613,7 @@ function FieldStage({
     }
 
     if (target.kind === "position" && target.label === "2" && fieldHitModeActive && pendingHomeRunnerSource) {
-      const homeDecisionNodeId = ensureManualAdvanceBaseNode(pendingHomeRunnerSource, "home", true, true, "hit");
-      if (homeDecisionNodeId) scheduleFieldDecisionBubbles([homeDecisionNodeId], homeDecisionNodeId, 0);
+      ensureManualAdvanceBaseNode(pendingHomeRunnerSource, "home", true, true, "hit");
     }
   }
 
@@ -3911,7 +3929,13 @@ function FieldStage({
       aria-label="守備位置とランナー"
       onPointerDown={(event) => {
         const target = event.target as HTMLElement;
-        if (target.closest(".play-decision-bubble, .advance-bubble")) return;
+        if (
+          target.closest(
+            ".play-decision-bubble, .advance-bubble, .base-marker, .foul-zone-marker, .position, .outfield-over-marker, .field-play-position-node, .runner-button, .batter-runner-button"
+          )
+        ) {
+          return;
+        }
         dismissOpenBubbles();
       }}
     >
@@ -4134,7 +4158,7 @@ function FieldStage({
             className={`runner-button runner-${baseKey}${fieldSelection === `runner-${baseKey}` ? " selected" : ""}${
               isRunnerOut(runnerSource, runner.id) ? " runner-out" : ""
             }${isRunnerDecisionTarget(runnerSource, runner.id) ? " runner-decision-target" : ""}${
-              animatingRunnerSources.has(runnerSource) || isRunnerInBasePlay(runnerSource, runner.id) || runnerDrag?.source === baseKey
+              animatingRunnerSources.has(runnerSource) || isRunnerInBasePlay(runnerSource, runner.id) || runnerDrag?.source === runnerSource
                 ? " runner-advancing-source"
                 : ""
             }`}
@@ -4145,7 +4169,7 @@ function FieldStage({
             ref={(node) => setTargetRef(`runner-${baseKey}`, node)}
             onPointerDown={(event) => {
               setFieldSelection(`runner-${baseKey}`);
-              startRunnerDrag(baseKey, ownBatting ? RUNNER_RED_ASSET : RUNNER_BLUE_ASSET, event);
+              startRunnerDrag(runnerSource, ownBatting ? RUNNER_RED_ASSET : RUNNER_BLUE_ASSET, event);
             }}
           >
             <img className="runner-icon" src={ownBatting ? RUNNER_RED_ASSET : RUNNER_BLUE_ASSET} alt="" />
