@@ -3,6 +3,8 @@
   --own-team-color-rgb: 255 64 72;
   --opponent-team-color: #2a8dff;
   --opponent-team-color-rgb: 42 141 255;
+  --team-red-bright: #ff533f;
+  --team-blue-bright: #47a3ff;
   color: #222;
   background: #e8edf4;
   font-family:
@@ -659,23 +661,6 @@ input {
   box-shadow: 0 3px 9px rgba(34, 39, 47, 0.12);
 }
 
-.runner-score-notes {
-  position: absolute;
-  right: 6px;
-  bottom: 6px;
-  display: grid;
-  justify-items: end;
-  gap: 1px;
-}
-
-.runner-score-note {
-  color: #e83b2e;
-  font-size: 0.56rem;
-  font-weight: 900;
-  line-height: 1.05;
-  text-shadow: 0 0 2px rgba(255, 255, 255, 0.92);
-}
-
 .score-matrix {
   position: relative;
   overflow: hidden;
@@ -782,6 +767,11 @@ i.red {
   font-size: 160px;
 }
 
+.matrix-note {
+  fill: #e83b2e;
+  font-size: 118px;
+}
+
 .matrix-out {
   fill: #8f8f8f;
   font-size: 150px;
@@ -789,8 +779,8 @@ i.red {
 
 .field-stage {
   position: relative;
-  --hit-line-color: var(--own-team-color);
-  --throw-line-color: var(--opponent-team-color);
+  --hit-line-color: var(--team-red-bright);
+  --throw-line-color: var(--team-blue-bright);
   --defense-position-color: var(--opponent-team-color);
   --defense-position-border-color: rgba(255, 255, 255, 0.9);
   min-height: 566px;
@@ -799,8 +789,8 @@ i.red {
 }
 
 .field-stage.opponent-batting {
-  --hit-line-color: var(--opponent-team-color);
-  --throw-line-color: var(--own-team-color);
+  --hit-line-color: var(--team-blue-bright);
+  --throw-line-color: var(--team-red-bright);
   --defense-position-color: var(--own-team-color);
 }
 
@@ -1461,14 +1451,14 @@ i.red {
 }
 
 .pending-home-runner {
-  position: absolute;
-  z-index: 13;
+  position: relative;
+  z-index: 0;
   width: 34px;
   height: 42px;
   object-fit: contain;
   pointer-events: none;
   filter: drop-shadow(0 5px 8px rgba(34, 39, 47, 0.3));
-  transform: translate(-50%, -50%);
+  transform: none;
   transition:
     opacity 160ms ease,
     transform 160ms ease,
@@ -1492,7 +1482,7 @@ i.red {
 }
 
 .pending-home-runner.runner-decision-target {
-  transform: translate(-50%, -50%) scale(1.16);
+  transform: scale(1.16);
 }
 
 .scored-runner-icon {
@@ -1556,7 +1546,7 @@ i.red {
   z-index: 6;
   left: 6px;
   right: auto;
-  bottom: 28px;
+  bottom: 18px;
   display: grid;
   width: 124px;
   gap: 5px;
@@ -2048,13 +2038,12 @@ i.red {
     width: 118px;
     left: 4px;
     right: auto;
-    bottom: 22px;
+    bottom: 14px;
   }
 }
 
 :root {
   --app-top-offset: 56px;
-  --team-red-bright: var(--own-team-color);
   --red-art-tone: saturate(1.92) brightness(1.02) hue-rotate(-4deg) contrast(1.08);
   --blue-art-tone: saturate(1.34) brightness(1.14) hue-rotate(-4deg) contrast(1.06);
 }
@@ -2117,13 +2106,13 @@ i.red {
 }
 
 .field-stage {
-  --hit-line-color: var(--own-team-color);
+  --hit-line-color: var(--team-red-bright);
   min-height: 522px;
   margin-top: 8px;
 }
 
 .field-stage.opponent-batting {
-  --throw-line-color: var(--own-team-color);
+  --throw-line-color: var(--team-red-bright);
   --defense-position-color: var(--own-team-color);
 }
 
@@ -2488,7 +2477,7 @@ i.red {
   }
 
   .broadcast-board {
-    bottom: 16px;
+    bottom: 10px;
   }
 
   .pitch-buttons {

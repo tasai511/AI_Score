@@ -38,8 +38,10 @@ export const advanceReasonLabels: Record<AdvanceReason, string> = {
 
 type ScoreCellPendingOut = {
   source: RunnerSource;
+  destination?: RunnerDestination;
   runnerId?: string;
   resultLabel?: string;
+  outNumber?: number;
 };
 
 function buildPitchMarks(pitches: string[]): ScoreCellMark[] {
@@ -50,20 +52,75 @@ function buildPitchMarks(pitches: string[]): ScoreCellMark[] {
   }));
 }
 
+function getRunnerDestinationArea(destination?: RunnerDestination): ScoreCellMark["area"] | undefined {
+  return destination;
+}
+
+function getPlateResultArea(
+  result: string,
+  currentBatterBase?: BaseKey,
+  pendingBatterOut?: ScoreCellPendingOut
+): ScoreCellMark["area"] {
+  if (pendingBatterOut?.resultLabel === "走死") return getRunnerDestinationArea(pendingBatterOut.destination) || currentBatterBase || "result";
+  if (pendingBatterOut?.resultLabel) return "result";
+  if (result === "本") return "home";
+  if (currentBatterBase && (result === "B" || result === "DB" || result === "E")) return currentBatterBase;
+  if (currentBatterBase && !result) return currentBatterBase;
+  return "result";
+}
+
 export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCellPendingOut[] = []): ScoreCellMark[] {
-  const marks = buildPitchMarks(state.plate.pitches);
-  const pendingBatterOutIndex = pendingOuts.findIndex((fieldOut) => fieldOut.source === "batter");
-  const previewOutIndex = pendingBatterOutIndex >= 0 ? pendingBatterOutIndex : pendingOuts.length > 0 ? 0 : -1;
-  const pendingBatterOut = pendingBatterOutIndex >= 0 ? pendingOuts[pendingBatterOutIndex] : null;
-  const pendingRunnerOut = pendingOuts.find((fieldOut) => fieldOut.source !== "batter") ?? null;
-  const previewOutNumber = previewOutIndex >= 0 ? Math.min(3, state.game.outs + previewOutIndex + 1) : 0;
-  const result = state.plate.result || pendingBatterOut?.resultLabel || (pendingRunnerOut ? pendingRunnerOut.resultLabel || "走死" : "");
-  const outNumber = state.plate.outNumber || previewOutNumber;
+  const currentBatterBase = getCurrentBatterBase(state);
+  const currentBatterRunner = currentBatterBase ? state.game.runners[currentBatterBase] : null;
+  const marks = buildPitchMarks(state.plate.pitches.length > 0 ? state.plate.pitches : currentBatterRunner?.scoreCard.pitches ?? []);
+  const pendingBatterOutEntry = pendingOuts
+    .map((fieldOut, index) => ({ fieldOut, index }))
+    .find(({ fieldOut }) => fieldOut.source === "batter");
+  const previewOutNumber = pendingBatterOutEntry ? Math.min(3, state.game.outs + pendingBatterOutEntry.index + 1) : 0;
+  const result = state.plate.result || pendingBatterOutEntry?.fieldOut.resultLabel || currentBatterRunner?.scoreCard.result || "";
+  const outNumber = state.plate.outNumber || previewOutNumber || currentBatterRunner?.scoreCard.outNumber || 0;
+  const resultArea = getPlateResultArea(result, currentBatterBase, pendingBatterOutEntry?.fieldOut);
+  const currentBatterNote = !result && currentBatterRunner?.scoreNotes.length ? currentBatterRunner.scoreNotes[currentBatterRunner.scoreNotes.length - 1] : "";
 
   if (result) {
     marks.push({
       kind: "result",
       text: result,
+      area: resultArea
+    });
+  }
+
+  if (outNumber > 0) {
+    marks.push({
+      kind: "out",
+      text: outSymbols[outNumber] ?? "?",
+      area: "center"
+    });
+  }
+
+  if (currentBatterNote && currentBatterNote !== result) {
+    marks.push({
+      kind: "note",
+      text: currentBatterNote,
+      area: currentBatterBase || "result"
+    });
+  }
+
+  return marks;
+}
+
+export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut?: ScoreCellPendingOut | null, currentBase?: BaseKey | null): ScoreCellMark[] {
+  if (!runner) return [];
+
+  const marks = buildPitchMarks(runner.scoreCard.pitches);
+  const lastNote = runner.scoreNotes.length > 0 ? runner.scoreNotes[runner.scoreNotes.length - 1] : "";
+  const outNumber = pendingOut?.outNumber ?? runner.scoreCard.outNumber;
+  const noteArea = getRunnerDestinationArea(pendingOut?.destination) || currentBase || "result";
+
+  if (runner.scoreCard.result) {
+    marks.push({
+      kind: "result",
+      text: runner.scoreCard.result,
       area: "result"
     });
   }
@@ -76,36 +133,11 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
     });
   }
 
-  return marks;
-}
-
-export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut?: ScoreCellPendingOut | null): ScoreCellMark[] {
-  if (!runner) return [];
-
-  const marks = buildPitchMarks(runner.scoreCard.pitches);
-  const lastNote = runner.scoreNotes.length > 0 ? runner.scoreNotes[runner.scoreNotes.length - 1] : "";
-
-  if (runner.scoreCard.result) {
-    marks.push({
-      kind: "result",
-      text: runner.scoreCard.result,
-      area: "result"
-    });
-  }
-
-  if (runner.scoreCard.outNumber > 0) {
-    marks.push({
-      kind: "out",
-      text: outSymbols[runner.scoreCard.outNumber] ?? "?",
-      area: "center"
-    });
-  }
-
   if (lastNote) {
     marks.push({
       kind: "note",
       text: lastNote,
-      area: "result"
+      area: currentBase || "result"
     });
   }
 
@@ -113,7 +145,7 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
     marks.push({
       kind: "note",
       text: pendingOut.resultLabel || "走死",
-      area: "result"
+      area: noteArea
     });
   }
 
