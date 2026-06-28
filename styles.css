@@ -727,6 +727,12 @@ i.red {
   width: 51.16%;
 }
 
+.matrix-advance-lines line {
+  stroke: #e83b2e;
+  stroke-width: 22;
+  stroke-linecap: round;
+}
+
 .matrix-overlay text {
   font-family:
     Meiryo,
@@ -775,6 +781,17 @@ i.red {
 .matrix-out {
   fill: #8f8f8f;
   font-size: 150px;
+}
+
+.matrix-fielder-out circle {
+  fill: #fff;
+  stroke: #e83b2e;
+  stroke-width: 9;
+}
+
+.matrix-fielder-out text {
+  fill: #e83b2e;
+  font-size: 58px;
 }
 
 .field-stage {

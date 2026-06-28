@@ -48,12 +48,17 @@ export interface RunnerState {
     result: string;
     outNumber: number;
     hitType: HitType;
+    hitLocation?: string;
   };
+  scoreAdvances: {
+    destination: RunnerDestination;
+    reason: AdvanceReason;
+  }[];
   scoreNotes: string[];
 }
 
 export type ScoreCellMark = {
-  kind: "pitch" | "result" | "out" | "note";
+  kind: "pitch" | "result" | "out" | "note" | "advance" | "fielderOut" | "hitLocation";
   text: string;
   area?: "pitch" | "center" | "result" | "first" | "second" | "third" | "home";
 };

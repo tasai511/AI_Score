@@ -464,18 +464,18 @@ export function App() {
     handlePitch(type);
   }
 
-  function handleAdvance(source: RunnerSource, reason: AdvanceReason) {
+  function handleAdvance(source: RunnerSource, reason: AdvanceReason, hitLocation?: string) {
     setState((current) => {
       captureInputSnapshot(current);
-      return advanceRunner(current, source, reason);
+      return advanceRunner(current, source, reason, hitLocation);
     });
     setNeedsPlateConfirm(true);
   }
 
-  function handleRunnerMove(source: RunnerSource, destination: RunnerDestination, reason: AdvanceReason) {
+  function handleRunnerMove(source: RunnerSource, destination: RunnerDestination, reason: AdvanceReason, hitLocation?: string) {
     setState((current) => {
       captureInputSnapshot(current);
-      return moveRunnerToDestination(current, source, destination, reason);
+      return moveRunnerToDestination(current, source, destination, reason, hitLocation);
     });
     setNeedsPlateConfirm(true);
   }
@@ -1095,6 +1095,32 @@ const SCORE_MATRIX_MARK_COORDINATES = {
   playGap: 115
 } as const;
 
+const SCORE_MATRIX_BASE_PATHS: Record<RunnerDestination, { x1: number; y1: number; x2: number; y2: number }> = {
+  first: { x1: 843, y1: 845, x2: 1193, y2: 495 },
+  second: { x1: 1193, y1: 495, x2: 843, y2: 145 },
+  third: { x1: 843, y1: 145, x2: 493, y2: 495 },
+  home: { x1: 493, y1: 495, x2: 843, y2: 845 }
+};
+
+const SCORE_MATRIX_FIELDER_OUT_COORDINATES: Record<RunnerDestination, { x: number; y: number }> = {
+  first: { x: 1102, y: 640 },
+  second: { x: 1102, y: 350 },
+  third: { x: 628, y: 350 },
+  home: { x: 628, y: 640 }
+};
+
+const SCORE_MATRIX_HIT_LOCATION_COORDINATES: Record<string, { x: number; y: number }> = {
+  1: { x: 843, y: 565 },
+  2: { x: 843, y: 760 },
+  3: { x: 1070, y: 520 },
+  4: { x: 980, y: 350 },
+  5: { x: 616, y: 520 },
+  6: { x: 706, y: 350 },
+  7: { x: 565, y: 250 },
+  8: { x: 843, y: 210 },
+  9: { x: 1120, y: 250 }
+};
+
 type ScoreMatrixTextArea = keyof typeof SCORE_MATRIX_MARK_COORDINATES.areas;
 
 function getScoreTextArea(area: ScoreCellMark["area"]): ScoreMatrixTextArea {
@@ -1157,6 +1183,10 @@ function ScoreMatrixGraphic({
   const resultMark = marks.find((mark) => mark.kind === "result");
   const outMark = marks.find((mark) => mark.kind === "out");
   const noteMarks = marks.filter((mark) => mark.kind === "note");
+  const advanceMarks = marks.filter((mark) => mark.kind === "advance" && mark.area);
+  const fielderOutMarks = marks.filter((mark) => mark.kind === "fielderOut" && mark.area);
+  const hitLocationMarks = marks.filter((mark) => mark.kind === "hitLocation");
+  const effectiveHitType = advanceMarks.length > 0 ? "" : hitType;
   const playMarks = [resultMark, ...noteMarks].filter((mark): mark is ScoreCellMark => Boolean(mark));
   const playMarkEntries = playMarks.map((mark, index) => {
     const area = getScoreTextArea(mark.area);
@@ -1173,8 +1203,15 @@ function ScoreMatrixGraphic({
   return (
     <div className={`score-matrix ${className}`.trim()}>
       <img src="assets/score_matrix.png" alt="" />
-      {hitType && <img className="matrix-hit-mark" src={hitMarkAssets[hitType]} alt="" data-hit-mark={hitType} />}
+      {effectiveHitType && <img className="matrix-hit-mark" src={hitMarkAssets[effectiveHitType]} alt="" data-hit-mark={effectiveHitType} />}
       <svg className="matrix-overlay" viewBox="0 0 1382 1025" aria-hidden="true">
+        <g className="matrix-advance-lines">
+          {advanceMarks.map((mark, index) => {
+            const path = SCORE_MATRIX_BASE_PATHS[mark.area as RunnerDestination];
+            if (!path) return null;
+            return <line x1={path.x1} y1={path.y1} x2={path.x2} y2={path.y2} key={`${mark.area}-${index}`} />;
+          })}
+        </g>
         <g>
           {pitchMarks.map((mark, index) => {
             const coordinate = getPitchSymbolCoordinate(index, pitchMarks.length);
@@ -1186,6 +1223,31 @@ function ScoreMatrixGraphic({
             {outMark.text}
           </text>
         )}
+        {fielderOutMarks.map((mark, index) => {
+          const coordinate = SCORE_MATRIX_FIELDER_OUT_COORDINATES[mark.area as RunnerDestination];
+          if (!coordinate) return null;
+          return (
+            <g className="matrix-fielder-out" transform={`translate(${coordinate.x} ${coordinate.y})`} key={`${mark.text}-${mark.area}-${index}`}>
+              <circle cx="0" cy="0" r="38" />
+              <text x="0" y="0">
+                {mark.text}
+              </text>
+            </g>
+          );
+        })}
+        {hitLocationMarks.map((mark, index) => {
+          const coordinate = SCORE_MATRIX_HIT_LOCATION_COORDINATES[mark.text];
+          if (!coordinate) return null;
+          const isInfieldHit = /^[1-6]$/.test(mark.text);
+          return (
+            <g transform={`translate(${coordinate.x} ${coordinate.y})`} key={`${mark.text}-${index}`}>
+              {isInfieldHit && <path d="M -58 18 A 58 58 0 0 1 58 18" fill="none" stroke="#e83b2e" strokeWidth="9" strokeLinecap="round" />}
+              <text className="matrix-note" x="0" y="0">
+                {mark.text}
+              </text>
+            </g>
+          );
+        })}
         {playMarkEntries.map(({ area, areaIndex, areaTotal, mark }, index) => {
           const coordinate = getScorePlayCoordinate(area, areaIndex, areaTotal);
           return (
@@ -1309,8 +1371,8 @@ function FieldStage({
   pitchAdvanceRequest: PitchAdvanceRequest | null;
   pendingPitchContext: PendingPitchContext;
   onLiveScorePreview: () => void;
-  onAdvance: (source: RunnerSource, reason: AdvanceReason) => void;
-  onRunnerMove: (source: RunnerSource, destination: RunnerDestination, reason: AdvanceReason) => void;
+  onAdvance: (source: RunnerSource, reason: AdvanceReason, hitLocation?: string) => void;
+  onRunnerMove: (source: RunnerSource, destination: RunnerDestination, reason: AdvanceReason, hitLocation?: string) => void;
   onFieldOutDecision: (
     nodeId: string,
     source: RunnerSource,
@@ -1532,6 +1594,11 @@ function FieldStage({
     return fieldPlay.segments.some((segment) => segment.kind === "hit");
   }
 
+  function getInitialHitLocation(play = fieldPlay) {
+    return play.nodes.find((node) => node.kind === "position" && play.segments.some((segment) => segment.kind === "hit" && segment.toNodeId === node.id))
+      ?.label;
+  }
+
   function isOpenPickoffDecision() {
     return Boolean(
       !hasHitPlay() &&
@@ -1711,7 +1778,7 @@ function FieldStage({
           advanceChain
             .filter((step) => step.source !== currentDrag.source)
             .forEach((step) => {
-              onRunnerMove(step.source, step.destination, "hit");
+              onRunnerMove(step.source, step.destination, "hit", getInitialHitLocation());
               if (step.destination === "home") {
                 const runnerId = getPendingScoredRunnerId(step.source) ?? getRunnerIdForSource(step.source);
                 markScoredRunnerArrived(step.source, runnerId);
@@ -1723,14 +1790,14 @@ function FieldStage({
           if (!openedDecision) {
             ensureManualAdvanceBaseNode(currentDrag.source, "home", false, false, "hit");
             addScoredRunner(currentDrag.source, false, false, currentDrag.source === "batter");
-            onRunnerMove(currentDrag.source, "home", "hit");
+            onRunnerMove(currentDrag.source, "home", "hit", getInitialHitLocation());
           }
           setAdvanceTarget(null);
           return;
         }
 
         previewForcedAdvanceFlow(currentDrag.source, drop.destination);
-        onRunnerMove(currentDrag.source, drop.destination, "hit");
+        onRunnerMove(currentDrag.source, drop.destination, "hit", getInitialHitLocation());
         setAdvanceTarget(null);
         return;
       }
@@ -3169,9 +3236,9 @@ function FieldStage({
     }, 360);
   }
 
-  function startForcedHitAdvanceAnimation(onComplete?: () => void) {
+  function startForcedHitAdvanceAnimation(hitLocation?: string, onComplete?: () => void) {
     startForcedAdvanceAnimation(() => {
-      onAdvance("batter", "hit");
+      onAdvance("batter", "hit", hitLocation);
       onComplete?.();
     });
   }
@@ -3505,15 +3572,15 @@ function FieldStage({
 
   function getFieldFlyOutResultLabel(node: FieldPlayNode) {
     const flyOutLabels: Record<number, string> = {
-      1: "投飛",
-      2: "捕飛",
-      3: "一飛",
-      4: "二飛",
-      5: "三飛",
-      6: "遊飛",
-      7: "左飛",
-      8: "中飛",
-      9: "右飛"
+      1: "F1",
+      2: "F2",
+      3: "F3",
+      4: "F4",
+      5: "F5",
+      6: "F6",
+      7: "F7",
+      8: "F8",
+      9: "F9"
     };
     const positionNumber = Number(node.label);
     return flyOutLabels[positionNumber] ?? "飛";
@@ -3536,7 +3603,7 @@ function FieldStage({
     const homeRunnerVisual = resolvedRunnerId ? scoredRunners.find((runner) => runner.id === resolvedRunnerId) : null;
 
     if (!homeRunnerVisual?.arrived && canRunnerBeJudgedAtDestination(resolvedRunnerSource, "home", resolvedRunnerId)) {
-      onRunnerMove(resolvedRunnerSource, "home", resolveAdvanceReasonForNode(node, resolvedRunnerSource, "safe"));
+      onRunnerMove(resolvedRunnerSource, "home", resolveAdvanceReasonForNode(node, resolvedRunnerSource, "safe"), getInitialHitLocation());
       markScoredRunnerArrived(resolvedRunnerSource, resolvedRunnerId);
     }
     commitScoredRunner(resolvedRunnerSource, resolvedRunnerId);
@@ -3642,7 +3709,7 @@ function FieldStage({
     setAdvanceTarget(null);
     onFieldPlayStarted();
     if (shouldAutoAdvanceBatterOnHit) {
-      startForcedHitAdvanceAnimation(shouldDelayHomeRunDecisionBubble ? () => activateFieldDecisionNode(createdNodeId) : undefined);
+      startForcedHitAdvanceAnimation(target.label, shouldDelayHomeRunDecisionBubble ? () => activateFieldDecisionNode(createdNodeId) : undefined);
     }
     if (shouldDelayBaseDecisionBubble && delayedBaseDecisionSourceNode && delayedBaseDecisionAnimationFrom) {
       startPositionCoverAnimation(delayedBaseDecisionSourceNode.id, delayedBaseDecisionAnimationFrom, targetPoint, () => {
@@ -3887,7 +3954,12 @@ function FieldStage({
         destination === "home" ? Boolean(homeRunnerVisual?.arrived) : currentRunnerLocation === destination;
       if (!runnerAlreadyThere) {
         if (destination === "home") addScoredRunner(resolvedRunnerSource, false, false, resolvedRunnerSource === "batter");
-        onRunnerMove(resolvedRunnerSource, destination, resolveAdvanceReasonForNode(decidedNode, resolvedRunnerSource, decision));
+        onRunnerMove(
+          resolvedRunnerSource,
+          destination,
+          resolveAdvanceReasonForNode(decidedNode, resolvedRunnerSource, decision),
+          getInitialHitLocation()
+        );
         if (destination === "home") markScoredRunnerArrived(resolvedRunnerSource, resolvedRunnerId);
       }
       if (destination === "home") {

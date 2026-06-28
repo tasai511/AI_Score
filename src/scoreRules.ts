@@ -12,15 +12,15 @@ export const hitMarkAssets = {
 export const outSymbols = ["", "I", "II", "III"];
 
 export const fieldOutResultLabels: Record<number, string> = {
-  1: "投ゴ",
-  2: "捕ゴ",
-  3: "一ゴ",
-  4: "二ゴ",
-  5: "三ゴ",
-  6: "遊ゴ",
-  7: "左飛",
-  8: "中飛",
-  9: "右飛"
+  1: "1",
+  2: "2",
+  3: "3",
+  4: "4",
+  5: "5",
+  6: "6",
+  7: "7",
+  8: "8",
+  9: "9"
 };
 
 export const advanceReasonLabels: Record<AdvanceReason, string> = {
@@ -34,6 +34,19 @@ export const advanceReasonLabels: Record<AdvanceReason, string> = {
   balk: "ボーク",
   "runner-interference": "走塁妨害",
   hit: "安打"
+};
+
+const scoreAdvanceLabels: Record<AdvanceReason, string> = {
+  error: "E",
+  walk: "B",
+  "dead-ball": "HP",
+  "dropped-third-strike": "K逃",
+  "catcher-interference": "CI",
+  steal: "S",
+  "passed-ball": "PB",
+  balk: "BK",
+  "runner-interference": "守妨",
+  hit: ""
 };
 
 type ScoreCellPendingOut = {
@@ -64,9 +77,23 @@ function getPlateResultArea(
   if (pendingBatterOut?.resultLabel === "走死") return getRunnerDestinationArea(pendingBatterOut.destination) || currentBatterBase || "result";
   if (pendingBatterOut?.resultLabel) return "result";
   if (result === "本") return "home";
-  if (currentBatterBase && (result === "B" || result === "DB" || result === "E")) return currentBatterBase;
+  if (currentBatterBase && (result === "B" || result === "HP" || result === "E")) return currentBatterBase;
   if (currentBatterBase && !result) return currentBatterBase;
   return "result";
+}
+
+function isBatterGroundOutResult(result: string) {
+  return /^[1-6]$/.test(result);
+}
+
+function getScoreAdvanceLabel(advance: RunnerState["scoreAdvances"][number]) {
+  return scoreAdvanceLabels[advance.reason];
+}
+
+function getHitLocationText(runner: RunnerState, advance: RunnerState["scoreAdvances"][number]) {
+  if (advance.reason !== "hit" || advance.destination !== "first") return "";
+  const hitLocation = normalizeNumber(runner.scoreCard.hitLocation);
+  return /^[1-9]$/.test(hitLocation) ? hitLocation : "";
 }
 
 export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCellPendingOut[] = []): ScoreCellMark[] {
@@ -81,8 +108,22 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
   const outNumber = state.plate.outNumber || previewOutNumber || currentBatterRunner?.scoreCard.outNumber || 0;
   const resultArea = getPlateResultArea(result, currentBatterBase, pendingBatterOutEntry?.fieldOut);
   const currentBatterNote = !result && currentBatterRunner?.scoreNotes.length ? currentBatterRunner.scoreNotes[currentBatterRunner.scoreNotes.length - 1] : "";
+  const currentBatterAdvanceNotes = new Set(
+    (currentBatterRunner?.scoreAdvances ?? []).map((advance) => advanceReasonLabels[advance.reason]).filter(Boolean)
+  );
 
-  if (result) {
+  if (isBatterGroundOutResult(result)) {
+    marks.push({
+      kind: "advance",
+      text: "",
+      area: "first"
+    });
+    marks.push({
+      kind: "fielderOut",
+      text: result,
+      area: "first"
+    });
+  } else if (result) {
     marks.push({
       kind: "result",
       text: result,
@@ -90,7 +131,7 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
     });
   }
 
-  if (outNumber > 0) {
+  if (outNumber > 0 && !isBatterGroundOutResult(result)) {
     marks.push({
       kind: "out",
       text: outSymbols[outNumber] ?? "?",
@@ -98,11 +139,38 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
     });
   }
 
-  if (currentBatterNote && currentBatterNote !== result) {
+  if (currentBatterNote && currentBatterNote !== result && !currentBatterAdvanceNotes.has(currentBatterNote)) {
     marks.push({
       kind: "note",
       text: currentBatterNote,
       area: currentBatterBase || "result"
+    });
+  }
+
+  if (currentBatterRunner) {
+    getRunnerScoreAdvances(currentBatterRunner).forEach((advance) => {
+      marks.push({
+        kind: "advance",
+        text: "",
+        area: advance.destination
+      });
+
+      const label = getScoreAdvanceLabel(advance);
+      if (label && label !== result) {
+        marks.push({
+          kind: "note",
+          text: label,
+          area: advance.destination
+        });
+      }
+
+      const hitLocationText = getHitLocationText(currentBatterRunner, advance);
+      if (hitLocationText) {
+        marks.push({
+          kind: "hitLocation",
+          text: hitLocationText
+        });
+      }
     });
   }
 
@@ -113,11 +181,22 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
   if (!runner) return [];
 
   const marks = buildPitchMarks(runner.scoreCard.pitches);
-  const lastNote = runner.scoreNotes.length > 0 ? runner.scoreNotes[runner.scoreNotes.length - 1] : "";
   const outNumber = pendingOut?.outNumber ?? runner.scoreCard.outNumber;
   const noteArea = getRunnerDestinationArea(pendingOut?.destination) || currentBase || "result";
+  const scoreAdvances = getRunnerScoreAdvances(runner);
 
-  if (runner.scoreCard.result) {
+  if (isBatterGroundOutResult(runner.scoreCard.result)) {
+    marks.push({
+      kind: "advance",
+      text: "",
+      area: "first"
+    });
+    marks.push({
+      kind: "fielderOut",
+      text: runner.scoreCard.result,
+      area: "first"
+    });
+  } else if (runner.scoreCard.result) {
     marks.push({
       kind: "result",
       text: runner.scoreCard.result,
@@ -125,7 +204,7 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
     });
   }
 
-  if (outNumber > 0) {
+  if (outNumber > 0 && !isBatterGroundOutResult(runner.scoreCard.result)) {
     marks.push({
       kind: "out",
       text: outSymbols[outNumber] ?? "?",
@@ -133,13 +212,30 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
     });
   }
 
-  if (lastNote) {
+  scoreAdvances.forEach((advance) => {
     marks.push({
-      kind: "note",
-      text: lastNote,
-      area: currentBase || "result"
+      kind: "advance",
+      text: "",
+      area: advance.destination
     });
-  }
+
+    const label = getScoreAdvanceLabel(advance);
+    if (label) {
+      marks.push({
+        kind: "note",
+        text: label,
+        area: advance.destination
+      });
+    }
+
+    const hitLocationText = getHitLocationText(runner, advance);
+    if (hitLocationText) {
+      marks.push({
+        kind: "hitLocation",
+        text: hitLocationText
+      });
+    }
+  });
 
   if (pendingOut) {
     marks.push({
@@ -150,6 +246,22 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
   }
 
   return marks;
+}
+
+function getRunnerScoreAdvances(runner: RunnerState) {
+  if (runner.scoreAdvances?.length) return runner.scoreAdvances;
+
+  const hitDestinationsByType: Record<string, RunnerDestination[]> = {
+    single: ["first"],
+    "two-base": ["first", "second"],
+    "three-base": ["first", "second", "third"],
+    "home-run": ["first", "second", "third", "home"]
+  };
+
+  return (hitDestinationsByType[runner.scoreCard.hitType] ?? []).map((destination) => ({
+    destination,
+    reason: "hit" as const
+  }));
 }
 
 const nextBaseMap: Record<BaseKey, BaseKey | "home"> = {
@@ -165,6 +277,8 @@ const runnerProgressRank: Record<RunnerSource | RunnerDestination, number> = {
   third: 3,
   home: 4
 };
+
+const runnerDestinationOrder: RunnerDestination[] = ["first", "second", "third", "home"];
 
 export function normalizeNumber(value: unknown) {
   return String(value ?? "").trim();
@@ -240,23 +354,25 @@ function getRunnerId(state: AppState, runner: { jerseyNumber?: string; name?: st
 function getBatterScoreCardResult(state: AppState, reachReason?: AdvanceReason) {
   if (state.plate.result) return state.plate.result;
   if (reachReason === "walk") return "B";
-  if (reachReason === "dead-ball") return "DB";
+  if (reachReason === "dead-ball") return "HP";
   if (reachReason === "dropped-third-strike") return advanceReasonLabels["dropped-third-strike"];
   if (reachReason === "catcher-interference") return advanceReasonLabels["catcher-interference"];
   if (reachReason === "error") return "E";
   return "";
 }
 
-function getCurrentBatterScoreCard(state: AppState, reachReason?: AdvanceReason) {
+function getCurrentBatterScoreCard(state: AppState, reachReason?: AdvanceReason, hitLocation?: string) {
+  const normalizedHitLocation = reachReason === "hit" ? normalizeNumber(hitLocation) : "";
   return {
     pitches: [...state.plate.pitches],
     result: getBatterScoreCardResult(state, reachReason),
     outNumber: state.plate.outNumber,
-    hitType: reachReason === "error" ? "" : state.game.hitType
+    hitType: reachReason === "error" ? "" : state.game.hitType,
+    ...(normalizedHitLocation ? { hitLocation: normalizedHitLocation } : {})
   };
 }
 
-export function getCurrentBatterRunner(state: AppState, reachReason?: AdvanceReason): RunnerState {
+export function getCurrentBatterRunner(state: AppState, reachReason?: AdvanceReason, hitLocation?: string): RunnerState {
   const batter = getCurrentBatter(state);
   return {
     id: getRunnerId(state, batter ?? {}),
@@ -264,7 +380,8 @@ export function getCurrentBatterRunner(state: AppState, reachReason?: AdvanceRea
     battingOrder: state.game.battingOrder,
     jerseyNumber: normalizeNumber(batter?.jerseyNumber),
     name: normalizeNumber(batter?.name),
-    scoreCard: getCurrentBatterScoreCard(state, reachReason),
+    scoreCard: getCurrentBatterScoreCard(state, reachReason, hitLocation),
+    scoreAdvances: [],
     scoreNotes: []
   };
 }
@@ -301,10 +418,16 @@ export function shouldResetPlateAfterConfirm(state: AppState) {
   return isCurrentBatterPlateAppearanceComplete(state) || state.game.outs >= 3;
 }
 
-function withAdvanceNote(runner: RunnerState, reason: AdvanceReason): RunnerState {
+function withAdvanceNote(runner: RunnerState, reason: AdvanceReason, destination: RunnerDestination): RunnerState {
   const label = advanceReasonLabels[reason];
+  const scoreAdvances = runner.scoreAdvances ?? [];
+  const existingDestinations = new Set(scoreAdvances.map((advance) => advance.destination));
+  const nextAdvances = runnerDestinationOrder
+    .filter((nextDestination) => runnerProgressRank[nextDestination] <= runnerProgressRank[destination] && !existingDestinations.has(nextDestination))
+    .map((nextDestination) => ({ destination: nextDestination, reason }));
   return {
     ...runner,
+    scoreAdvances: [...scoreAdvances, ...nextAdvances],
     scoreNotes: runner.scoreNotes.includes(label) ? runner.scoreNotes : [...runner.scoreNotes, label]
   };
 }
@@ -320,7 +443,7 @@ function scoreRunner(state: AppState, runner: RunnerState) {
 function placeRunnerOnBase(state: AppState, base: BaseKey, runner: RunnerState, reason: AdvanceReason, appendAdvanceNote = true) {
   const occupyingRunner = state.game.runners[base];
   if (occupyingRunner) advanceExistingRunnerInPlace(state, base, reason);
-  state.game.runners[base] = appendAdvanceNote ? withAdvanceNote(runner, reason) : runner;
+  state.game.runners[base] = appendAdvanceNote ? withAdvanceNote(runner, reason, base) : runner;
 }
 
 function advanceExistingRunnerInPlace(state: AppState, source: BaseKey, reason: AdvanceReason) {
@@ -330,18 +453,18 @@ function advanceExistingRunnerInPlace(state: AppState, source: BaseKey, reason: 
   state.game.runners[source] = null;
   const destination = nextBaseMap[source];
   if (destination === "home") {
-    scoreRunner(state, withAdvanceNote(runner, reason));
+    scoreRunner(state, withAdvanceNote(runner, reason, "home"));
   } else {
     placeRunnerOnBase(state, destination, runner, reason);
   }
 }
 
-function advanceBatterToFirstInPlace(state: AppState, reason: AdvanceReason) {
-  placeRunnerOnBase(state, "first", getCurrentBatterRunner(state, reason), reason, reason !== "error");
+function advanceBatterToFirstInPlace(state: AppState, reason: AdvanceReason, hitLocation?: string) {
+  placeRunnerOnBase(state, "first", getCurrentBatterRunner(state, reason, hitLocation), reason);
   syncRunnerFirst(state);
 }
 
-export function advanceRunner(state: AppState, source: RunnerSource, reason: AdvanceReason): AppState {
+export function advanceRunner(state: AppState, source: RunnerSource, reason: AdvanceReason, hitLocation?: string): AppState {
   const next: AppState = structuredClone(state);
   next.game.firstPitchEntered = true;
   next.game.gameStarted = true;
@@ -363,7 +486,7 @@ export function advanceRunner(state: AppState, source: RunnerSource, reason: Adv
   }
 
   if (source === "batter") {
-    advanceBatterToFirstInPlace(next, reason);
+    advanceBatterToFirstInPlace(next, reason, hitLocation);
   } else {
     advanceExistingRunnerInPlace(next, source, reason);
   }
@@ -385,8 +508,8 @@ function removeCurrentBatterFromBases(state: AppState) {
   return null;
 }
 
-function removeRunnerFromSource(state: AppState, source: RunnerSource, batterReachReason?: AdvanceReason): RunnerState | null {
-  if (source === "batter") return removeCurrentBatterFromBases(state) ?? getCurrentBatterRunner(state, batterReachReason);
+function removeRunnerFromSource(state: AppState, source: RunnerSource, batterReachReason?: AdvanceReason, hitLocation?: string): RunnerState | null {
+  if (source === "batter") return removeCurrentBatterFromBases(state) ?? getCurrentBatterRunner(state, batterReachReason, hitLocation);
 
   const runner = state.game.runners[source];
   state.game.runners[source] = null;
@@ -459,8 +582,10 @@ export function applyInitialFieldError(state: AppState): AppState {
         scoreCard: {
           ...runner.scoreCard,
           result: "E",
-          hitType: ""
+          hitType: "",
+          hitLocation: undefined
         },
+        scoreAdvances: [{ destination: currentBatterBase, reason: "error" }],
         scoreNotes: runner.scoreNotes.filter((note) => note !== advanceReasonLabels.hit && note !== advanceReasonLabels.error)
       };
     }
@@ -489,7 +614,7 @@ export function applyHomeRun(state: AppState): AppState {
       runner.teamKey === getBattingTeamKey(next) && runner.battingOrder === next.game.battingOrder
         ? {
             ...runner,
-            scoreCard: getCurrentBatterScoreCard(next, "hit")
+            scoreCard: getCurrentBatterScoreCard(next, "hit", runner.scoreCard.hitLocation)
           }
         : runner
     );
@@ -501,7 +626,7 @@ export function applyHomeRun(state: AppState): AppState {
   };
 
   runnersToScore.forEach((runner) => {
-    scoreRunner(next, withAdvanceNote(runner, "hit"));
+    scoreRunner(next, withAdvanceNote(runner, "hit", "home"));
   });
 
   if (!currentBatterBase) {
@@ -511,17 +636,23 @@ export function applyHomeRun(state: AppState): AppState {
   return next;
 }
 
-export function moveRunnerToDestination(state: AppState, source: RunnerSource, destination: RunnerDestination, reason: AdvanceReason): AppState {
+export function moveRunnerToDestination(
+  state: AppState,
+  source: RunnerSource,
+  destination: RunnerDestination,
+  reason: AdvanceReason,
+  hitLocation?: string
+): AppState {
   if (!canMoveRunnerForward(state, source, destination)) return state;
 
   const next: AppState = structuredClone(state);
-  const runner = removeRunnerFromSource(next, source, source === "batter" ? reason : undefined);
+  const runner = removeRunnerFromSource(next, source, source === "batter" ? reason : undefined, hitLocation);
   if (!runner) return state;
 
   next.game.firstPitchEntered = true;
   next.game.gameStarted = true;
   if (destination === "home") {
-    scoreRunner(next, withAdvanceNote(runner, reason));
+    scoreRunner(next, withAdvanceNote(runner, reason, "home"));
   } else {
     placeRunnerOnBase(next, destination, runner, reason);
   }
@@ -663,7 +794,7 @@ export function applyPitch(state: AppState, type: PitchType): AppState {
 
   if (type === "dead") {
     advanceBatterToFirstInPlace(next, "dead-ball");
-    finish("DB");
+    finish("HP");
   }
 
   syncRunnerFirst(next);
