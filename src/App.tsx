@@ -1241,8 +1241,22 @@ function ScoreMatrixGraphic({
           const isInfieldHit = /^[1-6]$/.test(mark.text);
           return (
             <g transform={`translate(${coordinate.x} ${coordinate.y})`} key={`${mark.text}-${index}`}>
-              {isInfieldHit && <path d="M -58 18 A 58 58 0 0 1 58 18" fill="none" stroke="#e83b2e" strokeWidth="9" strokeLinecap="round" />}
-              <text className="matrix-note" x="0" y="0">
+              {isInfieldHit && (
+                <>
+                  <path d="M -86 24 A 86 86 0 0 1 86 24" fill="none" stroke="#fff" strokeWidth="28" strokeLinecap="round" />
+                  <path d="M -86 24 A 86 86 0 0 1 86 24" fill="none" stroke="#e83b2e" strokeWidth="12" strokeLinecap="round" />
+                </>
+              )}
+              <text
+                className="matrix-note"
+                x="0"
+                y="0"
+                fill="#e83b2e"
+                stroke="#fff"
+                strokeWidth="22"
+                paintOrder="stroke"
+                style={{ fontSize: "190px" }}
+              >
                 {mark.text}
               </text>
             </g>
