@@ -83,7 +83,7 @@ function getPlateResultArea(
 }
 
 function isBatterGroundOutResult(result: string) {
-  return /^[1-6]$/.test(result);
+  return /^[1-6]-3$/.test(result);
 }
 
 function getScoreAdvanceLabel(advance: RunnerState["scoreAdvances"][number]) {
@@ -114,11 +114,6 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
 
   if (isBatterGroundOutResult(result)) {
     marks.push({
-      kind: "advance",
-      text: "",
-      area: "first"
-    });
-    marks.push({
       kind: "fielderOut",
       text: result,
       area: "first"
@@ -131,7 +126,7 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
     });
   }
 
-  if (outNumber > 0 && !isBatterGroundOutResult(result)) {
+  if (outNumber > 0) {
     marks.push({
       kind: "out",
       text: outSymbols[outNumber] ?? "?",
@@ -187,11 +182,6 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
 
   if (isBatterGroundOutResult(runner.scoreCard.result)) {
     marks.push({
-      kind: "advance",
-      text: "",
-      area: "first"
-    });
-    marks.push({
       kind: "fielderOut",
       text: runner.scoreCard.result,
       area: "first"
@@ -204,7 +194,7 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
     });
   }
 
-  if (outNumber > 0 && !isBatterGroundOutResult(runner.scoreCard.result)) {
+  if (outNumber > 0) {
     marks.push({
       kind: "out",
       text: outSymbols[outNumber] ?? "?",

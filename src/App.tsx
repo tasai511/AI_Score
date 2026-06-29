@@ -1103,10 +1103,10 @@ const SCORE_MATRIX_BASE_PATHS: Record<RunnerDestination, { x1: number; y1: numbe
 };
 
 const SCORE_MATRIX_FIELDER_OUT_COORDINATES: Record<RunnerDestination, { x: number; y: number }> = {
-  first: { x: 1102, y: 640 },
-  second: { x: 1102, y: 350 },
-  third: { x: 628, y: 350 },
-  home: { x: 628, y: 640 }
+  first: { x: 1050, y: 756 },
+  second: { x: 1032, y: 276 },
+  third: { x: 642, y: 276 },
+  home: { x: 642, y: 756 }
 };
 
 const SCORE_MATRIX_HIT_LOCATION_COORDINATE = { x: 1148, y: 762 } as const;
@@ -1217,9 +1217,8 @@ function ScoreMatrixGraphic({
           const coordinate = SCORE_MATRIX_FIELDER_OUT_COORDINATES[mark.area as RunnerDestination];
           if (!coordinate) return null;
           return (
-            <g className="matrix-fielder-out" transform={`translate(${coordinate.x} ${coordinate.y})`} key={`${mark.text}-${mark.area}-${index}`}>
-              <circle cx="0" cy="0" r="38" />
-              <text x="0" y="0">
+            <g transform={`translate(${coordinate.x} ${coordinate.y})`} key={`${mark.text}-${mark.area}-${index}`}>
+              <text x="0" y="0" fill="#111" stroke="#fff" strokeWidth="18" paintOrder="stroke" style={{ fontSize: "150px" }}>
                 {mark.text}
               </text>
             </g>
@@ -3569,6 +3568,9 @@ function FieldStage({
 
     const resultPositionNode = node.kind === "position" ? node : fieldPlay.nodes.find((current) => current.kind === "position");
     const positionNumber = Number(resultPositionNode?.label);
+    if (node.kind === "base" && getBaseDestinationFromKey(node.key) === "first" && fieldOutResultLabels[positionNumber]) {
+      return `${fieldOutResultLabels[positionNumber]}-3`;
+    }
     return fieldOutResultLabels[positionNumber] ?? "アウト";
   }
 

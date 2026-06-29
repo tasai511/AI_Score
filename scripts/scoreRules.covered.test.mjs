@@ -110,6 +110,17 @@ function applyPitches(state, pitches) {
 
 {
   const state = clone(data.initialState);
+  state.plate.result = "4-3";
+  state.plate.outNumber = 1;
+  state.game.outs = 1;
+  const currentMarks = rules.buildCurrentScoreCellMarks(state);
+  assert.equal(currentMarks.filter((mark) => mark.kind === "fielderOut" && mark.text === "4-3" && mark.area === "first").length, 1);
+  assert.equal(currentMarks.filter((mark) => mark.kind === "advance" && mark.area === "first").length, 0);
+  assert.equal(currentMarks.filter((mark) => mark.kind === "out" && mark.text === "I").length, 1);
+}
+
+{
+  const state = clone(data.initialState);
   state.game.strikes = 2;
   state.plate.pitches = ["\u2715", "\u2715"];
   const next = rules.applyPitch(state, "foul");
