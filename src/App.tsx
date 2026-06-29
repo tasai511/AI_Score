@@ -1109,17 +1109,7 @@ const SCORE_MATRIX_FIELDER_OUT_COORDINATES: Record<RunnerDestination, { x: numbe
   home: { x: 628, y: 640 }
 };
 
-const SCORE_MATRIX_HIT_LOCATION_COORDINATES: Record<string, { x: number; y: number }> = {
-  1: { x: 843, y: 565 },
-  2: { x: 843, y: 760 },
-  3: { x: 1070, y: 520 },
-  4: { x: 980, y: 350 },
-  5: { x: 616, y: 520 },
-  6: { x: 706, y: 350 },
-  7: { x: 565, y: 250 },
-  8: { x: 843, y: 210 },
-  9: { x: 1120, y: 250 }
-};
+const SCORE_MATRIX_HIT_LOCATION_COORDINATE = { x: 1148, y: 762 } as const;
 
 type ScoreMatrixTextArea = keyof typeof SCORE_MATRIX_MARK_COORDINATES.areas;
 
@@ -1236,15 +1226,13 @@ function ScoreMatrixGraphic({
           );
         })}
         {hitLocationMarks.map((mark, index) => {
-          const coordinate = SCORE_MATRIX_HIT_LOCATION_COORDINATES[mark.text];
-          if (!coordinate) return null;
           const isInfieldHit = /^[1-6]$/.test(mark.text);
           return (
-            <g transform={`translate(${coordinate.x} ${coordinate.y})`} key={`${mark.text}-${index}`}>
+            <g transform={`translate(${SCORE_MATRIX_HIT_LOCATION_COORDINATE.x} ${SCORE_MATRIX_HIT_LOCATION_COORDINATE.y})`} key={`${mark.text}-${index}`}>
               {isInfieldHit && (
                 <>
-                  <path d="M -86 24 A 86 86 0 0 1 86 24" fill="none" stroke="#fff" strokeWidth="28" strokeLinecap="round" />
-                  <path d="M -86 24 A 86 86 0 0 1 86 24" fill="none" stroke="#e83b2e" strokeWidth="12" strokeLinecap="round" />
+                  <path d="M -122 76 A 170 170 0 0 0 94 -104" fill="none" stroke="#fff" strokeWidth="30" strokeLinecap="round" />
+                  <path d="M -122 76 A 170 170 0 0 0 94 -104" fill="none" stroke="#e83b2e" strokeWidth="13" strokeLinecap="round" />
                 </>
               )}
               <text
