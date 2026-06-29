@@ -45,6 +45,12 @@ function applyPitches(state, pitches) {
   return pitches.reduce((current, pitch) => rules.applyPitch(current, pitch), state);
 }
 
+const baseAreas = new Set(["first", "second", "third", "home"]);
+
+function visibleAdvanceMarks(marks) {
+  return marks.filter((mark) => mark.kind === "advance" && baseAreas.has(mark.area));
+}
+
 {
   const state = applyPitches(clone(data.initialState), ["ball", "ball", "ball", "ball"]);
   assert.equal(state.plate.result, "B");
@@ -117,6 +123,32 @@ function applyPitches(state, pitches) {
   assert.equal(currentMarks.filter((mark) => mark.kind === "fielderOut" && mark.text === "4-3" && mark.area === "first").length, 1);
   assert.equal(currentMarks.filter((mark) => mark.kind === "advance" && mark.area === "first").length, 0);
   assert.equal(currentMarks.filter((mark) => mark.kind === "out" && mark.text === "I").length, 1);
+}
+
+{
+  const state = rules.advanceRunner(clone(data.initialState), "batter", "hit", "9");
+  state.game.hitType = "single";
+  const currentMarks = rules.buildCurrentScoreCellMarks(state, [{ source: "batter", resultLabel: "F1" }]);
+
+  assert.equal(visibleAdvanceMarks(currentMarks).length, 0);
+  assert.equal(currentMarks.filter((mark) => mark.kind === "hitLocation").length, 0);
+  assert.equal(currentMarks.filter((mark) => mark.kind === "fielderOut" && mark.text === "F1").length, 1);
+  assert.equal(currentMarks.filter((mark) => mark.kind === "out" && mark.text === "I").length, 1);
+  assert.equal(currentMarks.some((mark) => mark.kind === "result" && mark.text === "F1"), false);
+}
+
+{
+  const state = rules.advanceRunner(clone(data.initialState), "batter", "hit", "9");
+  state.game.hitType = "single";
+  const next = rules.applyFieldOut(state, "batter", "F1");
+  const currentMarks = rules.buildCurrentScoreCellMarks(next);
+
+  assert.equal(next.game.hitType, "");
+  assert.equal(next.game.runners.first, null);
+  assert.equal(next.plate.result, "F1");
+  assert.equal(visibleAdvanceMarks(currentMarks).length, 0);
+  assert.equal(currentMarks.filter((mark) => mark.kind === "hitLocation").length, 0);
+  assert.equal(currentMarks.filter((mark) => mark.kind === "fielderOut" && mark.text === "F1").length, 1);
 }
 
 {

@@ -86,6 +86,23 @@ function isBatterGroundOutResult(result: string) {
   return /^[1-6]-3$/.test(result);
 }
 
+function isBatterCaughtOutResult(result: string) {
+  return /^F?[1-9]$/.test(result);
+}
+
+function isBatterFieldOutResult(result: string) {
+  return isBatterGroundOutResult(result) || isBatterCaughtOutResult(result) || result === "アウト";
+}
+
+function buildHiddenHitMarkSuppressor(): ScoreCellMark {
+  // Keep hit assets hidden for an out preview without drawing a base path.
+  return {
+    kind: "advance",
+    text: "",
+    area: "pitch"
+  };
+}
+
 function getScoreAdvanceLabel(advance: RunnerState["scoreAdvances"][number]) {
   return scoreAdvanceLabels[advance.reason];
 }
@@ -107,12 +124,14 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
   const result = state.plate.result || pendingBatterOutEntry?.fieldOut.resultLabel || currentBatterRunner?.scoreCard.result || "";
   const outNumber = state.plate.outNumber || previewOutNumber || currentBatterRunner?.scoreCard.outNumber || 0;
   const resultArea = getPlateResultArea(result, currentBatterBase, pendingBatterOutEntry?.fieldOut);
-  const currentBatterNote = !result && currentBatterRunner?.scoreNotes.length ? currentBatterRunner.scoreNotes[currentBatterRunner.scoreNotes.length - 1] : "";
+  const currentBatterIsOut = Boolean(pendingBatterOutEntry) || Boolean(outNumber > 0 && result && isBatterFieldOutResult(result));
+  const currentBatterNote =
+    !currentBatterIsOut && !result && currentBatterRunner?.scoreNotes.length ? currentBatterRunner.scoreNotes[currentBatterRunner.scoreNotes.length - 1] : "";
   const currentBatterAdvanceNotes = new Set(
     (currentBatterRunner?.scoreAdvances ?? []).map((advance) => advanceReasonLabels[advance.reason]).filter(Boolean)
   );
 
-  if (isBatterGroundOutResult(result)) {
+  if (isBatterFieldOutResult(result)) {
     marks.push({
       kind: "fielderOut",
       text: result,
@@ -134,6 +153,10 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
     });
   }
 
+  if (currentBatterIsOut) {
+    marks.push(buildHiddenHitMarkSuppressor());
+  }
+
   if (currentBatterNote && currentBatterNote !== result && !currentBatterAdvanceNotes.has(currentBatterNote)) {
     marks.push({
       kind: "note",
@@ -142,7 +165,7 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
     });
   }
 
-  if (currentBatterRunner) {
+  if (currentBatterRunner && !currentBatterIsOut) {
     getRunnerScoreAdvances(currentBatterRunner).forEach((advance) => {
       marks.push({
         kind: "advance",
@@ -514,6 +537,7 @@ export function applyFieldOut(state: AppState, source: RunnerSource, resultLabel
   if (source === "batter") {
     removeCurrentBatterFromBases(next);
     next.plate.result = resultLabel || next.plate.result || "アウト";
+    next.game.hitType = "";
     next.game.balls = 0;
     next.game.strikes = 0;
   } else {
@@ -544,6 +568,7 @@ export function applyHomeRunnerOut(state: AppState, source: RunnerSource, result
   if (source === "batter") {
     removeCurrentBatterFromBases(next);
     next.plate.result = resultLabel || next.plate.result || "\u30a2\u30a6\u30c8";
+    next.game.hitType = "";
     next.game.balls = 0;
     next.game.strikes = 0;
   }
