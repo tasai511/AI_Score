@@ -91,7 +91,15 @@ function isBatterCaughtOutResult(result: string) {
 }
 
 function isBatterFieldOutResult(result: string) {
-  return isBatterGroundOutResult(result) || isBatterCaughtOutResult(result) || result === "アウト";
+  return isBatterGroundOutResult(result) || isBatterCaughtOutResult(result);
+}
+
+function isBatterTextOutResult(result: string) {
+  return result === "K" || result === "アウト";
+}
+
+function isBatterOutResult(result: string) {
+  return isBatterFieldOutResult(result) || isBatterTextOutResult(result);
 }
 
 function buildHiddenHitMarkSuppressor(): ScoreCellMark {
@@ -124,7 +132,7 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
   const result = state.plate.result || pendingBatterOutEntry?.fieldOut.resultLabel || currentBatterRunner?.scoreCard.result || "";
   const outNumber = state.plate.outNumber || previewOutNumber || currentBatterRunner?.scoreCard.outNumber || 0;
   const resultArea = getPlateResultArea(result, currentBatterBase, pendingBatterOutEntry?.fieldOut);
-  const currentBatterIsOut = Boolean(pendingBatterOutEntry) || Boolean(outNumber > 0 && result && isBatterFieldOutResult(result));
+  const currentBatterIsOut = Boolean(pendingBatterOutEntry) || Boolean(outNumber > 0 && result && isBatterOutResult(result));
   const currentBatterNote =
     !currentBatterIsOut && !result && currentBatterRunner?.scoreNotes.length ? currentBatterRunner.scoreNotes[currentBatterRunner.scoreNotes.length - 1] : "";
   const currentBatterAdvanceNotes = new Set(
@@ -136,6 +144,12 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
       kind: "fielderOut",
       text: result,
       area: "first"
+    });
+  } else if (isBatterTextOutResult(result)) {
+    marks.push({
+      kind: "note",
+      text: result,
+      area: resultArea
     });
   } else if (result) {
     marks.push({
@@ -203,11 +217,17 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
   const noteArea = getRunnerDestinationArea(pendingOut?.destination) || currentBase || "result";
   const scoreAdvances = getRunnerScoreAdvances(runner);
 
-  if (isBatterGroundOutResult(runner.scoreCard.result)) {
+  if (isBatterFieldOutResult(runner.scoreCard.result)) {
     marks.push({
       kind: "fielderOut",
       text: runner.scoreCard.result,
       area: "first"
+    });
+  } else if (isBatterTextOutResult(runner.scoreCard.result)) {
+    marks.push({
+      kind: "note",
+      text: runner.scoreCard.result,
+      area: "result"
     });
   } else if (runner.scoreCard.result) {
     marks.push({

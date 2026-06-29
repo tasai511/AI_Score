@@ -168,6 +168,30 @@ function visibleAdvanceMarks(marks) {
   assert.equal(next.plate.result, "K");
   assert.equal(next.game.outs, 1);
   assert.equal(next.plate.outNumber, 1);
+  const currentMarks = rules.buildCurrentScoreCellMarks(next);
+  assert.equal(currentMarks.some((mark) => mark.kind === "result" && mark.text === "K"), false);
+  assert.equal(currentMarks.filter((mark) => mark.kind === "note" && mark.text === "K" && mark.area === "result").length, 1);
+  assert.equal(currentMarks.filter((mark) => mark.kind === "out" && mark.text === "I").length, 1);
+}
+
+{
+  const runner = makeRunner("strikeout-runner", 1, []);
+  runner.scoreCard.result = "K";
+  runner.scoreCard.outNumber = 2;
+  const runnerMarks = rules.buildRunnerScoreCellMarks(runner, null, "first");
+
+  assert.equal(runnerMarks.some((mark) => mark.kind === "result" && mark.text === "K"), false);
+  assert.equal(runnerMarks.filter((mark) => mark.kind === "note" && mark.text === "K" && mark.area === "result").length, 1);
+  assert.equal(runnerMarks.filter((mark) => mark.kind === "out" && mark.text === "II").length, 1);
+}
+
+for (const outResult of ["K", "\u30a2\u30a6\u30c8", "1", "F9", "4-3"]) {
+  const state = clone(data.initialState);
+  state.plate.result = outResult;
+  state.plate.outNumber = 1;
+  const currentMarks = rules.buildCurrentScoreCellMarks(state);
+
+  assert.equal(currentMarks.some((mark) => mark.kind === "result" && mark.text === outResult), false);
 }
 
 {
