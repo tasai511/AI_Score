@@ -40,12 +40,12 @@ const scoreAdvanceLabels: Record<AdvanceReason, string> = {
   error: "E",
   walk: "B",
   "dead-ball": "HP",
-  "dropped-third-strike": "K逃",
-  "catcher-interference": "CI",
+  "dropped-third-strike": "",
+  "catcher-interference": "IF",
   steal: "S",
   "passed-ball": "PB",
   balk: "BK",
-  "runner-interference": "守妨",
+  "runner-interference": "OB",
   hit: ""
 };
 
@@ -94,6 +94,10 @@ function isBatterFieldOutResult(result: string) {
   return isBatterGroundOutResult(result) || isBatterCaughtOutResult(result);
 }
 
+function isDroppedThirdStrikeResult(result: string) {
+  return result === advanceReasonLabels["dropped-third-strike"] || result === "K逃" || result === "K 2-3";
+}
+
 function isBatterTextOutResult(result: string) {
   return result === "K" || result === "アウト";
 }
@@ -115,6 +119,27 @@ function getScoreAdvanceLabel(advance: RunnerState["scoreAdvances"][number]) {
   return scoreAdvanceLabels[advance.reason];
 }
 
+function hasDroppedThirdStrikeAdvance(scoreAdvances: RunnerState["scoreAdvances"] = []) {
+  return scoreAdvances.some((advance) => advance.reason === "dropped-third-strike");
+}
+
+function hasJapaneseScoreText(text: string) {
+  return /[\u3040-\u30ff\u3400-\u9fff]/.test(text);
+}
+
+function getScoreResultLabel(result: string) {
+  if (isDroppedThirdStrikeResult(result) || result === "アウト" || result === "本") return "";
+  if (result === advanceReasonLabels["catcher-interference"] || result === "CI") return scoreAdvanceLabels["catcher-interference"];
+  if (hasJapaneseScoreText(result)) return "";
+  return result;
+}
+
+function getPendingOutLabel(resultLabel?: string) {
+  if (!resultLabel || resultLabel === "走死") return "T.O";
+  if (resultLabel === "アウト") return "";
+  return getScoreResultLabel(resultLabel) || (hasJapaneseScoreText(resultLabel) ? "" : resultLabel);
+}
+
 function getHitLocationText(runner: RunnerState, advance: RunnerState["scoreAdvances"][number]) {
   if (advance.reason !== "hit" || advance.destination !== "first") return "";
   const hitLocation = normalizeNumber(runner.scoreCard.hitLocation);
@@ -130,11 +155,17 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
     .find(({ fieldOut }) => fieldOut.source === "batter");
   const previewOutNumber = pendingBatterOutEntry ? Math.min(3, state.game.outs + pendingBatterOutEntry.index + 1) : 0;
   const result = state.plate.result || pendingBatterOutEntry?.fieldOut.resultLabel || currentBatterRunner?.scoreCard.result || "";
+  const scoreAdvances = currentBatterRunner ? getRunnerScoreAdvances(currentBatterRunner) : [];
   const outNumber = state.plate.outNumber || previewOutNumber || currentBatterRunner?.scoreCard.outNumber || 0;
   const resultArea = getPlateResultArea(result, currentBatterBase, pendingBatterOutEntry?.fieldOut);
+  const resultLabel = getScoreResultLabel(result);
+  const currentBatterDroppedThirdStrike = isDroppedThirdStrikeResult(result) || hasDroppedThirdStrikeAdvance(scoreAdvances);
   const currentBatterIsOut = Boolean(pendingBatterOutEntry) || Boolean(outNumber > 0 && result && isBatterOutResult(result));
+  const shouldSuppressCurrentBatterAdvances = currentBatterIsOut || currentBatterDroppedThirdStrike;
   const currentBatterNote =
-    !currentBatterIsOut && !result && currentBatterRunner?.scoreNotes.length ? currentBatterRunner.scoreNotes[currentBatterRunner.scoreNotes.length - 1] : "";
+    !shouldSuppressCurrentBatterAdvances && !result && currentBatterRunner?.scoreNotes.length
+      ? currentBatterRunner.scoreNotes[currentBatterRunner.scoreNotes.length - 1]
+      : "";
   const currentBatterAdvanceNotes = new Set(
     (currentBatterRunner?.scoreAdvances ?? []).map((advance) => advanceReasonLabels[advance.reason]).filter(Boolean)
   );
@@ -145,16 +176,24 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
       text: result,
       area: "first"
     });
-  } else if (isBatterTextOutResult(result)) {
+  } else if (currentBatterDroppedThirdStrike) {
     marks.push({
-      kind: "note",
-      text: result,
-      area: resultArea
+      kind: "fielderOut",
+      text: "K 2-3",
+      area: "first"
     });
-  } else if (result) {
+  } else if (isBatterTextOutResult(result)) {
+    if (resultLabel) {
+      marks.push({
+        kind: "fielderOut",
+        text: resultLabel,
+        area: "first"
+      });
+    }
+  } else if (resultLabel) {
     marks.push({
       kind: "result",
-      text: result,
+      text: resultLabel,
       area: resultArea
     });
   }
@@ -167,7 +206,7 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
     });
   }
 
-  if (currentBatterIsOut) {
+  if (shouldSuppressCurrentBatterAdvances) {
     marks.push(buildHiddenHitMarkSuppressor());
   }
 
@@ -179,8 +218,8 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
     });
   }
 
-  if (currentBatterRunner && !currentBatterIsOut) {
-    getRunnerScoreAdvances(currentBatterRunner).forEach((advance) => {
+  if (currentBatterRunner && !shouldSuppressCurrentBatterAdvances) {
+    scoreAdvances.forEach((advance) => {
       marks.push({
         kind: "advance",
         text: "",
@@ -188,7 +227,7 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
       });
 
       const label = getScoreAdvanceLabel(advance);
-      if (label && label !== result) {
+      if (label && label !== result && label !== resultLabel) {
         marks.push({
           kind: "note",
           text: label,
@@ -216,6 +255,8 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
   const outNumber = pendingOut?.outNumber ?? runner.scoreCard.outNumber;
   const noteArea = getRunnerDestinationArea(pendingOut?.destination) || currentBase || "result";
   const scoreAdvances = getRunnerScoreAdvances(runner);
+  const resultLabel = getScoreResultLabel(runner.scoreCard.result);
+  const runnerDroppedThirdStrike = isDroppedThirdStrikeResult(runner.scoreCard.result) || hasDroppedThirdStrikeAdvance(scoreAdvances);
 
   if (isBatterFieldOutResult(runner.scoreCard.result)) {
     marks.push({
@@ -223,16 +264,24 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
       text: runner.scoreCard.result,
       area: "first"
     });
-  } else if (isBatterTextOutResult(runner.scoreCard.result)) {
+  } else if (runnerDroppedThirdStrike) {
     marks.push({
-      kind: "note",
-      text: runner.scoreCard.result,
-      area: "result"
+      kind: "fielderOut",
+      text: "K 2-3",
+      area: "first"
     });
-  } else if (runner.scoreCard.result) {
+  } else if (isBatterTextOutResult(runner.scoreCard.result)) {
+    if (resultLabel) {
+      marks.push({
+        kind: "fielderOut",
+        text: resultLabel,
+        area: "first"
+      });
+    }
+  } else if (resultLabel) {
     marks.push({
       kind: "result",
-      text: runner.scoreCard.result,
+      text: resultLabel,
       area: "result"
     });
   }
@@ -245,37 +294,42 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
     });
   }
 
-  scoreAdvances.forEach((advance) => {
-    marks.push({
-      kind: "advance",
-      text: "",
-      area: advance.destination
-    });
-
-    const label = getScoreAdvanceLabel(advance);
-    if (label) {
+  if (!runnerDroppedThirdStrike) {
+    scoreAdvances.forEach((advance) => {
       marks.push({
-        kind: "note",
-        text: label,
+        kind: "advance",
+        text: "",
         area: advance.destination
       });
-    }
 
-    const hitLocationText = getHitLocationText(runner, advance);
-    if (hitLocationText) {
-      marks.push({
-        kind: "hitLocation",
-        text: hitLocationText
-      });
-    }
-  });
+      const label = getScoreAdvanceLabel(advance);
+      if (label) {
+        marks.push({
+          kind: "note",
+          text: label,
+          area: advance.destination
+        });
+      }
+
+      const hitLocationText = getHitLocationText(runner, advance);
+      if (hitLocationText) {
+        marks.push({
+          kind: "hitLocation",
+          text: hitLocationText
+        });
+      }
+    });
+  }
 
   if (pendingOut) {
-    marks.push({
-      kind: "note",
-      text: pendingOut.resultLabel || "走死",
-      area: noteArea
-    });
+    const pendingOutLabel = getPendingOutLabel(pendingOut.resultLabel);
+    if (pendingOutLabel) {
+      marks.push({
+        kind: "fielderOut",
+        text: pendingOutLabel,
+        area: noteArea
+      });
+    }
   }
 
   return marks;

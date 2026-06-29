@@ -51,6 +51,10 @@ function visibleAdvanceMarks(marks) {
   return marks.filter((mark) => mark.kind === "advance" && baseAreas.has(mark.area));
 }
 
+function hasJapaneseScoreText(marks) {
+  return marks.some((mark) => /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}]/u.test(mark.text));
+}
+
 {
   const state = applyPitches(clone(data.initialState), ["ball", "ball", "ball", "ball"]);
   assert.equal(state.plate.result, "B");
@@ -170,7 +174,7 @@ function visibleAdvanceMarks(marks) {
   assert.equal(next.plate.outNumber, 1);
   const currentMarks = rules.buildCurrentScoreCellMarks(next);
   assert.equal(currentMarks.some((mark) => mark.kind === "result" && mark.text === "K"), false);
-  assert.equal(currentMarks.filter((mark) => mark.kind === "note" && mark.text === "K" && mark.area === "result").length, 1);
+  assert.equal(currentMarks.filter((mark) => mark.kind === "fielderOut" && mark.text === "K" && mark.area === "first").length, 1);
   assert.equal(currentMarks.filter((mark) => mark.kind === "out" && mark.text === "I").length, 1);
 }
 
@@ -181,7 +185,7 @@ function visibleAdvanceMarks(marks) {
   const runnerMarks = rules.buildRunnerScoreCellMarks(runner, null, "first");
 
   assert.equal(runnerMarks.some((mark) => mark.kind === "result" && mark.text === "K"), false);
-  assert.equal(runnerMarks.filter((mark) => mark.kind === "note" && mark.text === "K" && mark.area === "result").length, 1);
+  assert.equal(runnerMarks.filter((mark) => mark.kind === "fielderOut" && mark.text === "K" && mark.area === "first").length, 1);
   assert.equal(runnerMarks.filter((mark) => mark.kind === "out" && mark.text === "II").length, 1);
 }
 
@@ -192,6 +196,61 @@ for (const outResult of ["K", "\u30a2\u30a6\u30c8", "1", "F9", "4-3"]) {
   const currentMarks = rules.buildCurrentScoreCellMarks(state);
 
   assert.equal(currentMarks.some((mark) => mark.kind === "result" && mark.text === outResult), false);
+}
+
+{
+  const state = clone(data.initialState);
+  state.plate.result = "\u5b89\u6253";
+  const currentMarks = rules.buildCurrentScoreCellMarks(state);
+
+  assert.equal(hasJapaneseScoreText(currentMarks), false);
+}
+
+{
+  const state = clone(data.initialState);
+  state.game.strikes = 2;
+  state.plate.pitches = ["\u2715", "\u2715"];
+  const next = rules.moveRunnerToDestination(state, "batter", "first", "dropped-third-strike");
+  const runner = next.game.runners.first;
+  const currentMarks = rules.buildCurrentScoreCellMarks(next);
+  const runnerMarks = rules.buildRunnerScoreCellMarks(runner, null, "first");
+
+  assert.equal(next.plate.result, "\u632f\u308a\u9003\u3052");
+  assert.equal(visibleAdvanceMarks(currentMarks).length, 0);
+  assert.equal(currentMarks.filter((mark) => mark.kind === "fielderOut" && mark.text === "K 2-3").length, 1);
+  assert.equal(runnerMarks.filter((mark) => mark.kind === "fielderOut" && mark.text === "K 2-3").length, 1);
+  assert.equal(currentMarks.some((mark) => mark.text === "\u632f\u308a\u9003\u3052" || mark.text === "K\u9003"), false);
+  assert.equal(hasJapaneseScoreText(currentMarks), false);
+  assert.equal(hasJapaneseScoreText(runnerMarks), false);
+}
+
+{
+  const next = rules.advanceRunner(clone(data.initialState), "batter", "catcher-interference");
+  const currentMarks = rules.buildCurrentScoreCellMarks(next);
+  const runnerMarks = rules.buildRunnerScoreCellMarks(next.game.runners.first, null, "first");
+
+  assert.equal(currentMarks.filter((mark) => mark.kind === "result" && mark.text === "IF").length, 1);
+  assert.equal(runnerMarks.filter((mark) => mark.kind === "result" && mark.text === "IF").length, 1);
+  assert.equal(hasJapaneseScoreText(currentMarks), false);
+  assert.equal(hasJapaneseScoreText(runnerMarks), false);
+}
+
+{
+  const state = clone(data.initialState);
+  state.game.runners.first = makeRunner("obstruction-runner", 1, []);
+  const next = rules.moveRunnerToDestination(state, "first", "second", "runner-interference");
+  const runnerMarks = rules.buildRunnerScoreCellMarks(next.game.runners.second, null, "second");
+
+  assert.equal(runnerMarks.filter((mark) => mark.kind === "note" && mark.text === "OB").length > 0, true);
+  assert.equal(hasJapaneseScoreText(runnerMarks), false);
+}
+
+{
+  const runner = makeRunner("pending-out-runner", 1, []);
+  const runnerMarks = rules.buildRunnerScoreCellMarks(runner, { source: "first", resultLabel: "\u8d70\u6b7b", outNumber: 1 }, "first");
+
+  assert.equal(runnerMarks.filter((mark) => mark.kind === "fielderOut" && mark.text === "T.O").length, 1);
+  assert.equal(hasJapaneseScoreText(runnerMarks), false);
 }
 
 {
@@ -234,6 +293,7 @@ for (const outResult of ["K", "\u30a2\u30a6\u30c8", "1", "F9", "4-3"]) {
   assert.equal(next.plate.result, "本");
   assert.equal(next.game.hitType, "home-run");
   assert.equal(next.game.ownScore, 4);
+  assert.equal(hasJapaneseScoreText(rules.buildCurrentScoreCellMarks(next)), false);
   assert.deepEqual(next.game.runners, { first: null, second: null, third: null });
 }
 
