@@ -29,6 +29,7 @@ import {
   confirmPlateAppearance,
   fieldOutResultLabels,
   formatBatterGroundOutResultLabel,
+  formatFlyOutResultLabel,
   formatJerseyNumber,
   formatPlayerLabel,
   getBattingTeamKey,
@@ -3577,6 +3578,13 @@ function FieldStage({
     return fieldPlay.nodes.find((current) => current.kind === "position" && current.id === incomingSegment?.fromNodeId);
   }
 
+  function isFoulFlyOutNode(node: FieldPlayNode) {
+    const incomingSegment = fieldPlay.segments.find((segment) => segment.toNodeId === node.id);
+    const incomingNode = fieldPlay.nodes.find((current) => current.id === incomingSegment?.fromNodeId);
+    const lastNode = fieldPlay.nodes[fieldPlay.nodes.length - 1];
+    return incomingNode?.kind === "foul" || (node.kind === "position" && !fieldPlay.nodes.some((current) => current.id === node.id) && lastNode?.kind === "foul");
+  }
+
   function getFieldOutResultLabel(node: FieldPlayNode) {
     if (node.runnerSource !== "batter") return "走死";
 
@@ -3596,19 +3604,7 @@ function FieldStage({
   }
 
   function getFieldFlyOutResultLabel(node: FieldPlayNode) {
-    const flyOutLabels: Record<number, string> = {
-      1: "F1",
-      2: "F2",
-      3: "F3",
-      4: "F4",
-      5: "F5",
-      6: "F6",
-      7: "F7",
-      8: "F8",
-      9: "F9"
-    };
-    const positionNumber = Number(node.label);
-    return flyOutLabels[positionNumber] ?? "飛";
+    return formatFlyOutResultLabel(node.label, isFoulFlyOutNode(node)) || "アウト";
   }
 
   function resolveAdvanceReasonForNode(node: FieldPlayNode, resolvedRunnerSource: RunnerSource, decision: "safe" | "error") {

@@ -149,6 +149,12 @@ function hasJapaneseScoreText(marks) {
 }
 
 {
+  assert.equal(rules.formatFlyOutResultLabel("9", false), "9");
+  assert.equal(rules.formatFlyOutResultLabel("5", true), "F5");
+  assert.equal(rules.formatFlyOutResultLabel("", false), "");
+}
+
+{
   const state = clone(data.initialState);
   state.plate.result = "3-3";
   state.plate.outNumber = 2;
@@ -307,6 +313,16 @@ for (const outResult of ["K", "\u30a2\u30a6\u30c8", "1", "F9", "4-3"]) {
   assert.equal(next.game.runners.first, null);
   assert.equal(next.game.runners.second?.id, "steal-runner");
   assert.deepEqual(next.game.runners.second?.scoreAdvances.at(-1), { destination: "second", reason: "steal" });
+}
+
+{
+  const state = clone(data.initialState);
+  state.game.runners.first = makeRunner("passed-ball-runner", 1);
+  const next = rules.moveRunnerToDestination(state, "first", "second", "passed-ball");
+  const runnerMarks = rules.buildRunnerScoreCellMarks(next.game.runners.second, null, "second");
+
+  assert.equal(runnerMarks.some((mark) => mark.text === "PB"), false);
+  assert.equal(runnerMarks.filter((mark) => mark.kind === "note" && mark.text === "P").length > 0, true);
 }
 
 {

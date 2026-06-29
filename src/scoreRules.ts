@@ -45,6 +45,12 @@ export function formatBatterGroundOutResultLabel({
   return fieldOutResultLabels[Number(fielding)] ?? "";
 }
 
+export function formatFlyOutResultLabel(position?: string | number, isFoul = false) {
+  const normalizedPosition = normalizeNumber(position);
+  if (!fieldOutResultLabels[Number(normalizedPosition)]) return isFoul ? "F" : "";
+  return `${isFoul ? "F" : ""}${normalizedPosition}`;
+}
+
 export const advanceReasonLabels: Record<AdvanceReason, string> = {
   error: "失策",
   walk: "四球",
@@ -65,7 +71,7 @@ const scoreAdvanceLabels: Record<AdvanceReason, string> = {
   "dropped-third-strike": "",
   "catcher-interference": "IF",
   steal: "S",
-  "passed-ball": "PB",
+  "passed-ball": "P",
   balk: "BK",
   "runner-interference": "OB",
   hit: ""
