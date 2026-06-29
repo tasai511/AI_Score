@@ -23,6 +23,28 @@ export const fieldOutResultLabels: Record<number, string> = {
   9: "9"
 };
 
+export function formatBatterGroundOutResultLabel({
+  destination,
+  fieldingPosition,
+  coveringPosition
+}: {
+  destination?: RunnerDestination;
+  fieldingPosition?: string | number;
+  coveringPosition?: string | number;
+}) {
+  const fielding = normalizeNumber(fieldingPosition);
+  const covering = normalizeNumber(coveringPosition);
+  if (!fielding || !fieldOutResultLabels[Number(fielding)]) return "";
+
+  if (destination === "first") {
+    if (fielding === "3" && (!covering || covering === "3")) return "3A";
+    if (covering && covering !== fielding && covering !== "3") return `${fielding}-${covering}A`;
+    return `${fielding}-3`;
+  }
+
+  return fieldOutResultLabels[Number(fielding)] ?? "";
+}
+
 export const advanceReasonLabels: Record<AdvanceReason, string> = {
   error: "失策",
   walk: "四球",
@@ -90,8 +112,12 @@ function isBatterCaughtOutResult(result: string) {
   return /^F?[1-9]$/.test(result);
 }
 
+function isBatterBaseStepOutResult(result: string) {
+  return /^[1-9](?:-[1-9])?[ABC]$/.test(result);
+}
+
 function isBatterFieldOutResult(result: string) {
-  return isBatterGroundOutResult(result) || isBatterCaughtOutResult(result);
+  return isBatterGroundOutResult(result) || isBatterCaughtOutResult(result) || isBatterBaseStepOutResult(result);
 }
 
 function isDroppedThirdStrikeResult(result: string) {
@@ -117,6 +143,12 @@ function buildHiddenHitMarkSuppressor(): ScoreCellMark {
 
 function getScoreAdvanceLabel(advance: RunnerState["scoreAdvances"][number]) {
   return scoreAdvanceLabels[advance.reason];
+}
+
+function normalizeBatterOutResult(result: string) {
+  if (result === "3-3") return "3A";
+  if (result === "3-1") return "3-1A";
+  return result;
 }
 
 function hasDroppedThirdStrikeAdvance(scoreAdvances: RunnerState["scoreAdvances"] = []) {
@@ -154,7 +186,7 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
     .map((fieldOut, index) => ({ fieldOut, index }))
     .find(({ fieldOut }) => fieldOut.source === "batter");
   const previewOutNumber = pendingBatterOutEntry ? Math.min(3, state.game.outs + pendingBatterOutEntry.index + 1) : 0;
-  const result = state.plate.result || pendingBatterOutEntry?.fieldOut.resultLabel || currentBatterRunner?.scoreCard.result || "";
+  const result = normalizeBatterOutResult(state.plate.result || pendingBatterOutEntry?.fieldOut.resultLabel || currentBatterRunner?.scoreCard.result || "");
   const scoreAdvances = currentBatterRunner ? getRunnerScoreAdvances(currentBatterRunner) : [];
   const outNumber = state.plate.outNumber || previewOutNumber || currentBatterRunner?.scoreCard.outNumber || 0;
   const resultArea = getPlateResultArea(result, currentBatterBase, pendingBatterOutEntry?.fieldOut);
@@ -255,13 +287,14 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
   const outNumber = pendingOut?.outNumber ?? runner.scoreCard.outNumber;
   const noteArea = getRunnerDestinationArea(pendingOut?.destination) || currentBase || "result";
   const scoreAdvances = getRunnerScoreAdvances(runner);
-  const resultLabel = getScoreResultLabel(runner.scoreCard.result);
-  const runnerDroppedThirdStrike = isDroppedThirdStrikeResult(runner.scoreCard.result) || hasDroppedThirdStrikeAdvance(scoreAdvances);
+  const result = normalizeBatterOutResult(runner.scoreCard.result);
+  const resultLabel = getScoreResultLabel(result);
+  const runnerDroppedThirdStrike = isDroppedThirdStrikeResult(result) || hasDroppedThirdStrikeAdvance(scoreAdvances);
 
-  if (isBatterFieldOutResult(runner.scoreCard.result)) {
+  if (isBatterFieldOutResult(result)) {
     marks.push({
       kind: "fielderOut",
-      text: runner.scoreCard.result,
+      text: result,
       area: "first"
     });
   } else if (runnerDroppedThirdStrike) {
@@ -270,7 +303,7 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
       text: "K 2-3",
       area: "first"
     });
-  } else if (isBatterTextOutResult(runner.scoreCard.result)) {
+  } else if (isBatterTextOutResult(result)) {
     if (resultLabel) {
       marks.push({
         kind: "fielderOut",
@@ -610,7 +643,7 @@ export function applyFieldOut(state: AppState, source: RunnerSource, resultLabel
 
   if (source === "batter") {
     removeCurrentBatterFromBases(next);
-    next.plate.result = resultLabel || next.plate.result || "アウト";
+    next.plate.result = normalizeBatterOutResult(resultLabel || next.plate.result || "アウト");
     next.game.hitType = "";
     next.game.balls = 0;
     next.game.strikes = 0;
@@ -641,7 +674,7 @@ export function applyHomeRunnerOut(state: AppState, source: RunnerSource, result
 
   if (source === "batter") {
     removeCurrentBatterFromBases(next);
-    next.plate.result = resultLabel || next.plate.result || "\u30a2\u30a6\u30c8";
+    next.plate.result = normalizeBatterOutResult(resultLabel || next.plate.result || "\u30a2\u30a6\u30c8");
     next.game.hitType = "";
     next.game.balls = 0;
     next.game.strikes = 0;

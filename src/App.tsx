@@ -28,6 +28,7 @@ import {
   canUseDroppedThirdStrike,
   confirmPlateAppearance,
   fieldOutResultLabels,
+  formatBatterGroundOutResultLabel,
   formatJerseyNumber,
   formatPlayerLabel,
   getBattingTeamKey,
@@ -3563,13 +3564,33 @@ function FieldStage({
     return getRunnerSubject(getDecisionRunnerSourceForTarget(target, point, isInitialHit));
   }
 
+  function getInitialFieldingPositionNode() {
+    return (
+      fieldPlay.nodes.find(
+        (current) => current.kind === "position" && fieldPlay.segments.some((segment) => segment.kind === "hit" && segment.toNodeId === current.id)
+      ) ?? fieldPlay.nodes.find((current) => current.kind === "position")
+    );
+  }
+
+  function getPreviousPositionNode(node: FieldPlayNode) {
+    const incomingSegment = fieldPlay.segments.find((segment) => segment.toNodeId === node.id);
+    return fieldPlay.nodes.find((current) => current.kind === "position" && current.id === incomingSegment?.fromNodeId);
+  }
+
   function getFieldOutResultLabel(node: FieldPlayNode) {
     if (node.runnerSource !== "batter") return "走死";
 
-    const resultPositionNode = node.kind === "position" ? node : fieldPlay.nodes.find((current) => current.kind === "position");
+    const resultPositionNode = node.kind === "position" ? node : getInitialFieldingPositionNode();
     const positionNumber = Number(resultPositionNode?.label);
-    if (node.kind === "base" && getBaseDestinationFromKey(node.key) === "first" && fieldOutResultLabels[positionNumber]) {
-      return `${fieldOutResultLabels[positionNumber]}-3`;
+    if (node.kind === "base") {
+      const destination = getBaseDestinationFromKey(node.key);
+      return (
+        formatBatterGroundOutResultLabel({
+          destination,
+          fieldingPosition: resultPositionNode?.label,
+          coveringPosition: getPreviousPositionNode(node)?.label
+        }) || "アウト"
+      );
     }
     return fieldOutResultLabels[positionNumber] ?? "アウト";
   }

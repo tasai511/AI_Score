@@ -130,6 +130,53 @@ function hasJapaneseScoreText(marks) {
 }
 
 {
+  assert.equal(
+    rules.formatBatterGroundOutResultLabel({ destination: "first", fieldingPosition: "3", coveringPosition: "3" }),
+    "3A"
+  );
+  assert.equal(
+    rules.formatBatterGroundOutResultLabel({ destination: "first", fieldingPosition: "3", coveringPosition: "1" }),
+    "3-1A"
+  );
+  assert.equal(
+    rules.formatBatterGroundOutResultLabel({ destination: "first", fieldingPosition: "6", coveringPosition: "6" }),
+    "6-3"
+  );
+  assert.equal(
+    rules.formatBatterGroundOutResultLabel({ destination: "first", fieldingPosition: "6", coveringPosition: "3" }),
+    "6-3"
+  );
+}
+
+{
+  const state = clone(data.initialState);
+  state.plate.result = "3-3";
+  state.plate.outNumber = 2;
+  state.game.outs = 2;
+  const currentMarks = rules.buildCurrentScoreCellMarks(state);
+
+  assert.equal(currentMarks.some((mark) => mark.text === "3-3"), false);
+  assert.equal(currentMarks.filter((mark) => mark.kind === "fielderOut" && mark.text === "3A" && mark.area === "first").length, 1);
+  assert.equal(currentMarks.filter((mark) => mark.kind === "out" && mark.text === "II").length, 1);
+}
+
+{
+  const next = rules.applyFieldOut(clone(data.initialState), "batter", "3-3");
+  assert.equal(next.plate.result, "3A");
+  const currentMarks = rules.buildCurrentScoreCellMarks(next);
+
+  assert.equal(currentMarks.filter((mark) => mark.kind === "fielderOut" && mark.text === "3A" && mark.area === "first").length, 1);
+}
+
+{
+  const next = rules.applyFieldOut(clone(data.initialState), "batter", "3-1");
+  assert.equal(next.plate.result, "3-1A");
+  const currentMarks = rules.buildCurrentScoreCellMarks(next);
+
+  assert.equal(currentMarks.filter((mark) => mark.kind === "fielderOut" && mark.text === "3-1A" && mark.area === "first").length, 1);
+}
+
+{
   const state = rules.advanceRunner(clone(data.initialState), "batter", "hit", "9");
   state.game.hitType = "single";
   const currentMarks = rules.buildCurrentScoreCellMarks(state, [{ source: "batter", resultLabel: "F1" }]);
