@@ -1327,10 +1327,9 @@ function ScoreMatrixGraphic({
                 </>
               )}
               <text
-                className="matrix-note"
+                className="matrix-hit-location"
                 x="0"
                 y="0"
-                fill="#e83b2e"
                 stroke="#fff"
                 strokeWidth="22"
                 paintOrder="stroke"

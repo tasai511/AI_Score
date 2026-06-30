@@ -779,6 +779,10 @@ i.red {
   font-size: 118px;
 }
 
+.matrix-hit-location {
+  fill: #e83b2e;
+}
+
 .matrix-out {
   fill: #111;
   font-family: Georgia, "Times New Roman", serif;
