@@ -528,7 +528,7 @@ function getCurrentBatterScoreCard(state: AppState, reachReason?: AdvanceReason,
     pitches: [...state.plate.pitches],
     result: getBatterScoreCardResult(state, reachReason),
     outNumber: state.plate.outNumber,
-    hitType: reachReason === "error" ? "" : state.game.hitType,
+    hitType: reachReason === "hit" ? state.game.hitType : "",
     ...(normalizedHitLocation ? { hitLocation: normalizedHitLocation } : {})
   };
 }
@@ -952,6 +952,7 @@ export function applyPitch(state: AppState, type: PitchType): AppState {
   const finish = (result: string, outNumber = 0) => {
     next.plate.result = result;
     next.plate.outNumber = outNumber;
+    next.game.hitType = "";
     next.game.balls = 0;
     next.game.strikes = 0;
   };

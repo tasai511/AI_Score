@@ -56,9 +56,13 @@ function hasJapaneseScoreText(marks) {
 }
 
 {
-  const state = applyPitches(clone(data.initialState), ["ball", "ball", "ball", "ball"]);
+  const initial = clone(data.initialState);
+  initial.game.hitType = "single";
+  const state = applyPitches(initial, ["ball", "ball", "ball", "ball"]);
   assert.equal(state.plate.result, "B");
+  assert.equal(state.game.hitType, "");
   assert.equal(state.game.runners.first?.scoreCard.result, "B");
+  assert.equal(state.game.runners.first?.scoreCard.hitType, "");
   assert.deepEqual(state.game.runners.first?.scoreAdvances.at(-1), { destination: "first", reason: "walk" });
 }
 
@@ -90,9 +94,13 @@ function hasJapaneseScoreText(marks) {
 }
 
 {
-  const state = rules.applyPitch(clone(data.initialState), "dead");
+  const initial = clone(data.initialState);
+  initial.game.hitType = "single";
+  const state = rules.applyPitch(initial, "dead");
   assert.equal(state.plate.result, "HP");
+  assert.equal(state.game.hitType, "");
   assert.equal(state.game.runners.first?.scoreCard.result, "HP");
+  assert.equal(state.game.runners.first?.scoreCard.hitType, "");
   assert.deepEqual(state.game.runners.first?.scoreAdvances.at(-1), { destination: "first", reason: "dead-ball" });
   const currentMarks = rules.buildCurrentScoreCellMarks(state);
   const runnerMarks = rules.buildRunnerScoreCellMarks(state.game.runners.first, null, "first");
