@@ -1069,21 +1069,37 @@ function OrderList({
 }
 
 function getPitchSymbolCoordinate(index: number, total: number) {
+  const layout = getPitchSymbolLayout(total);
+  const column = layout.columnCount === 1 ? 0 : Math.floor(index / layout.rowCount);
+  const row = layout.columnCount === 1 ? index : index % layout.rowCount;
+
+  return {
+    x: layout.columnCount > 1 ? layout.twoColumnRightX - column * layout.xGap : layout.singleColumnX,
+    y: layout.yTop + row * layout.yGap
+  };
+}
+
+function getPitchSymbolLayout(total: number) {
   const columnCount = total > 9 ? 2 : 1;
   const neededRows = columnCount === 1 ? total : Math.ceil(total / columnCount);
   const rowCount = neededRows <= 6 ? 6 : neededRows <= 9 ? 9 : neededRows;
-  const column = columnCount === 1 ? 0 : Math.floor(index / rowCount);
-  const row = columnCount === 1 ? index : index % rowCount;
   const singleColumnX = 190;
   const twoColumnRightX = 240;
   const xGap = 120;
   const yTop = rowCount <= 6 ? 165 : 145;
   const yBottom = rowCount <= 6 ? 845 : 913;
   const yGap = rowCount > 1 ? (yBottom - yTop) / (rowCount - 1) : 0;
+  const symbolScale = rowCount <= 6 ? (columnCount === 1 ? 1.28 : 1.08) : rowCount <= 9 ? 1 : Math.max(0.72, 9 / rowCount);
 
   return {
-    x: columnCount > 1 ? twoColumnRightX - column * xGap : singleColumnX,
-    y: yTop + row * yGap
+    columnCount,
+    rowCount,
+    singleColumnX,
+    twoColumnRightX,
+    xGap,
+    yTop,
+    yGap,
+    symbolScale
   };
 }
 
@@ -1138,10 +1154,10 @@ function getScorePlayCoordinate(area: ScoreMatrixTextArea, index: number, total:
   };
 }
 
-function renderScorePitchSymbol(symbol: string, x: number, y: number, key: string) {
+function renderScorePitchSymbol(symbol: string, x: number, y: number, scale: number, key: string) {
   if (symbol === "\u2715") {
     return (
-      <g className="score-symbol-shape score-symbol-stroke" transform={`translate(${x} ${y})`} key={key}>
+      <g className="score-symbol-shape score-symbol-stroke" transform={`translate(${x} ${y}) scale(${scale})`} key={key}>
         <path d="M -26 -26 L 26 26" />
         <path d="M 26 -26 L -26 26" />
       </g>
@@ -1150,7 +1166,7 @@ function renderScorePitchSymbol(symbol: string, x: number, y: number, key: strin
 
   if (symbol === "\u25cf") {
     return (
-      <g className="score-symbol-shape score-symbol-fill" transform={`translate(${x} ${y})`} key={key}>
+      <g className="score-symbol-shape score-symbol-fill" transform={`translate(${x} ${y}) scale(${scale})`} key={key}>
         <circle cx="0" cy="0" r="21" />
       </g>
     );
@@ -1158,14 +1174,14 @@ function renderScorePitchSymbol(symbol: string, x: number, y: number, key: strin
 
   if (symbol === "\u25b3") {
     return (
-      <g className="score-symbol-shape score-symbol-stroke" transform={`translate(${x} ${y})`} key={key}>
+      <g className="score-symbol-shape score-symbol-stroke" transform={`translate(${x} ${y}) scale(${scale})`} key={key}>
         <path d="M 0 -31.2 L 36 31.2 L -36 31.2 Z" />
       </g>
     );
   }
 
   return (
-    <text className="score-symbol" x={x} y={y} key={key}>
+    <text className="score-symbol" x={x} y={y} key={key} style={{ fontSize: `${128 * scale}px` }}>
       {symbol}
     </text>
   );
@@ -1195,6 +1211,7 @@ function ScoreMatrixGraphic({
       : hitType
         ? SCORE_MATRIX_HIT_PATHS[hitType]
         : [];
+  const pitchSymbolScale = getPitchSymbolLayout(pitchMarks.length).symbolScale;
   const playMarks = [resultMark, ...noteMarks].filter((mark): mark is ScoreCellMark => Boolean(mark));
   const playMarkEntries = playMarks.map((mark, index) => {
     const area = getScoreTextArea(mark.area);
@@ -1222,7 +1239,7 @@ function ScoreMatrixGraphic({
         <g>
           {pitchMarks.map((mark, index) => {
             const coordinate = getPitchSymbolCoordinate(index, pitchMarks.length);
-            return renderScorePitchSymbol(mark.text, coordinate.x, coordinate.y, `${mark.text}-${index}`);
+            return renderScorePitchSymbol(mark.text, coordinate.x, coordinate.y, pitchSymbolScale, `${mark.text}-${index}`);
           })}
         </g>
         {outMark && (
