@@ -1138,8 +1138,8 @@ const SCORE_MATRIX_FIELDER_OUT_COORDINATES: Record<RunnerDestination, { x: numbe
   home: { x: 642, y: 756 }
 };
 
-const SCORE_MATRIX_HIT_LOCATION_COORDINATE = { x: 1184, y: 812 } as const;
-const SCORE_MATRIX_INFIELD_HIT_ARC_OFFSET = { x: 28, y: -28 } as const;
+const SCORE_MATRIX_HIT_LOCATION_COORDINATE = { x: 1134, y: 850 } as const;
+const SCORE_MATRIX_INFIELD_HIT_ARC_PATH = "M -94 72 A 180 180 0 0 0 116 -264";
 
 function getScoreFielderOutTextStyle(mark: ScoreCellMark, coordinate: { x: number; y: number }) {
   if (mark.text === "K" || mark.text === "K 2-3") {
@@ -1324,10 +1324,10 @@ function ScoreMatrixGraphic({
           return (
             <g transform={`translate(${SCORE_MATRIX_HIT_LOCATION_COORDINATE.x} ${SCORE_MATRIX_HIT_LOCATION_COORDINATE.y})`} key={`${mark.text}-${index}`}>
               {isInfieldHit && (
-                <g transform={`translate(${SCORE_MATRIX_INFIELD_HIT_ARC_OFFSET.x} ${SCORE_MATRIX_INFIELD_HIT_ARC_OFFSET.y})`}>
-                  <path d="M -112 104 A 146 146 0 0 0 128 -58" fill="none" stroke="#fff" strokeWidth="30" strokeLinecap="round" />
-                  <path d="M -112 104 A 146 146 0 0 0 128 -58" fill="none" stroke="#e83b2e" strokeWidth="13" strokeLinecap="round" />
-                </g>
+                <>
+                  <path d={SCORE_MATRIX_INFIELD_HIT_ARC_PATH} fill="none" stroke="#fff" strokeWidth="30" strokeLinecap="round" />
+                  <path d={SCORE_MATRIX_INFIELD_HIT_ARC_PATH} fill="none" stroke="#e83b2e" strokeWidth="13" strokeLinecap="round" />
+                </>
               )}
               <text
                 className="matrix-hit-location"
