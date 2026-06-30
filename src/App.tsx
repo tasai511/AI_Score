@@ -1098,10 +1098,10 @@ const SCORE_MATRIX_MARK_COORDINATES = {
 } as const;
 
 const SCORE_MATRIX_BASE_PATHS: Record<RunnerDestination, { x1: number; y1: number; x2: number; y2: number }> = {
-  first: { x1: 856, y1: 994, x2: 1355, y2: 510 },
-  second: { x1: 1355, y1: 510, x2: 856, y2: 26 },
-  third: { x1: 856, y1: 26, x2: 362, y2: 510 },
-  home: { x1: 362, y1: 510, x2: 856, y2: 994 }
+  first: { x1: 856, y1: 955, x2: 1315, y2: 510 },
+  second: { x1: 1315, y1: 510, x2: 856, y2: 65 },
+  third: { x1: 856, y1: 65, x2: 402, y2: 510 },
+  home: { x1: 402, y1: 510, x2: 856, y2: 955 }
 };
 
 const SCORE_MATRIX_HIT_PATHS: Record<Exclude<HitType, "">, RunnerDestination[]> = {
@@ -1118,7 +1118,7 @@ const SCORE_MATRIX_FIELDER_OUT_COORDINATES: Record<RunnerDestination, { x: numbe
   home: { x: 642, y: 756 }
 };
 
-const SCORE_MATRIX_HIT_LOCATION_COORDINATE = { x: 1148, y: 762 } as const;
+const SCORE_MATRIX_HIT_LOCATION_COORDINATE = { x: 1228, y: 777 } as const;
 
 type ScoreMatrixTextArea = keyof typeof SCORE_MATRIX_MARK_COORDINATES.areas;
 
