@@ -1089,7 +1089,7 @@ function getPitchSymbolLayout(total: number) {
   const yTop = rowCount <= 6 ? 165 : 145;
   const yBottom = rowCount <= 6 ? 845 : 913;
   const yGap = rowCount > 1 ? (yBottom - yTop) / (rowCount - 1) : 0;
-  const symbolScale = rowCount <= 6 ? (columnCount === 1 ? 1.38 : 1.18) : rowCount <= 9 ? 1 : Math.max(0.72, 9 / rowCount);
+  const symbolScale = rowCount <= 6 ? (columnCount === 1 ? 1.72 : 1.34) : rowCount <= 9 ? 1.12 : Math.max(0.82, 9 / rowCount);
 
   return {
     columnCount,
