@@ -780,8 +780,18 @@ i.red {
 }
 
 .matrix-out {
-  fill: #8f8f8f;
-  font-size: 150px;
+  fill: #111;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 330px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.matrix-inning-end-slash path {
+  fill: none;
+  stroke: #111;
+  stroke-width: 10;
+  stroke-linecap: square;
 }
 
 .matrix-fielder-out circle {

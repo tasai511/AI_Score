@@ -1172,11 +1172,13 @@ function renderScorePitchSymbol(symbol: string, x: number, y: number, key: strin
 function ScoreMatrixGraphic({
   marks,
   hitType = "",
-  className = ""
+  className = "",
+  showInningEndSlash = false
 }: {
   marks: ScoreCellMark[];
   hitType?: HitType;
   className?: string;
+  showInningEndSlash?: boolean;
 }) {
   const pitchMarks = marks.filter((mark) => mark.kind === "pitch");
   const resultMark = marks.find((mark) => mark.kind === "result");
@@ -1226,6 +1228,12 @@ function ScoreMatrixGraphic({
             {outMark.text}
           </text>
         )}
+        {showInningEndSlash && (
+          <g className="matrix-inning-end-slash">
+            <path d="M 1172 1044 L 1396 738" />
+            <path d="M 1194 1050 L 1418 744" />
+          </g>
+        )}
         {fielderOutMarks.map((mark, index) => {
           const coordinate = SCORE_MATRIX_FIELDER_OUT_COORDINATES[mark.area as RunnerDestination];
           if (!coordinate) return null;
@@ -1243,8 +1251,8 @@ function ScoreMatrixGraphic({
             <g transform={`translate(${SCORE_MATRIX_HIT_LOCATION_COORDINATE.x} ${SCORE_MATRIX_HIT_LOCATION_COORDINATE.y})`} key={`${mark.text}-${index}`}>
               {isInfieldHit && (
                 <>
-                  <path d="M -122 76 A 170 170 0 0 0 94 -104" fill="none" stroke="#fff" strokeWidth="30" strokeLinecap="round" />
-                  <path d="M -122 76 A 170 170 0 0 0 94 -104" fill="none" stroke="#e83b2e" strokeWidth="13" strokeLinecap="round" />
+                  <path d="M -112 104 A 146 146 0 0 0 128 -58" fill="none" stroke="#fff" strokeWidth="30" strokeLinecap="round" />
+                  <path d="M -112 104 A 146 146 0 0 0 128 -58" fill="none" stroke="#e83b2e" strokeWidth="13" strokeLinecap="round" />
                 </>
               )}
               <text
@@ -1278,9 +1286,12 @@ function ScoreMatrixGraphic({
 function ScoreCell({ state, pendingOuts = [] }: { state: AppState; pendingOuts?: PendingFieldOut[] }) {
   const hitType = state.game.hitType;
   const marks = buildCurrentScoreCellMarks(state, pendingOuts);
+  const showInningEndSlash =
+    !isCurrentBatterPlateAppearanceComplete(state) &&
+    pendingOuts.some((fieldOut, index) => fieldOut.source !== "batter" && Math.min(3, state.game.outs + index + 1) === 3);
   return (
     <article className="score-cell" aria-label="current score cell">
-      <ScoreMatrixGraphic marks={marks} hitType={hitType} className="score-matrix-current" />
+      <ScoreMatrixGraphic marks={marks} hitType={hitType} className="score-matrix-current" showInningEndSlash={showInningEndSlash} />
     </article>
   );
 }
