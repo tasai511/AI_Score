@@ -1098,10 +1098,10 @@ const SCORE_MATRIX_MARK_COORDINATES = {
 } as const;
 
 const SCORE_MATRIX_BASE_PATHS: Record<RunnerDestination, { x1: number; y1: number; x2: number; y2: number }> = {
-  first: { x1: 843, y1: 845, x2: 1193, y2: 495 },
-  second: { x1: 1193, y1: 495, x2: 843, y2: 145 },
-  third: { x1: 843, y1: 145, x2: 493, y2: 495 },
-  home: { x1: 493, y1: 495, x2: 843, y2: 845 }
+  first: { x1: 855, y1: 845, x2: 1193, y2: 510 },
+  second: { x1: 1193, y1: 510, x2: 855, y2: 145 },
+  third: { x1: 855, y1: 145, x2: 493, y2: 510 },
+  home: { x1: 493, y1: 510, x2: 855, y2: 845 }
 };
 
 const SCORE_MATRIX_FIELDER_OUT_COORDINATES: Record<RunnerDestination, { x: number; y: number }> = {
