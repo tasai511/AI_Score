@@ -88,7 +88,12 @@ function hasJapaneseScoreText(marks) {
   assert.equal(state.plate.result, "HP");
   assert.equal(state.game.runners.first?.scoreCard.result, "HP");
   assert.deepEqual(state.game.runners.first?.scoreAdvances.at(-1), { destination: "first", reason: "dead-ball" });
-  assert.equal(rules.buildCurrentScoreCellMarks(state).some((mark) => mark.kind === "result" && mark.text === "HP"), true);
+  const currentMarks = rules.buildCurrentScoreCellMarks(state);
+  const runnerMarks = rules.buildRunnerScoreCellMarks(state.game.runners.first, null, "first");
+  assert.equal(currentMarks.some((mark) => mark.kind === "result" && mark.text === "HP"), true);
+  assert.equal(currentMarks.some((mark) => mark.kind === "advance"), false);
+  assert.equal(runnerMarks.filter((mark) => mark.text === "HP").length, 1);
+  assert.equal(runnerMarks.some((mark) => mark.kind === "advance"), false);
 }
 
 {

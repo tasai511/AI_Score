@@ -184,6 +184,10 @@ function getHitLocationText(runner: RunnerState, advance: RunnerState["scoreAdva
   return /^[1-9]$/.test(hitLocation) ? hitLocation : "";
 }
 
+function shouldDrawAdvancePath(advance: RunnerState["scoreAdvances"][number]) {
+  return advance.reason !== "dead-ball";
+}
+
 export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCellPendingOut[] = []): ScoreCellMark[] {
   const currentBatterBase = getCurrentBatterBase(state);
   const currentBatterRunner = currentBatterBase ? state.game.runners[currentBatterBase] : null;
@@ -258,11 +262,13 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
 
   if (currentBatterRunner && !shouldSuppressCurrentBatterAdvances) {
     scoreAdvances.forEach((advance) => {
-      marks.push({
-        kind: "advance",
-        text: "",
-        area: advance.destination
-      });
+      if (shouldDrawAdvancePath(advance)) {
+        marks.push({
+          kind: "advance",
+          text: "",
+          area: advance.destination
+        });
+      }
 
       const label = getScoreAdvanceLabel(advance);
       if (label && label !== result && label !== resultLabel) {
@@ -335,14 +341,16 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
 
   if (!runnerDroppedThirdStrike) {
     scoreAdvances.forEach((advance) => {
-      marks.push({
-        kind: "advance",
-        text: "",
-        area: advance.destination
-      });
+      if (shouldDrawAdvancePath(advance)) {
+        marks.push({
+          kind: "advance",
+          text: "",
+          area: advance.destination
+        });
+      }
 
       const label = getScoreAdvanceLabel(advance);
-      if (label) {
+      if (label && label !== result && label !== resultLabel) {
         marks.push({
           kind: "note",
           text: label,

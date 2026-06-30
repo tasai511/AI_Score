@@ -1197,6 +1197,10 @@ function getScorePlayCoordinate(area: ScoreMatrixTextArea, index: number, total:
   };
 }
 
+function getScorePlayTextStyle(mark: ScoreCellMark) {
+  return mark.text === "HP" ? { fill: "#006fc9" } : undefined;
+}
+
 function renderScorePitchSymbol(symbol: string, x: number, y: number, scale: number, key: string) {
   if (symbol === "\u2715") {
     return (
@@ -1329,7 +1333,7 @@ function ScoreMatrixGraphic({
         {playMarkEntries.map(({ area, areaIndex, areaTotal, mark }, index) => {
           const coordinate = getScorePlayCoordinate(area, areaIndex, areaTotal);
           return (
-            <text className={mark.kind === "result" ? "matrix-play" : "matrix-note"} x={coordinate.x} y={coordinate.y} key={`${mark.text}-${index}`}>
+            <text className={mark.kind === "result" ? "matrix-play" : "matrix-note"} x={coordinate.x} y={coordinate.y} style={getScorePlayTextStyle(mark)} key={`${mark.text}-${index}`}>
               {mark.text}
             </text>
           );
