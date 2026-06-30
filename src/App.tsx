@@ -1069,18 +1069,20 @@ function OrderList({
 }
 
 function getPitchSymbolCoordinate(index: number, total: number) {
-  const rowCount = 9;
-  const hasSecondColumn = total > rowCount;
-  const column = Math.floor(index / rowCount);
-  const row = index % rowCount;
+  const columnCount = total > 9 ? 2 : 1;
+  const neededRows = columnCount === 1 ? total : Math.ceil(total / columnCount);
+  const rowCount = neededRows <= 6 ? 6 : neededRows <= 9 ? 9 : neededRows;
+  const column = columnCount === 1 ? 0 : Math.floor(index / rowCount);
+  const row = columnCount === 1 ? index : index % rowCount;
   const singleColumnX = 190;
-  const twoColumnRightX = 232;
-  const xGap = 116;
-  const yTop = 145;
-  const yGap = 96;
+  const twoColumnRightX = 240;
+  const xGap = 120;
+  const yTop = rowCount <= 6 ? 165 : 145;
+  const yBottom = rowCount <= 6 ? 845 : 913;
+  const yGap = rowCount > 1 ? (yBottom - yTop) / (rowCount - 1) : 0;
 
   return {
-    x: hasSecondColumn ? twoColumnRightX - column * xGap : singleColumnX,
+    x: columnCount > 1 ? twoColumnRightX - column * xGap : singleColumnX,
     y: yTop + row * yGap
   };
 }
