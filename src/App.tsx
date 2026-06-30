@@ -1139,7 +1139,7 @@ const SCORE_MATRIX_FIELDER_OUT_COORDINATES: Record<RunnerDestination, { x: numbe
 const SCORE_MATRIX_HIT_LOCATION_COORDINATE = { x: 1228, y: 777 } as const;
 
 function getScoreFielderOutTextStyle(mark: ScoreCellMark, coordinate: { x: number; y: number }) {
-  if (mark.text === "K") {
+  if (mark.text === "K" || mark.text === "K 2-3") {
     return {
       x: 1136,
       y: 758,
@@ -1154,6 +1154,31 @@ function getScoreFielderOutTextStyle(mark: ScoreCellMark, coordinate: { x: numbe
     fontSize: 150,
     strokeWidth: 18
   };
+}
+
+function renderScoreFielderOutMark(mark: ScoreCellMark, coordinate: { x: number; y: number }, key: string) {
+  const textStyle = getScoreFielderOutTextStyle(mark, coordinate);
+
+  if (mark.text === "K 2-3") {
+    return (
+      <g transform={`translate(${textStyle.x} ${textStyle.y})`} key={key}>
+        <text x="0" y="-42" fill="#111" stroke="#fff" strokeWidth={textStyle.strokeWidth} paintOrder="stroke" style={{ fontSize: `${textStyle.fontSize}px` }}>
+          K
+        </text>
+        <text x="34" y="100" fill="#111" stroke="#fff" strokeWidth="9" paintOrder="stroke" style={{ fontSize: "104px" }}>
+          2-3
+        </text>
+      </g>
+    );
+  }
+
+  return (
+    <g transform={`translate(${textStyle.x} ${textStyle.y})`} key={key}>
+      <text x="0" y="0" fill="#111" stroke="#fff" strokeWidth={textStyle.strokeWidth} paintOrder="stroke" style={{ fontSize: `${textStyle.fontSize}px` }}>
+        {mark.text}
+      </text>
+    </g>
+  );
 }
 
 type ScoreMatrixTextArea = keyof typeof SCORE_MATRIX_MARK_COORDINATES.areas;
@@ -1274,14 +1299,7 @@ function ScoreMatrixGraphic({
         {fielderOutMarks.map((mark, index) => {
           const coordinate = SCORE_MATRIX_FIELDER_OUT_COORDINATES[mark.area as RunnerDestination];
           if (!coordinate) return null;
-          const textStyle = getScoreFielderOutTextStyle(mark, coordinate);
-          return (
-            <g transform={`translate(${textStyle.x} ${textStyle.y})`} key={`${mark.text}-${mark.area}-${index}`}>
-              <text x="0" y="0" fill="#111" stroke="#fff" strokeWidth={textStyle.strokeWidth} paintOrder="stroke" style={{ fontSize: `${textStyle.fontSize}px` }}>
-                {mark.text}
-              </text>
-            </g>
-          );
+          return renderScoreFielderOutMark(mark, coordinate, `${mark.text}-${mark.area}-${index}`);
         })}
         {hitLocationMarks.map((mark, index) => {
           const isInfieldHit = /^[1-6]$/.test(mark.text);
