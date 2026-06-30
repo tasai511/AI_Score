@@ -1198,6 +1198,7 @@ function getScorePlayCoordinate(area: ScoreMatrixTextArea, index: number, total:
 }
 
 function getScorePlayTextStyle(mark: ScoreCellMark) {
+  if (/^[1-9]-$/.test(mark.text)) return { fill: "#111" };
   return mark.text === "HP" ? { fill: "#006fc9" } : undefined;
 }
 
@@ -3660,6 +3661,25 @@ function FieldStage({
     return fieldPlay.nodes.find((current) => current.kind === "position" && current.id === incomingSegment?.fromNodeId);
   }
 
+  function getForceOutCoveringPosition(destination: RunnerDestination) {
+    if (destination === "first") return "3";
+    if (destination === "second") return "6";
+    if (destination === "third") return "5";
+    return "2";
+  }
+
+  function getRunnerForceOutResultLabel(node: FieldPlayNode) {
+    if (node.runnerSource === "batter" || node.kind !== "base" || !hasHitPlay()) return "";
+    if (node.runnerSource !== "first" && node.runnerSource !== "second" && node.runnerSource !== "third") return "";
+
+    const destination = getBaseDestinationFromKey(node.key);
+    if (getNextRunnerDestination(node.runnerSource) !== destination) return "";
+
+    const fieldingPosition = getPreviousPositionNode(node)?.label ?? getInitialFieldingPositionNode()?.label;
+    const coveringPosition = getForceOutCoveringPosition(destination);
+    return fieldingPosition ? `${fieldingPosition}-${coveringPosition}` : "";
+  }
+
   function isFoulFlyOutNode(node: FieldPlayNode) {
     const incomingSegment = fieldPlay.segments.find((segment) => segment.toNodeId === node.id);
     const incomingNode = fieldPlay.nodes.find((current) => current.id === incomingSegment?.fromNodeId);
@@ -3668,7 +3688,7 @@ function FieldStage({
   }
 
   function getFieldOutResultLabel(node: FieldPlayNode) {
-    if (node.runnerSource !== "batter") return "走死";
+    if (node.runnerSource !== "batter") return getRunnerForceOutResultLabel(node) || "走死";
 
     const resultPositionNode = node.kind === "position" ? node : getInitialFieldingPositionNode();
     const positionNumber = Number(resultPositionNode?.label);

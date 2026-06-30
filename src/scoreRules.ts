@@ -61,6 +61,7 @@ export const advanceReasonLabels: Record<AdvanceReason, string> = {
   "passed-ball": "捕逸",
   balk: "ボーク",
   "runner-interference": "走塁妨害",
+  "fielder-choice": "",
   hit: "安打"
 };
 
@@ -74,6 +75,7 @@ const scoreAdvanceLabels: Record<AdvanceReason, string> = {
   "passed-ball": "P",
   balk: "BK",
   "runner-interference": "OB",
+  "fielder-choice": "",
   hit: ""
 };
 
@@ -105,6 +107,7 @@ function getPlateResultArea(
   if (pendingBatterOut?.resultLabel === "走死") return getRunnerDestinationArea(pendingBatterOut.destination) || currentBatterBase || "result";
   if (pendingBatterOut?.resultLabel) return "result";
   if (result === "本") return "home";
+  if (currentBatterBase && isFielderChoiceResult(result)) return currentBatterBase;
   if (currentBatterBase && (result === "B" || result === "HP" || result === "E")) return currentBatterBase;
   if (currentBatterBase && !result) return currentBatterBase;
   return "result";
@@ -124,6 +127,20 @@ function isBatterBaseStepOutResult(result: string) {
 
 function isBatterFieldOutResult(result: string) {
   return isBatterGroundOutResult(result) || isBatterCaughtOutResult(result) || isBatterBaseStepOutResult(result);
+}
+
+function isForceOutResult(result?: string) {
+  return /^[1-9]-[1-9]$/.test(normalizeNumber(result));
+}
+
+function getFielderChoiceResult(result?: string) {
+  const normalizedResult = normalizeNumber(result);
+  if (!isForceOutResult(normalizedResult)) return "";
+  return `${normalizedResult.split("-")[0]}-`;
+}
+
+function isFielderChoiceResult(result: string) {
+  return /^[1-9]-$/.test(result);
 }
 
 function isDroppedThirdStrikeResult(result: string) {
@@ -184,8 +201,10 @@ function getHitLocationText(runner: RunnerState, advance: RunnerState["scoreAdva
   return /^[1-9]$/.test(hitLocation) ? hitLocation : "";
 }
 
-function shouldDrawAdvancePath(advance: RunnerState["scoreAdvances"][number]) {
-  return advance.reason !== "dead-ball";
+function shouldDrawAdvancePath(advance: RunnerState["scoreAdvances"][number], blockedDestination?: RunnerDestination) {
+  if (advance.reason === "dead-ball" || advance.reason === "fielder-choice") return false;
+  if (blockedDestination && advance.destination === blockedDestination) return false;
+  return true;
 }
 
 export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCellPendingOut[] = []): ScoreCellMark[] {
@@ -195,15 +214,22 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
   const pendingBatterOutEntry = pendingOuts
     .map((fieldOut, index) => ({ fieldOut, index }))
     .find(({ fieldOut }) => fieldOut.source === "batter");
+  const pendingRunnerForceOutEntry = pendingOuts.find((fieldOut) => fieldOut.source !== "batter" && isForceOutResult(fieldOut.resultLabel));
   const previewOutNumber = pendingBatterOutEntry ? Math.min(3, state.game.outs + pendingBatterOutEntry.index + 1) : 0;
-  const result = normalizeBatterOutResult(state.plate.result || pendingBatterOutEntry?.fieldOut.resultLabel || currentBatterRunner?.scoreCard.result || "");
+  const result = normalizeBatterOutResult(
+    state.plate.result ||
+      pendingBatterOutEntry?.fieldOut.resultLabel ||
+      (currentBatterRunner ? getFielderChoiceResult(pendingRunnerForceOutEntry?.resultLabel) : "") ||
+      currentBatterRunner?.scoreCard.result ||
+      ""
+  );
   const scoreAdvances = currentBatterRunner ? getRunnerScoreAdvances(currentBatterRunner) : [];
   const outNumber = state.plate.outNumber || previewOutNumber || currentBatterRunner?.scoreCard.outNumber || 0;
   const resultArea = getPlateResultArea(result, currentBatterBase, pendingBatterOutEntry?.fieldOut);
   const resultLabel = getScoreResultLabel(result);
   const currentBatterDroppedThirdStrike = isDroppedThirdStrikeResult(result) || hasDroppedThirdStrikeAdvance(scoreAdvances);
   const currentBatterIsOut = Boolean(pendingBatterOutEntry) || Boolean(outNumber > 0 && result && isBatterOutResult(result));
-  const shouldSuppressCurrentBatterAdvances = currentBatterIsOut || currentBatterDroppedThirdStrike;
+  const shouldSuppressCurrentBatterAdvances = currentBatterIsOut || currentBatterDroppedThirdStrike || isFielderChoiceResult(result);
   const currentBatterNote =
     !shouldSuppressCurrentBatterAdvances && !result && currentBatterRunner?.scoreNotes.length
       ? currentBatterRunner.scoreNotes[currentBatterRunner.scoreNotes.length - 1]
@@ -302,6 +328,7 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
   const result = normalizeBatterOutResult(runner.scoreCard.result);
   const resultLabel = getScoreResultLabel(result);
   const runnerDroppedThirdStrike = isDroppedThirdStrikeResult(result) || hasDroppedThirdStrikeAdvance(scoreAdvances);
+  const blockedAdvanceDestination = pendingOut && isForceOutResult(pendingOut.resultLabel) ? pendingOut.destination : undefined;
 
   if (isBatterFieldOutResult(result)) {
     marks.push({
@@ -327,7 +354,7 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
     marks.push({
       kind: "result",
       text: resultLabel,
-      area: "result"
+      area: isFielderChoiceResult(result) ? currentBase || "first" : "result"
     });
   }
 
@@ -341,7 +368,7 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
 
   if (!runnerDroppedThirdStrike) {
     scoreAdvances.forEach((advance) => {
-      if (shouldDrawAdvancePath(advance)) {
+      if (shouldDrawAdvancePath(advance, blockedAdvanceDestination)) {
         marks.push({
           kind: "advance",
           text: "",
@@ -562,7 +589,7 @@ function withAdvanceNote(runner: RunnerState, reason: AdvanceReason, destination
   return {
     ...runner,
     scoreAdvances: [...scoreAdvances, ...nextAdvances],
-    scoreNotes: runner.scoreNotes.includes(label) ? runner.scoreNotes : [...runner.scoreNotes, label]
+    scoreNotes: !label || runner.scoreNotes.includes(label) ? runner.scoreNotes : [...runner.scoreNotes, label]
   };
 }
 
@@ -650,6 +677,30 @@ function removeRunnerFromSource(state: AppState, source: RunnerSource, batterRea
   return runner;
 }
 
+function markCurrentBatterReachedOnFieldersChoice(state: AppState, resultLabel?: string) {
+  const result = getFielderChoiceResult(resultLabel);
+  if (!result) return;
+
+  const currentBatterBase = getCurrentBatterBase(state);
+  if (!currentBatterBase) return;
+
+  const runner = state.game.runners[currentBatterBase];
+  if (!runner) return;
+
+  state.game.runners[currentBatterBase] = {
+    ...runner,
+    scoreCard: {
+      ...runner.scoreCard,
+      result,
+      hitType: "",
+      hitLocation: undefined
+    },
+    scoreAdvances: [{ destination: currentBatterBase, reason: "fielder-choice" }],
+    scoreNotes: runner.scoreNotes.filter((note) => note !== advanceReasonLabels.hit)
+  };
+  state.game.hitType = "";
+}
+
 export function applyFieldOut(state: AppState, source: RunnerSource, resultLabel?: string): AppState {
   const next: AppState = structuredClone(state);
   next.game.firstPitchEntered = true;
@@ -666,6 +717,7 @@ export function applyFieldOut(state: AppState, source: RunnerSource, resultLabel
     if (runner) {
       next.game.runners[source] = null;
     }
+    markCurrentBatterReachedOnFieldersChoice(next, resultLabel);
   }
 
   next.game.outs = Math.min(3, next.game.outs + 1);

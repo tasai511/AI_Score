@@ -117,6 +117,41 @@ function hasJapaneseScoreText(marks) {
 }
 
 {
+  const state = clone(data.initialState);
+  state.game.runners.first = makeRunner("r1", 8, [{ destination: "first", reason: "hit" }]);
+
+  const withBatterAtFirst = rules.advanceRunner(state, "batter", "hit", "4");
+  const currentPreviewMarks = rules.buildCurrentScoreCellMarks(withBatterAtFirst, [
+    { source: "second", destination: "second", resultLabel: "4-6" }
+  ]);
+  assert.equal(currentPreviewMarks.filter((mark) => mark.kind === "result" && mark.text === "4-" && mark.area === "first").length, 1);
+  assert.equal(visibleAdvanceMarks(currentPreviewMarks).length, 0);
+  assert.equal(currentPreviewMarks.some((mark) => mark.kind === "hitLocation"), false);
+
+  const forcedRunnerMarks = rules.buildRunnerScoreCellMarks(withBatterAtFirst.game.runners.second, {
+    source: "second",
+    destination: "second",
+    resultLabel: "4-6",
+    outNumber: 1
+  });
+  assert.equal(forcedRunnerMarks.filter((mark) => mark.kind === "advance" && mark.area === "second").length, 0);
+  assert.equal(forcedRunnerMarks.filter((mark) => mark.kind === "fielderOut" && mark.text === "4-6" && mark.area === "second").length, 1);
+
+  const next = rules.applyFieldOut(withBatterAtFirst, "second", "4-6");
+  const batterRunner = next.game.runners.first;
+  assert.equal(next.game.runners.second, null);
+  assert.equal(batterRunner?.scoreCard.result, "4-");
+  assert.equal(batterRunner?.scoreCard.hitType, "");
+  assert.equal(batterRunner?.scoreCard.hitLocation, undefined);
+  assert.deepEqual(batterRunner?.scoreAdvances, [{ destination: "first", reason: "fielder-choice" }]);
+
+  const batterMarks = rules.buildRunnerScoreCellMarks(batterRunner, null, "first");
+  assert.equal(batterMarks.filter((mark) => mark.kind === "result" && mark.text === "4-" && mark.area === "first").length, 1);
+  assert.equal(batterMarks.some((mark) => mark.kind === "advance"), false);
+  assert.equal(batterMarks.some((mark) => mark.kind === "hitLocation"), false);
+}
+
+{
   const state = rules.advanceRunner(clone(data.initialState), "batter", "hit", "4");
   const currentMarks = rules.buildCurrentScoreCellMarks(state);
   assert.equal(currentMarks.filter((mark) => mark.kind === "hitLocation" && mark.text === "4").length, 1);

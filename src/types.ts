@@ -17,6 +17,7 @@ export type AdvanceReason =
   | "passed-ball"
   | "balk"
   | "runner-interference"
+  | "fielder-choice"
   | "hit";
 
 export interface Player {
