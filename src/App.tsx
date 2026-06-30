@@ -1356,13 +1356,18 @@ function ScoreMatrixGraphic({
 function ScoreCell({ state, pendingOuts = [] }: { state: AppState; pendingOuts?: PendingFieldOut[] }) {
   const hitType = state.game.hitType;
   const marks = buildCurrentScoreCellMarks(state, pendingOuts);
-  const showInningEndSlash =
-    !isCurrentBatterPlateAppearanceComplete(state) &&
-    pendingOuts.some((fieldOut, index) => fieldOut.source !== "batter" && Math.min(3, state.game.outs + index + 1) === 3);
+  const showInningEndSlash = shouldShowInningEndSlash(state, pendingOuts);
   return (
     <article className="score-cell" aria-label="current score cell">
       <ScoreMatrixGraphic marks={marks} hitType={hitType} className="score-matrix-current" showInningEndSlash={showInningEndSlash} />
     </article>
+  );
+}
+
+function shouldShowInningEndSlash(state: AppState, pendingOuts: PendingFieldOut[]) {
+  return (
+    !isCurrentBatterPlateAppearanceComplete(state) &&
+    pendingOuts.some((fieldOut, index) => fieldOut.source !== "batter" && Math.min(3, state.game.outs + index + 1) === 3)
   );
 }
 
@@ -3709,6 +3714,22 @@ function FieldStage({
     return fieldingPosition ? `${fieldingPosition}-${coveringPosition}` : "";
   }
 
+  function getRunnerThrowOutResultLabel(node: FieldPlayNode) {
+    if (node.runnerSource === "batter" || node.kind !== "base" || hasHitPlay()) return "";
+    if (node.runnerSource !== "first" && node.runnerSource !== "second" && node.runnerSource !== "third") return "";
+
+    const destination = getBaseDestinationFromKey(node.key);
+    const previousPosition = getPreviousPositionNode(node);
+    const catcherThrowAfterPitch = state.plate.pitches.some((pitch) => pitch === "\u2715" || pitch === "\u25cf");
+    const fieldingPosition = catcherThrowAfterPitch ? "2" : previousPosition?.label;
+    const coveringPosition =
+      previousPosition?.label && previousPosition.label !== fieldingPosition
+        ? previousPosition.label
+        : getForceOutCoveringPosition(destination);
+
+    return fieldingPosition && coveringPosition ? `${fieldingPosition}-${coveringPosition}` : "";
+  }
+
   function isFoulFlyOutNode(node: FieldPlayNode) {
     const incomingSegment = fieldPlay.segments.find((segment) => segment.toNodeId === node.id);
     const incomingNode = fieldPlay.nodes.find((current) => current.id === incomingSegment?.fromNodeId);
@@ -3717,7 +3738,7 @@ function FieldStage({
   }
 
   function getFieldOutResultLabel(node: FieldPlayNode) {
-    if (node.runnerSource !== "batter") return getRunnerForceOutResultLabel(node) || "走死";
+    if (node.runnerSource !== "batter") return getRunnerForceOutResultLabel(node) || getRunnerThrowOutResultLabel(node) || "走死";
 
     const resultPositionNode = node.kind === "position" ? node : getInitialFieldingPositionNode();
     const positionNumber = Number(resultPositionNode?.label);

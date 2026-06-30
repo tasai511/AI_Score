@@ -357,6 +357,21 @@ for (const outResult of ["K", "\u30a2\u30a6\u30c8", "1", "F9", "4-3"]) {
 
 {
   const state = clone(data.initialState);
+  state.game.outs = 2;
+  state.game.runners.first = makeRunner("caught-steal-runner", 1);
+  const next = rules.moveRunnerToDestination(state, "first", "second", "steal");
+  const runnerMarks = rules.buildRunnerScoreCellMarks(
+    next.game.runners.second,
+    { source: "second", destination: "second", resultLabel: "2-6", outNumber: 3 },
+    "second"
+  );
+
+  assert.equal(runnerMarks.filter((mark) => mark.kind === "fielderOut" && mark.text === "2-6" && mark.area === "second").length, 1);
+  assert.equal(runnerMarks.filter((mark) => mark.kind === "out" && mark.text === "III").length, 1);
+}
+
+{
+  const state = clone(data.initialState);
   state.game.runners.first = makeRunner("passed-ball-runner", 1);
   const next = rules.moveRunnerToDestination(state, "first", "second", "passed-ball");
   const runnerMarks = rules.buildRunnerScoreCellMarks(next.game.runners.second, null, "second");
