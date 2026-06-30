@@ -4046,7 +4046,7 @@ function FieldStage({
       onFieldOutDecision(
         decidedNode.id,
         resolvedRunnerSource,
-        getFieldOutResultLabel({ ...decidedNode, runnerSource: resolvedRunnerSource }),
+        getFieldOutResultLabel(decidedNode),
         resolvedRunnerId,
         decidedNode.kind === "base" ? getBaseDestinationFromKey(decidedNode.key) : undefined
       );
