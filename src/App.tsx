@@ -1080,16 +1080,16 @@ function getPitchSymbolCoordinate(index: number, total: number) {
 }
 
 function getPitchSymbolLayout(total: number) {
-  const columnCount = total > 9 ? 2 : 1;
+  const columnCount = total > 6 ? 2 : 1;
   const neededRows = columnCount === 1 ? total : Math.ceil(total / columnCount);
-  const rowCount = neededRows <= 6 ? 6 : neededRows <= 9 ? 9 : neededRows;
+  const rowCount = Math.max(6, neededRows);
   const singleColumnX = 190;
   const twoColumnRightX = 240;
   const xGap = 120;
   const yTop = rowCount <= 6 ? 165 : 145;
   const yBottom = rowCount <= 6 ? 845 : 913;
   const yGap = rowCount > 1 ? (yBottom - yTop) / (rowCount - 1) : 0;
-  const symbolScale = rowCount <= 6 ? (columnCount === 1 ? 1.28 : 1.08) : rowCount <= 9 ? 1 : Math.max(0.72, 9 / rowCount);
+  const symbolScale = rowCount <= 6 ? (columnCount === 1 ? 1.38 : 1.18) : rowCount <= 9 ? 1 : Math.max(0.72, 9 / rowCount);
 
   return {
     columnCount,
