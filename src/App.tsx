@@ -1138,6 +1138,24 @@ const SCORE_MATRIX_FIELDER_OUT_COORDINATES: Record<RunnerDestination, { x: numbe
 
 const SCORE_MATRIX_HIT_LOCATION_COORDINATE = { x: 1228, y: 777 } as const;
 
+function getScoreFielderOutTextStyle(mark: ScoreCellMark, coordinate: { x: number; y: number }) {
+  if (mark.text === "K") {
+    return {
+      x: 1136,
+      y: 758,
+      fontSize: 250,
+      strokeWidth: 14
+    };
+  }
+
+  return {
+    x: coordinate.x,
+    y: coordinate.y,
+    fontSize: 150,
+    strokeWidth: 18
+  };
+}
+
 type ScoreMatrixTextArea = keyof typeof SCORE_MATRIX_MARK_COORDINATES.areas;
 
 function getScoreTextArea(area: ScoreCellMark["area"]): ScoreMatrixTextArea {
@@ -1256,9 +1274,10 @@ function ScoreMatrixGraphic({
         {fielderOutMarks.map((mark, index) => {
           const coordinate = SCORE_MATRIX_FIELDER_OUT_COORDINATES[mark.area as RunnerDestination];
           if (!coordinate) return null;
+          const textStyle = getScoreFielderOutTextStyle(mark, coordinate);
           return (
-            <g transform={`translate(${coordinate.x} ${coordinate.y})`} key={`${mark.text}-${mark.area}-${index}`}>
-              <text x="0" y="0" fill="#111" stroke="#fff" strokeWidth="18" paintOrder="stroke" style={{ fontSize: "150px" }}>
+            <g transform={`translate(${textStyle.x} ${textStyle.y})`} key={`${mark.text}-${mark.area}-${index}`}>
+              <text x="0" y="0" fill="#111" stroke="#fff" strokeWidth={textStyle.strokeWidth} paintOrder="stroke" style={{ fontSize: `${textStyle.fontSize}px` }}>
                 {mark.text}
               </text>
             </g>
