@@ -1140,6 +1140,7 @@ const SCORE_MATRIX_FIELDER_OUT_COORDINATES: Record<RunnerDestination, { x: numbe
 
 const SCORE_MATRIX_HIT_LOCATION_COORDINATE = { x: 1134, y: 850 } as const;
 const SCORE_MATRIX_INFIELD_HIT_ARC_PATH = "M -94 72 A 180 180 0 0 0 116 -264";
+const SCORE_MATRIX_INFIELD_HIT_TEXT_OFFSET = { x: 26, y: -60 } as const;
 
 function getScoreFielderOutTextStyle(mark: ScoreCellMark, coordinate: { x: number; y: number }) {
   if (mark.text === "K" || mark.text === "K 2-3") {
@@ -1331,8 +1332,8 @@ function ScoreMatrixGraphic({
               )}
               <text
                 className="matrix-hit-location"
-                x="0"
-                y="0"
+                x={isInfieldHit ? SCORE_MATRIX_INFIELD_HIT_TEXT_OFFSET.x : 0}
+                y={isInfieldHit ? SCORE_MATRIX_INFIELD_HIT_TEXT_OFFSET.y : 0}
                 stroke="#fff"
                 strokeWidth="22"
                 paintOrder="stroke"
