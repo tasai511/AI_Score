@@ -3668,12 +3668,32 @@ function FieldStage({
     return "2";
   }
 
+  function getPreviousRunnerSource(destination: RunnerDestination): BaseKey | null {
+    if (destination === "second") return "first";
+    if (destination === "third") return "second";
+    if (destination === "home") return "third";
+    return null;
+  }
+
+  function getForceOutRunnerSource(node: FieldPlayNode, destination: RunnerDestination): BaseKey | null {
+    if (node.runnerSource === "first" || node.runnerSource === "second" || node.runnerSource === "third") {
+      if (getNextRunnerDestination(node.runnerSource) === destination) return node.runnerSource;
+    }
+
+    if (node.runnerSource !== destination || destination === "first") return null;
+
+    const runner = state.game.runners[destination];
+    const latestAdvance = runner?.scoreAdvances[runner.scoreAdvances.length - 1];
+    if (latestAdvance?.destination !== destination || latestAdvance.reason !== "hit") return null;
+    return getPreviousRunnerSource(destination);
+  }
+
   function getRunnerForceOutResultLabel(node: FieldPlayNode) {
     if (node.runnerSource === "batter" || node.kind !== "base" || !hasHitPlay()) return "";
     if (node.runnerSource !== "first" && node.runnerSource !== "second" && node.runnerSource !== "third") return "";
 
     const destination = getBaseDestinationFromKey(node.key);
-    if (getNextRunnerDestination(node.runnerSource) !== destination) return "";
+    if (!getForceOutRunnerSource(node, destination)) return "";
 
     const fieldingPosition = getPreviousPositionNode(node)?.label ?? getInitialFieldingPositionNode()?.label;
     const coveringPosition = getForceOutCoveringPosition(destination);
