@@ -3695,7 +3695,7 @@ function FieldStage({
     const destination = getBaseDestinationFromKey(node.key);
     if (!getForceOutRunnerSource(node, destination)) return "";
 
-    const fieldingPosition = getPreviousPositionNode(node)?.label ?? getInitialFieldingPositionNode()?.label;
+    const fieldingPosition = getInitialFieldingPositionNode()?.label ?? getPreviousPositionNode(node)?.label;
     const coveringPosition = getForceOutCoveringPosition(destination);
     return fieldingPosition ? `${fieldingPosition}-${coveringPosition}` : "";
   }
