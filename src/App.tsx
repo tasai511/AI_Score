@@ -1225,7 +1225,7 @@ function renderScorePitchSymbol(symbol: string, x: number, y: number, scale: num
   if (symbol === "\u25cf") {
     return (
       <g className="score-symbol-shape score-symbol-fill" transform={`translate(${x} ${y}) scale(${scale})`} key={key}>
-        <circle cx="0" cy="0" r="21" />
+        <circle cx="0" cy="0" r="26" />
       </g>
     );
   }
