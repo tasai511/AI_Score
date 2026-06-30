@@ -7,6 +7,7 @@ import type {
   BatterBox,
   PitchType,
   Player,
+  HitType,
   RunnerDestination,
   RunnerSource,
   RunnerState,
@@ -38,7 +39,6 @@ import {
   getCurrentOpponentBatter,
   getCurrentOwnBatter,
   getDuplicateValues,
-  hitMarkAssets,
   isCurrentBatterPlateAppearanceComplete,
   isOwnBattingNow,
   moveRunnerToDestination,
@@ -1098,10 +1098,17 @@ const SCORE_MATRIX_MARK_COORDINATES = {
 } as const;
 
 const SCORE_MATRIX_BASE_PATHS: Record<RunnerDestination, { x1: number; y1: number; x2: number; y2: number }> = {
-  first: { x1: 855, y1: 845, x2: 1193, y2: 510 },
-  second: { x1: 1193, y1: 510, x2: 855, y2: 145 },
-  third: { x1: 855, y1: 145, x2: 493, y2: 510 },
-  home: { x1: 493, y1: 510, x2: 855, y2: 845 }
+  first: { x1: 856, y1: 994, x2: 1355, y2: 510 },
+  second: { x1: 1355, y1: 510, x2: 856, y2: 26 },
+  third: { x1: 856, y1: 26, x2: 362, y2: 510 },
+  home: { x1: 362, y1: 510, x2: 856, y2: 994 }
+};
+
+const SCORE_MATRIX_HIT_PATHS: Record<Exclude<HitType, "">, RunnerDestination[]> = {
+  single: ["first"],
+  "two-base": ["first", "second"],
+  "three-base": ["first", "second", "third"],
+  "home-run": ["first", "second", "third", "home"]
 };
 
 const SCORE_MATRIX_FIELDER_OUT_COORDINATES: Record<RunnerDestination, { x: number; y: number }> = {
@@ -1168,7 +1175,7 @@ function ScoreMatrixGraphic({
   className = ""
 }: {
   marks: ScoreCellMark[];
-  hitType?: keyof typeof hitMarkAssets | "";
+  hitType?: HitType;
   className?: string;
 }) {
   const pitchMarks = marks.filter((mark) => mark.kind === "pitch");
@@ -1178,7 +1185,12 @@ function ScoreMatrixGraphic({
   const advanceMarks = marks.filter((mark) => mark.kind === "advance" && mark.area);
   const fielderOutMarks = marks.filter((mark) => mark.kind === "fielderOut" && mark.area);
   const hitLocationMarks = marks.filter((mark) => mark.kind === "hitLocation");
-  const effectiveHitType = advanceMarks.length > 0 ? "" : hitType;
+  const advanceLineAreas =
+    advanceMarks.length > 0
+      ? advanceMarks.map((mark) => mark.area as RunnerDestination)
+      : hitType
+        ? SCORE_MATRIX_HIT_PATHS[hitType]
+        : [];
   const playMarks = [resultMark, ...noteMarks].filter((mark): mark is ScoreCellMark => Boolean(mark));
   const playMarkEntries = playMarks.map((mark, index) => {
     const area = getScoreTextArea(mark.area);
@@ -1195,13 +1207,12 @@ function ScoreMatrixGraphic({
   return (
     <div className={`score-matrix ${className}`.trim()}>
       <img src="assets/score_matrix.png" alt="" />
-      {effectiveHitType && <img className="matrix-hit-mark" src={hitMarkAssets[effectiveHitType]} alt="" data-hit-mark={effectiveHitType} />}
       <svg className="matrix-overlay" viewBox="0 0 1382 1025" aria-hidden="true">
         <g className="matrix-advance-lines">
-          {advanceMarks.map((mark, index) => {
-            const path = SCORE_MATRIX_BASE_PATHS[mark.area as RunnerDestination];
+          {advanceLineAreas.map((area, index) => {
+            const path = SCORE_MATRIX_BASE_PATHS[area];
             if (!path) return null;
-            return <line x1={path.x1} y1={path.y1} x2={path.x2} y2={path.y2} key={`${mark.area}-${index}`} />;
+            return <line x1={path.x1} y1={path.y1} x2={path.x2} y2={path.y2} key={`${area}-${index}`} />;
           })}
         </g>
         <g>
