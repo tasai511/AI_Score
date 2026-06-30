@@ -200,6 +200,24 @@ function hasJapaneseScoreText(marks) {
     rules.formatBatterGroundOutResultLabel({ destination: "first", fieldingPosition: "6", coveringPosition: "3" }),
     "6-3"
   );
+  assert.equal(rules.getForceOutCoveringPosition("second", "4"), "6");
+  assert.equal(rules.getForceOutCoveringPosition("second", "6"), "4");
+  assert.equal(rules.getRelayFieldingPosition("4-6"), "6");
+  assert.equal(rules.getRelayFieldingPosition("6-4"), "4");
+  assert.equal(
+    rules.formatBatterGroundOutResultLabel({
+      destination: "first",
+      fieldingPosition: rules.getRelayFieldingPosition("4-6")
+    }),
+    "6-3"
+  );
+  assert.equal(
+    rules.formatBatterGroundOutResultLabel({
+      destination: "first",
+      fieldingPosition: rules.getRelayFieldingPosition("6-4")
+    }),
+    "4-3"
+  );
 }
 
 {

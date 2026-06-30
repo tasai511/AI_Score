@@ -39,6 +39,8 @@ import {
   getCurrentOpponentBatter,
   getCurrentOwnBatter,
   getDuplicateValues,
+  getForceOutCoveringPosition,
+  getRelayFieldingPosition,
   isCurrentBatterPlateAppearanceComplete,
   isOwnBattingNow,
   moveRunnerToDestination,
@@ -3675,13 +3677,6 @@ function FieldStage({
     return fieldPlay.nodes.find((current) => current.kind === "position" && current.id === incomingSegment?.fromNodeId);
   }
 
-  function getForceOutCoveringPosition(destination: RunnerDestination) {
-    if (destination === "first") return "3";
-    if (destination === "second") return "6";
-    if (destination === "third") return "5";
-    return "2";
-  }
-
   function getPreviousRunnerSource(destination: RunnerDestination): BaseKey | null {
     if (destination === "second") return "first";
     if (destination === "third") return "second";
@@ -3710,7 +3705,7 @@ function FieldStage({
     if (!getForceOutRunnerSource(node, destination)) return "";
 
     const fieldingPosition = getInitialFieldingPositionNode()?.label ?? getPreviousPositionNode(node)?.label;
-    const coveringPosition = getForceOutCoveringPosition(destination);
+    const coveringPosition = getForceOutCoveringPosition(destination, fieldingPosition);
     return fieldingPosition ? `${fieldingPosition}-${coveringPosition}` : "";
   }
 
@@ -3725,7 +3720,7 @@ function FieldStage({
     const coveringPosition =
       previousPosition?.label && previousPosition.label !== fieldingPosition
         ? previousPosition.label
-        : getForceOutCoveringPosition(destination);
+        : getForceOutCoveringPosition(destination, fieldingPosition);
 
     return fieldingPosition && coveringPosition ? `${fieldingPosition}-${coveringPosition}` : "";
   }
@@ -3737,6 +3732,22 @@ function FieldStage({
     return incomingNode?.kind === "foul" || (node.kind === "position" && !fieldPlay.nodes.some((current) => current.id === node.id) && lastNode?.kind === "foul");
   }
 
+  function getPreviousForceOutLabel(node: FieldPlayNode) {
+    const nodeIndex = fieldPlay.nodes.findIndex((current) => current.id === node.id);
+    if (nodeIndex <= 0) return "";
+
+    const previousForceOutNode = fieldPlay.nodes
+      .slice(0, nodeIndex)
+      .reverse()
+      .find((current) => current.kind === "base" && current.decision === "out" && current.runnerSource !== "batter" && getRunnerForceOutResultLabel(current));
+    return previousForceOutNode ? getRunnerForceOutResultLabel(previousForceOutNode) : "";
+  }
+
+  function getBatterGroundOutFieldingPosition(node: FieldPlayNode, destination: RunnerDestination, initialFieldingPosition?: string | number) {
+    if (destination !== "first") return initialFieldingPosition;
+    return getRelayFieldingPosition(getPreviousForceOutLabel(node)) || initialFieldingPosition;
+  }
+
   function getFieldOutResultLabel(node: FieldPlayNode) {
     if (node.runnerSource !== "batter") return getRunnerForceOutResultLabel(node) || getRunnerThrowOutResultLabel(node) || "走死";
 
@@ -3744,10 +3755,11 @@ function FieldStage({
     const positionNumber = Number(resultPositionNode?.label);
     if (node.kind === "base") {
       const destination = getBaseDestinationFromKey(node.key);
+      const fieldingPosition = getBatterGroundOutFieldingPosition(node, destination, resultPositionNode?.label);
       return (
         formatBatterGroundOutResultLabel({
           destination,
-          fieldingPosition: resultPositionNode?.label,
+          fieldingPosition,
           coveringPosition: getPreviousPositionNode(node)?.label
         }) || "アウト"
       );

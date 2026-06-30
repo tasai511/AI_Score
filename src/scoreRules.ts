@@ -45,6 +45,20 @@ export function formatBatterGroundOutResultLabel({
   return fieldOutResultLabels[Number(fielding)] ?? "";
 }
 
+export function getForceOutCoveringPosition(destination: RunnerDestination, fieldingPosition?: string | number) {
+  const fielding = normalizeNumber(fieldingPosition);
+  if (destination === "first") return "3";
+  if (destination === "second") return fielding === "6" ? "4" : "6";
+  if (destination === "third") return "5";
+  return "2";
+}
+
+export function getRelayFieldingPosition(resultLabel?: string) {
+  const normalizedResult = normalizeNumber(resultLabel);
+  const relayMatch = normalizedResult.match(/^[1-9]-([1-9])$/);
+  return relayMatch?.[1] ?? "";
+}
+
 export function formatFlyOutResultLabel(position?: string | number, isFoul = false) {
   const normalizedPosition = normalizeNumber(position);
   if (!fieldOutResultLabels[Number(normalizedPosition)]) return isFoul ? "F" : "";
