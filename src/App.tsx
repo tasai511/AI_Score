@@ -1150,7 +1150,7 @@ function getScoreFielderOutTextStyle(mark: ScoreCellMark, coordinate: { x: numbe
 
   if (/^[1-9]-[1-9]$/.test(mark.text)) {
     return {
-      x: coordinate.x,
+      x: coordinate.x + 32,
       y: coordinate.y,
       fontSize: 180,
       strokeWidth: 14
