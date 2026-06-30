@@ -81,6 +81,12 @@ function hasJapaneseScoreText(marks) {
   assert.equal(next.plate.result, "B");
   assert.equal(next.game.ownScore, 1);
   assert.equal(next.game.runners.first?.scoreAdvances.at(-1).reason, "walk");
+  const currentMarks = rules.buildCurrentScoreCellMarks(next);
+  const runnerMarks = rules.buildRunnerScoreCellMarks(next.game.runners.first, null, "first");
+  assert.equal(currentMarks.filter((mark) => mark.kind === "result" && mark.text === "B").length, 1);
+  assert.equal(currentMarks.some((mark) => mark.kind === "advance"), false);
+  assert.equal(runnerMarks.filter((mark) => mark.kind === "result" && mark.text === "B").length, 1);
+  assert.equal(runnerMarks.some((mark) => mark.kind === "advance"), false);
 }
 
 {
@@ -353,6 +359,9 @@ for (const outResult of ["K", "\u30a2\u30a6\u30c8", "1", "F9", "4-3"]) {
   assert.equal(next.game.runners.first, null);
   assert.equal(next.game.runners.second?.id, "steal-runner");
   assert.deepEqual(next.game.runners.second?.scoreAdvances.at(-1), { destination: "second", reason: "steal" });
+  const runnerMarks = rules.buildRunnerScoreCellMarks(next.game.runners.second, null, "second");
+  assert.equal(runnerMarks.filter((mark) => mark.kind === "note" && mark.text === "S").length, 1);
+  assert.equal(runnerMarks.some((mark) => mark.kind === "advance" && mark.area === "second"), false);
 }
 
 {

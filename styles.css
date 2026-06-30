@@ -749,12 +749,12 @@ i.red {
 }
 
 .score-symbol {
-  fill: #e83b2e;
+  fill: #111;
   font-size: 128px;
 }
 
 .score-symbol-shape {
-  color: #e83b2e;
+  color: #111;
 }
 
 .score-symbol-stroke path {
@@ -770,12 +770,12 @@ i.red {
 }
 
 .matrix-play {
-  fill: #e83b2e;
+  fill: #111;
   font-size: 160px;
 }
 
 .matrix-note {
-  fill: #e83b2e;
+  fill: #111;
   font-size: 118px;
 }
 
@@ -796,12 +796,12 @@ i.red {
 
 .matrix-fielder-out circle {
   fill: #fff;
-  stroke: #e83b2e;
+  stroke: #111;
   stroke-width: 9;
 }
 
 .matrix-fielder-out text {
-  fill: #e83b2e;
+  fill: #111;
   font-size: 58px;
 }
 

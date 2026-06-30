@@ -202,7 +202,7 @@ function getHitLocationText(runner: RunnerState, advance: RunnerState["scoreAdva
 }
 
 function shouldDrawAdvancePath(advance: RunnerState["scoreAdvances"][number], blockedDestination?: RunnerDestination) {
-  if (advance.reason === "dead-ball" || advance.reason === "fielder-choice") return false;
+  if (advance.reason !== "hit") return false;
   if (blockedDestination && advance.destination === blockedDestination) return false;
   return true;
 }

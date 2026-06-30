@@ -1207,8 +1207,9 @@ function getScorePlayCoordinate(area: ScoreMatrixTextArea, index: number, total:
 }
 
 function getScorePlayTextStyle(mark: ScoreCellMark) {
+  if (mark.text === "B" || mark.text === "HP") return { fill: "#006fc9" };
   if (/^[1-9]-$/.test(mark.text)) return { fill: "#111" };
-  return mark.text === "HP" ? { fill: "#006fc9" } : undefined;
+  return undefined;
 }
 
 function renderScorePitchSymbol(symbol: string, x: number, y: number, scale: number, key: string) {
