@@ -149,8 +149,8 @@ function isForceOutResult(result?: string) {
 
 function getFielderChoiceResult(result?: string) {
   const normalizedResult = normalizeNumber(result);
-  if (!isForceOutResult(normalizedResult)) return "";
-  return `${normalizedResult.split("-")[0]}-`;
+  const fieldingMatch = normalizedResult.match(/^([1-9])-[1-9](?: T\.O)?$/);
+  return fieldingMatch ? `${fieldingMatch[1]}-` : "";
 }
 
 function isFielderChoiceResult(result: string) {
@@ -228,12 +228,12 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
   const pendingBatterOutEntry = pendingOuts
     .map((fieldOut, index) => ({ fieldOut, index }))
     .find(({ fieldOut }) => fieldOut.source === "batter");
-  const pendingRunnerForceOutEntry = pendingOuts.find((fieldOut) => fieldOut.source !== "batter" && isForceOutResult(fieldOut.resultLabel));
+  const pendingRunnerOutEntry = pendingOuts.find((fieldOut) => fieldOut.source !== "batter" && getFielderChoiceResult(fieldOut.resultLabel));
   const previewOutNumber = pendingBatterOutEntry ? Math.min(3, state.game.outs + pendingBatterOutEntry.index + 1) : 0;
   const result = normalizeBatterOutResult(
     state.plate.result ||
       pendingBatterOutEntry?.fieldOut.resultLabel ||
-      (currentBatterRunner ? getFielderChoiceResult(pendingRunnerForceOutEntry?.resultLabel) : "") ||
+      (currentBatterRunner ? getFielderChoiceResult(pendingRunnerOutEntry?.resultLabel) : "") ||
       currentBatterRunner?.scoreCard.result ||
       ""
   );
@@ -342,7 +342,7 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
   const result = normalizeBatterOutResult(runner.scoreCard.result);
   const resultLabel = getScoreResultLabel(result);
   const runnerDroppedThirdStrike = isDroppedThirdStrikeResult(result) || hasDroppedThirdStrikeAdvance(scoreAdvances);
-  const blockedAdvanceDestination = pendingOut && isForceOutResult(pendingOut.resultLabel) ? pendingOut.destination : undefined;
+  const blockedAdvanceDestination = pendingOut ? pendingOut.destination : undefined;
 
   if (isBatterFieldOutResult(result)) {
     marks.push({

@@ -1153,6 +1153,15 @@ function getScoreFielderOutTextStyle(mark: ScoreCellMark, coordinate: { x: numbe
     };
   }
 
+  if (/^[1-9]-[1-9] T\.O$/.test(mark.text)) {
+    return {
+      x: coordinate.x + 16,
+      y: coordinate.y,
+      fontSize: 132,
+      strokeWidth: 11
+    };
+  }
+
   if (/^[1-9]-[1-9]$/.test(mark.text)) {
     return {
       x: coordinate.x + 32,
@@ -1181,6 +1190,20 @@ function renderScoreFielderOutMark(mark: ScoreCellMark, coordinate: { x: number;
         </text>
         <text x="34" y="100" fill="#111" stroke="#fff" strokeWidth="9" paintOrder="stroke" style={{ fontSize: "104px" }}>
           2-3
+        </text>
+      </g>
+    );
+  }
+
+  if (/^[1-9]-[1-9] T\.O$/.test(mark.text)) {
+    const throwText = mark.text.replace(" T.O", "");
+    return (
+      <g transform={`translate(${textStyle.x} ${textStyle.y})`} key={key}>
+        <text x="0" y="-48" fill="#111" stroke="#fff" strokeWidth={textStyle.strokeWidth} paintOrder="stroke" style={{ fontSize: `${textStyle.fontSize}px` }}>
+          {throwText}
+        </text>
+        <text x="0" y="76" fill="#111" stroke="#fff" strokeWidth="9" paintOrder="stroke" style={{ fontSize: "108px" }}>
+          T.O
         </text>
       </g>
     );
@@ -3687,9 +3710,23 @@ function FieldStage({
     return null;
   }
 
+  function hasPreexistingRunner(base: BaseKey) {
+    const runner = state.game.runners[base];
+    if (!runner) return false;
+    return !(runner.teamKey === battingTeamKey && runner.battingOrder === state.game.battingOrder);
+  }
+
+  function isRunnerForcedToDestination(source: BaseKey, destination: RunnerDestination) {
+    if (getNextRunnerDestination(source) !== destination) return false;
+    if (source === "first") return true;
+    if (source === "second") return hasPreexistingRunner("first");
+    if (source === "third") return hasPreexistingRunner("first") && hasPreexistingRunner("second");
+    return false;
+  }
+
   function getForceOutRunnerSource(node: FieldPlayNode, destination: RunnerDestination): BaseKey | null {
     if (node.runnerSource === "first" || node.runnerSource === "second" || node.runnerSource === "third") {
-      if (getNextRunnerDestination(node.runnerSource) === destination) return node.runnerSource;
+      if (isRunnerForcedToDestination(node.runnerSource, destination)) return node.runnerSource;
     }
 
     if (node.runnerSource !== destination || destination === "first") return null;
@@ -3697,7 +3734,8 @@ function FieldStage({
     const runner = state.game.runners[destination];
     const latestAdvance = runner?.scoreAdvances[runner.scoreAdvances.length - 1];
     if (latestAdvance?.destination !== destination || latestAdvance.reason !== "hit") return null;
-    return getPreviousRunnerSource(destination);
+    const previousRunnerSource = getPreviousRunnerSource(destination);
+    return previousRunnerSource && isRunnerForcedToDestination(previousRunnerSource, destination) ? previousRunnerSource : null;
   }
 
   function getRunnerForceOutResultLabel(node: FieldPlayNode) {
@@ -3728,6 +3766,18 @@ function FieldStage({
     return fieldingPosition && coveringPosition ? `${fieldingPosition}-${coveringPosition}` : "";
   }
 
+  function getRunnerTagOutResultLabel(node: FieldPlayNode) {
+    if (node.runnerSource === "batter" || node.kind !== "base" || !hasHitPlay()) return "";
+    if (node.runnerSource !== "first" && node.runnerSource !== "second" && node.runnerSource !== "third") return "";
+
+    const destination = getBaseDestinationFromKey(node.key);
+    if (getForceOutRunnerSource(node, destination)) return "";
+
+    const fieldingPosition = getInitialFieldingPositionNode()?.label ?? getPreviousPositionNode(node)?.label;
+    const tagPosition = getPreviousPositionNode(node)?.label ?? getForceOutCoveringPosition(destination, fieldingPosition);
+    return fieldingPosition && tagPosition ? `${fieldingPosition}-${tagPosition} T.O` : "走死";
+  }
+
   function isFoulFlyOutNode(node: FieldPlayNode) {
     const incomingSegment = fieldPlay.segments.find((segment) => segment.toNodeId === node.id);
     const incomingNode = fieldPlay.nodes.find((current) => current.id === incomingSegment?.fromNodeId);
@@ -3752,7 +3802,7 @@ function FieldStage({
   }
 
   function getFieldOutResultLabel(node: FieldPlayNode) {
-    if (node.runnerSource !== "batter") return getRunnerForceOutResultLabel(node) || getRunnerThrowOutResultLabel(node) || "走死";
+    if (node.runnerSource !== "batter") return getRunnerForceOutResultLabel(node) || getRunnerTagOutResultLabel(node) || getRunnerThrowOutResultLabel(node) || "走死";
 
     const resultPositionNode = node.kind === "position" ? node : getInitialFieldingPositionNode();
     const positionNumber = Number(resultPositionNode?.label);

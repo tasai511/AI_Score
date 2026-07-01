@@ -166,6 +166,30 @@ function hasJapaneseScoreText(marks) {
 }
 
 {
+  const state = clone(data.initialState);
+  state.game.runners.second = makeRunner("tag-out-runner", 8, [
+    { destination: "first", reason: "hit" },
+    { destination: "second", reason: "hit" }
+  ]);
+
+  const withBatterAtFirst = rules.advanceRunner(state, "batter", "hit", "6");
+  const withRunnerAtThird = rules.moveRunnerToDestination(withBatterAtFirst, "second", "third", "hit");
+  const currentPreviewMarks = rules.buildCurrentScoreCellMarks(withRunnerAtThird, [
+    { source: "third", destination: "third", resultLabel: "6-5 T.O" }
+  ]);
+  const taggedRunnerMarks = rules.buildRunnerScoreCellMarks(withRunnerAtThird.game.runners.third, {
+    source: "third",
+    destination: "third",
+    resultLabel: "6-5 T.O",
+    outNumber: 1
+  });
+
+  assert.equal(currentPreviewMarks.filter((mark) => mark.kind === "result" && mark.text === "6-" && mark.area === "first").length, 1);
+  assert.equal(taggedRunnerMarks.filter((mark) => mark.kind === "fielderOut" && mark.text === "6-5 T.O" && mark.area === "third").length, 1);
+  assert.equal(taggedRunnerMarks.some((mark) => mark.kind === "advance" && mark.area === "third"), false);
+}
+
+{
   const state = rules.advanceRunner(clone(data.initialState), "batter", "hit", "4");
   const currentMarks = rules.buildCurrentScoreCellMarks(state);
   assert.equal(currentMarks.filter((mark) => mark.kind === "hitLocation" && mark.text === "4").length, 1);
