@@ -1140,7 +1140,7 @@ const SCORE_MATRIX_FIELDER_OUT_COORDINATES: Record<RunnerDestination, { x: numbe
 
 const SCORE_MATRIX_HIT_LOCATION_COORDINATE = { x: 1134, y: 850 } as const;
 const SCORE_MATRIX_INFIELD_HIT_ARC_PATH = "M -112 -20 A 168 168 0 0 0 128 -278";
-const SCORE_MATRIX_INFIELD_HIT_TEXT_OFFSET = { x: 24, y: -108 } as const;
+const SCORE_MATRIX_INFIELD_HIT_TEXT_OFFSET = { x: 44, y: -86 } as const;
 const SCORE_MATRIX_HIT_LOCATION_FONT_SIZE = 150;
 
 function getScoreFielderOutTextStyle(mark: ScoreCellMark, coordinate: { x: number; y: number }) {
