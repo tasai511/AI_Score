@@ -328,6 +328,26 @@ function hasJapaneseScoreText(marks) {
 }
 
 {
+  const state = clone(data.initialState);
+  state.game.outs = 2;
+  state.game.strikes = 2;
+  state.plate.pitches = ["\u2715", "\u25b3"];
+  const next = rules.applyPitch(state, "strike");
+
+  assert.equal(next.plate.result, "K");
+  assert.equal(next.plate.outNumber, 3);
+  assert.equal(rules.shouldShowScorebookInningEndSlash(next), true);
+}
+
+{
+  const state = clone(data.initialState);
+  state.game.outs = 2;
+
+  assert.equal(rules.shouldShowScorebookInningEndSlash(state, [{ source: "batter", resultLabel: "F9" }]), true);
+  assert.equal(rules.shouldShowScorebookInningEndSlash(state, [{ source: "first", resultLabel: "2-6", destination: "second" }]), true);
+}
+
+{
   const runner = makeRunner("strikeout-runner", 1, []);
   runner.scoreCard.result = "K";
   runner.scoreCard.outNumber = 2;

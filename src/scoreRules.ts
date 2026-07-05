@@ -93,7 +93,7 @@ const scoreAdvanceLabels: Record<AdvanceReason, string> = {
   hit: ""
 };
 
-type ScoreCellPendingOut = {
+export type ScoreCellPendingOut = {
   source: RunnerSource;
   destination?: RunnerDestination;
   runnerId?: string;
@@ -587,6 +587,16 @@ function canMoveRunnerForward(state: AppState, source: RunnerSource, destination
 
 export function isCurrentBatterPlateAppearanceComplete(state: AppState) {
   return Boolean(state.plate.result) || Boolean(getCurrentBatterBase(state));
+}
+
+export function shouldShowScorebookInningEndSlash(state: AppState, pendingOuts: ScoreCellPendingOut[] = []) {
+  if (state.plate.outNumber === 3) return true;
+
+  return pendingOuts.some((fieldOut, index) => {
+    const outNumber = Math.min(3, state.game.outs + index + 1);
+    if (outNumber !== 3) return false;
+    return fieldOut.source === "batter" || !isCurrentBatterPlateAppearanceComplete(state);
+  });
 }
 
 export function shouldResetPlateAfterConfirm(state: AppState) {

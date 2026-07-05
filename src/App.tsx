@@ -45,7 +45,8 @@ import {
   isOwnBattingNow,
   moveRunnerToDestination,
   normalizeNumber,
-  shouldResetPlateAfterConfirm
+  shouldResetPlateAfterConfirm,
+  shouldShowScorebookInningEndSlash
 } from "./scoreRules";
 
 type DialogMode = "batter" | "pitcher" | null;
@@ -1384,18 +1385,11 @@ function ScoreMatrixGraphic({
 function ScoreCell({ state, pendingOuts = [] }: { state: AppState; pendingOuts?: PendingFieldOut[] }) {
   const hitType = state.game.hitType;
   const marks = buildCurrentScoreCellMarks(state, pendingOuts);
-  const showInningEndSlash = shouldShowInningEndSlash(state, pendingOuts);
+  const showInningEndSlash = shouldShowScorebookInningEndSlash(state, pendingOuts);
   return (
     <article className="score-cell" aria-label="current score cell">
       <ScoreMatrixGraphic marks={marks} hitType={hitType} className="score-matrix-current" showInningEndSlash={showInningEndSlash} />
     </article>
-  );
-}
-
-function shouldShowInningEndSlash(state: AppState, pendingOuts: PendingFieldOut[]) {
-  return (
-    !isCurrentBatterPlateAppearanceComplete(state) &&
-    pendingOuts.some((fieldOut, index) => fieldOut.source !== "batter" && Math.min(3, state.game.outs + index + 1) === 3)
   );
 }
 
