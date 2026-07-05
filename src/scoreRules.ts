@@ -99,6 +99,7 @@ export type ScoreCellPendingOut = {
   runnerId?: string;
   resultLabel?: string;
   outNumber?: number;
+  leftOnBase?: boolean;
 };
 
 function buildPitchMarks(pitches: string[]): ScoreCellMark[] {
@@ -418,6 +419,14 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
         area: noteArea
       });
     }
+  }
+
+  if (pendingOut?.leftOnBase) {
+    marks.push({
+      kind: "note",
+      text: "l",
+      area: currentBase || "result"
+    });
   }
 
   return marks;

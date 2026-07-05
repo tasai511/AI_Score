@@ -1236,6 +1236,7 @@ function getScorePlayCoordinate(area: ScoreMatrixTextArea, index: number, total:
 }
 
 function getScorePlayTextStyle(mark: ScoreCellMark) {
+  if (mark.text === "l") return { fill: "#111", fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "190px", fontStyle: "italic" };
   if (mark.text === "B" || mark.text === "HP") return { fill: "#006fc9" };
   if (/^[1-9]-$/.test(mark.text)) return { fill: "#111" };
   return undefined;
@@ -1423,6 +1424,8 @@ function RunnerScoreStrip({
     { key: "second", label: "2塁", ...getCurrentRunnerEntryById(getRunnerForScoreStrip(baseState.game.runners.second)) },
     { key: "first", label: "1塁", ...getCurrentRunnerEntryById(getRunnerForScoreStrip(baseState.game.runners.first)) }
   ];
+  const inningEndingOutIndex = pendingOuts.findIndex((_, index) => Math.min(3, state.game.outs + index + 1) === 3);
+  const inningEndsWithPendingOut = inningEndingOutIndex >= 0;
 
   function getPendingRunnerOut(runner: RunnerState, base: BaseKey) {
     const index = pendingOuts.findIndex((fieldOut) => {
@@ -1438,6 +1441,12 @@ function RunnerScoreStrip({
     };
   }
 
+  function getPendingRunnerMark(runner: RunnerState, base: BaseKey) {
+    const pendingOut = getPendingRunnerOut(runner, base);
+    if (pendingOut) return pendingOut;
+    return inningEndsWithPendingOut ? { source: base, leftOnBase: true } : null;
+  }
+
   return (
     <section className="runner-score-strip" aria-label="runner score cells">
       {runnerCells.map((cell) => (
@@ -1449,7 +1458,7 @@ function RunnerScoreStrip({
           <ScoreMatrixGraphic
             marks={buildRunnerScoreCellMarks(
               cell.runner,
-              cell.runner ? getPendingRunnerOut(cell.runner, cell.key) : null,
+              cell.runner ? getPendingRunnerMark(cell.runner, cell.key) : null,
               cell.currentBase
             )}
             hitType={cell.runner?.scoreCard.hitType ?? ""}
