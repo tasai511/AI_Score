@@ -410,7 +410,7 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
     });
   }
 
-  if (pendingOut) {
+  if (pendingOut && !pendingOut.leftOnBase) {
     const pendingOutLabel = getPendingOutLabel(pendingOut.resultLabel);
     if (pendingOutLabel) {
       marks.push({
@@ -425,7 +425,7 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
     marks.push({
       kind: "note",
       text: "l",
-      area: currentBase || "result"
+      area: "center"
     });
   }
 

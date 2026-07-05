@@ -426,7 +426,8 @@ for (const outResult of ["K", "\u30a2\u30a6\u30c8", "1", "F9", "4-3"]) {
   const runner = makeRunner("left-on-base-runner", 1, []);
   const runnerMarks = rules.buildRunnerScoreCellMarks(runner, { source: "first", leftOnBase: true }, "first");
 
-  assert.equal(runnerMarks.filter((mark) => mark.kind === "note" && mark.text === "l" && mark.area === "first").length, 1);
+  assert.equal(runnerMarks.filter((mark) => mark.kind === "note" && mark.text === "l" && mark.area === "center").length, 1);
+  assert.equal(runnerMarks.some((mark) => mark.kind === "fielderOut" && mark.text === "T.O"), false);
 }
 
 {

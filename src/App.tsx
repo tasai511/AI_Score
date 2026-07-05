@@ -1109,6 +1109,7 @@ function getPitchSymbolLayout(total: number) {
 const SCORE_MATRIX_MARK_COORDINATES = {
   out: { x: 856, y: 508 },
   areas: {
+    center: { x: 856, y: 508, stack: "up" },
     result: { x: 1120, y: 870, stack: "up" },
     first: { x: 1120, y: 870, stack: "up" },
     second: { x: 1120, y: 165, stack: "down" },
@@ -1222,7 +1223,7 @@ function renderScoreFielderOutMark(mark: ScoreCellMark, coordinate: { x: number;
 type ScoreMatrixTextArea = keyof typeof SCORE_MATRIX_MARK_COORDINATES.areas;
 
 function getScoreTextArea(area: ScoreCellMark["area"]): ScoreMatrixTextArea {
-  if (area === "first" || area === "second" || area === "third" || area === "home" || area === "result") return area;
+  if (area === "center" || area === "first" || area === "second" || area === "third" || area === "home" || area === "result") return area;
   return "result";
 }
 
