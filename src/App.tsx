@@ -1337,6 +1337,7 @@ function ScoreMatrixGraphic({
         {showInningEndSlash && (
           <g className="matrix-inning-end-slash">
             <path d="M 1210 1112 L 1446 778" />
+            <path d="M 1260 1122 L 1496 788" />
           </g>
         )}
         {fielderOutMarks.map((mark, index) => {
