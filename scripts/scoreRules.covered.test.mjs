@@ -111,6 +111,25 @@ function hasJapaneseScoreText(marks) {
 }
 
 {
+  let state = clone(data.initialState);
+  state = applyPitches(state, ["ball", "ball", "ball", "ball"]);
+  state = rules.confirmPlateAppearance(state);
+  state = rules.applyPitch(state, "dead");
+
+  const forcedRunner = state.game.runners.second;
+  assert.equal(forcedRunner?.scoreCard.result, "B");
+  assert.deepEqual(forcedRunner?.scoreAdvances, [
+    { destination: "first", reason: "walk" },
+    { destination: "second", reason: "dead-ball" }
+  ]);
+
+  const runnerMarks = rules.buildRunnerScoreCellMarks(forcedRunner, null, "second");
+  assert.equal(runnerMarks.filter((mark) => mark.kind === "result" && mark.text === "B").length, 1);
+  assert.equal(runnerMarks.filter((mark) => mark.kind === "note" && mark.text === "HP" && mark.area === "second").length, 1);
+  assert.equal(runnerMarks.some((mark) => mark.kind === "advance"), false);
+}
+
+{
   const state = rules.advanceRunner(clone(data.initialState), "batter", "hit", "9");
   const runner = state.game.runners.first;
   assert.equal(runner?.scoreCard.result, "");
