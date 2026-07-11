@@ -59,9 +59,10 @@ export interface RunnerState {
 }
 
 export type ScoreCellMark = {
-  kind: "pitch" | "result" | "out" | "note" | "advance" | "fielderOut" | "hitLocation";
+  kind: "pitch" | "result" | "out" | "note" | "advance" | "fielderOut" | "hitLocation" | "score";
   text: string;
   area?: "pitch" | "center" | "result" | "first" | "second" | "third" | "home";
+  over?: boolean;
 };
 
 export type BaseRunners = Record<BaseKey, RunnerState | null>;

@@ -784,6 +784,12 @@ i.red {
   fill: #e83b2e;
 }
 
+.matrix-hit-over-dot {
+  fill: #e83b2e;
+  stroke: #fff;
+  stroke-width: 6;
+}
+
 .matrix-out {
   fill: #111;
   font-family: Georgia, "Times New Roman", serif;
@@ -803,6 +809,12 @@ i.red {
   fill: #fff;
   stroke: #111;
   stroke-width: 9;
+}
+
+.matrix-score-mark {
+  fill: #e83b2e;
+  stroke: #fff;
+  stroke-width: 14;
 }
 
 .matrix-fielder-out text {

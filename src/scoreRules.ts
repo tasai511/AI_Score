@@ -123,7 +123,7 @@ function getPlateResultArea(
   if (pendingBatterOut?.resultLabel) return "result";
   if (result === "本") return "home";
   if (currentBatterBase && isFielderChoiceResult(result)) return currentBatterBase;
-  if (currentBatterBase && (result === "B" || result === "HP" || result === "E")) return currentBatterBase;
+  if (currentBatterBase && (result === "B" || result === "HP" || isErrorResult(result))) return currentBatterBase;
   if (currentBatterBase && !result) return currentBatterBase;
   return "result";
 }
@@ -156,6 +156,14 @@ function getFielderChoiceResult(result?: string) {
 
 function isFielderChoiceResult(result: string) {
   return /^[1-9]-$/.test(result);
+}
+
+function isErrorResult(result: string) {
+  return /^(?:[1-9](?:-[1-9])?A?)?E$/.test(result);
+}
+
+function isRedundantErrorAdvanceNote(reason: AdvanceReason, label: string, result: string) {
+  return reason === "error" && label === "E" && isErrorResult(result);
 }
 
 function isDroppedThirdStrikeResult(result: string) {
@@ -213,11 +221,16 @@ function getPendingOutLabel(resultLabel?: string) {
 function getHitLocationText(runner: RunnerState, advance: RunnerState["scoreAdvances"][number]) {
   if (advance.reason !== "hit" || advance.destination !== "first") return "";
   const hitLocation = normalizeNumber(runner.scoreCard.hitLocation);
-  return /^[1-9]$/.test(hitLocation) ? hitLocation : "";
+  const match = hitLocation.match(/^([1-9])\+?$/);
+  return match ? match[1] : "";
+}
+
+function isHitLocationOverFielder(runner: RunnerState) {
+  return /^[1-9]\+$/.test(normalizeNumber(runner.scoreCard.hitLocation));
 }
 
 function shouldDrawAdvancePath(advance: RunnerState["scoreAdvances"][number], blockedDestination?: RunnerDestination) {
-  if (advance.reason !== "hit") return false;
+  if (advance.reason !== "hit" && advance.reason !== "error") return false;
   if (blockedDestination && advance.destination === blockedDestination) return false;
   return true;
 }
@@ -289,6 +302,14 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
     });
   }
 
+  if (result === "本") {
+    marks.push({
+      kind: "score",
+      text: "",
+      area: "center"
+    });
+  }
+
   if (shouldSuppressCurrentBatterAdvances) {
     marks.push(buildHiddenHitMarkSuppressor());
   }
@@ -312,7 +333,7 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
       }
 
       const label = getScoreAdvanceLabel(advance);
-      if (label && label !== result && label !== resultLabel) {
+      if (label && label !== result && label !== resultLabel && !isRedundantErrorAdvanceNote(advance.reason, label, result)) {
         marks.push({
           kind: "note",
           text: label,
@@ -324,7 +345,8 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
       if (hitLocationText) {
         marks.push({
           kind: "hitLocation",
-          text: hitLocationText
+          text: hitLocationText,
+          over: isHitLocationOverFielder(currentBatterRunner)
         });
       }
     });
@@ -392,7 +414,7 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
       }
 
       const label = getScoreAdvanceLabel(advance);
-      if (label && label !== result && label !== resultLabel) {
+      if (label && label !== result && label !== resultLabel && !isRedundantErrorAdvanceNote(advance.reason, label, result)) {
         marks.push({
           kind: "note",
           text: label,
@@ -404,7 +426,8 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
       if (hitLocationText) {
         marks.push({
           kind: "hitLocation",
-          text: hitLocationText
+          text: hitLocationText,
+          over: isHitLocationOverFielder(runner)
         });
       }
     });
@@ -785,11 +808,13 @@ export function applyHomeRunnerOut(state: AppState, source: RunnerSource, result
   return next;
 }
 
-export function applyInitialFieldError(state: AppState): AppState {
+export function applyInitialFieldError(state: AppState, fieldingPosition?: string | number): AppState {
   const next: AppState = structuredClone(state);
   next.game.firstPitchEntered = true;
   next.game.gameStarted = true;
-  next.plate.result = "E";
+  const normalizedFieldingPosition = normalizeNumber(fieldingPosition);
+  const errorResult = /^[1-9]$/.test(normalizedFieldingPosition) ? `${normalizedFieldingPosition}E` : "E";
+  next.plate.result = errorResult;
   next.game.balls = 0;
   next.game.strikes = 0;
   next.game.hitType = "";
@@ -802,7 +827,7 @@ export function applyInitialFieldError(state: AppState): AppState {
         ...runner,
         scoreCard: {
           ...runner.scoreCard,
-          result: "E",
+          result: errorResult,
           hitType: "",
           hitLocation: undefined
         },
@@ -812,6 +837,43 @@ export function applyInitialFieldError(state: AppState): AppState {
     }
   } else {
     advanceBatterToFirstInPlace(next, "error");
+    if (next.game.runners.first) {
+      next.game.runners.first = {
+        ...next.game.runners.first,
+        scoreCard: { ...next.game.runners.first.scoreCard, result: errorResult }
+      };
+    }
+  }
+
+  syncRunnerFirst(next);
+  return next;
+}
+
+export function applyThrowError(state: AppState, resultLabel: string): AppState {
+  const next: AppState = structuredClone(state);
+  next.game.firstPitchEntered = true;
+  next.game.gameStarted = true;
+  next.plate.result = resultLabel;
+  next.game.balls = 0;
+  next.game.strikes = 0;
+  next.game.hitType = "";
+
+  const currentBatterBase = getCurrentBatterBase(next);
+  if (currentBatterBase) {
+    const runner = next.game.runners[currentBatterBase];
+    if (runner) {
+      next.game.runners[currentBatterBase] = {
+        ...runner,
+        scoreCard: {
+          ...runner.scoreCard,
+          result: resultLabel,
+          hitType: "",
+          hitLocation: undefined
+        },
+        scoreAdvances: [{ destination: currentBatterBase, reason: "error" }],
+        scoreNotes: runner.scoreNotes.filter((note) => note !== advanceReasonLabels.hit && note !== advanceReasonLabels.error)
+      };
+    }
   }
 
   syncRunnerFirst(next);
@@ -862,7 +924,8 @@ export function moveRunnerToDestination(
   source: RunnerSource,
   destination: RunnerDestination,
   reason: AdvanceReason,
-  hitLocation?: string
+  hitLocation?: string,
+  resultLabel?: string
 ): AppState {
   if (!canMoveRunnerForward(state, source, destination)) return state;
 
@@ -895,10 +958,20 @@ export function moveRunnerToDestination(
   }
 
   if (reason === "error" && source === "batter") {
-    next.plate.result = "E";
+    const errorResult = resultLabel || "E";
+    next.plate.result = errorResult;
     next.game.balls = 0;
     next.game.strikes = 0;
     next.game.hitType = "";
+    if (destination !== "home") {
+      const placedRunner = next.game.runners[destination];
+      if (placedRunner) {
+        next.game.runners[destination] = {
+          ...placedRunner,
+          scoreCard: { ...placedRunner.scoreCard, result: errorResult }
+        };
+      }
+    }
   }
 
   syncRunnerFirst(next);

@@ -23,6 +23,7 @@ import {
   applyHomeRun,
   applyHomeRunnerOut,
   applyInitialFieldError,
+  applyThrowError,
   applyPitch,
   buildCurrentScoreCellMarks,
   buildRunnerScoreCellMarks,
@@ -477,10 +478,16 @@ export function App() {
     setNeedsPlateConfirm(true);
   }
 
-  function handleRunnerMove(source: RunnerSource, destination: RunnerDestination, reason: AdvanceReason, hitLocation?: string) {
+  function handleRunnerMove(
+    source: RunnerSource,
+    destination: RunnerDestination,
+    reason: AdvanceReason,
+    hitLocation?: string,
+    resultLabel?: string
+  ) {
     setState((current) => {
       captureInputSnapshot(current);
-      return moveRunnerToDestination(current, source, destination, reason, hitLocation);
+      return moveRunnerToDestination(current, source, destination, reason, hitLocation, resultLabel);
     });
     setNeedsPlateConfirm(true);
   }
@@ -499,8 +506,13 @@ export function App() {
     setNeedsPlateConfirm(true);
   }
 
-  function handleInitialFieldErrorDecision() {
-    setState((current) => applyInitialFieldError(current));
+  function handleInitialFieldErrorDecision(fieldingPosition?: string) {
+    setState((current) => applyInitialFieldError(current, fieldingPosition));
+    setNeedsPlateConfirm(true);
+  }
+
+  function handleThrowErrorDecision(resultLabel: string) {
+    setState((current) => applyThrowError(current, resultLabel));
     setNeedsPlateConfirm(true);
   }
 
@@ -765,6 +777,7 @@ export function App() {
               onRunnerMove={handleRunnerMove}
               onFieldOutDecision={handleFieldOutDecision}
               onInitialFieldErrorDecision={handleInitialFieldErrorDecision}
+              onThrowErrorDecision={handleThrowErrorDecision}
               onFieldDecisionCleared={clearFieldOutDecision}
               onBatterBoxChange={handleBatterBoxChange}
               onFieldFoulStart={handleFieldFoulStart}
@@ -1183,6 +1196,7 @@ function getScoreFielderOutTextStyle(mark: ScoreCellMark, coordinate: { x: numbe
 
 function renderScoreFielderOutMark(mark: ScoreCellMark, coordinate: { x: number; y: number }, key: string) {
   const textStyle = getScoreFielderOutTextStyle(mark, coordinate);
+  const isCaughtFlyResult = /^F?[1-9]$/.test(mark.text);
 
   if (mark.text === "K 2-3") {
     return (
@@ -1213,6 +1227,12 @@ function renderScoreFielderOutMark(mark: ScoreCellMark, coordinate: { x: number;
 
   return (
     <g transform={`translate(${textStyle.x} ${textStyle.y})`} key={key}>
+      {isCaughtFlyResult && (
+        <>
+          <path d="M -50 -108 Q 0 -156 50 -108" fill="none" stroke="#fff" strokeWidth="22" strokeLinecap="round" />
+          <path d="M -50 -108 Q 0 -156 50 -108" fill="none" stroke="#111" strokeWidth="10" strokeLinecap="round" />
+        </>
+      )}
       <text x="0" y="0" fill="#111" stroke="#fff" strokeWidth={textStyle.strokeWidth} paintOrder="stroke" style={{ fontSize: `${textStyle.fontSize}px` }}>
         {mark.text}
       </text>
@@ -1294,6 +1314,7 @@ function ScoreMatrixGraphic({
   const advanceMarks = marks.filter((mark) => mark.kind === "advance" && mark.area);
   const fielderOutMarks = marks.filter((mark) => mark.kind === "fielderOut" && mark.area);
   const hitLocationMarks = marks.filter((mark) => mark.kind === "hitLocation");
+  const scoreMarks = marks.filter((mark) => mark.kind === "score");
   const advanceLineAreas =
     advanceMarks.length > 0
       ? advanceMarks.map((mark) => mark.area as RunnerDestination)
@@ -1336,6 +1357,14 @@ function ScoreMatrixGraphic({
             {outMark.text}
           </text>
         )}
+        {scoreMarks.length > 0 && (
+          <circle
+            className="matrix-score-mark"
+            cx={SCORE_MATRIX_MARK_COORDINATES.out.x}
+            cy={SCORE_MATRIX_MARK_COORDINATES.out.y}
+            r="72"
+          />
+        )}
         {showInningEndSlash && (
           <g className="matrix-inning-end-slash">
             <path d="M 1210 1112 L 1446 778" />
@@ -1356,6 +1385,14 @@ function ScoreMatrixGraphic({
                   <path d={SCORE_MATRIX_INFIELD_HIT_ARC_PATH} fill="none" stroke="#fff" strokeWidth="30" strokeLinecap="round" />
                   <path d={SCORE_MATRIX_INFIELD_HIT_ARC_PATH} fill="none" stroke="#e83b2e" strokeWidth="13" strokeLinecap="round" />
                 </>
+              )}
+              {mark.over && (
+                <circle
+                  className="matrix-hit-over-dot"
+                  cx={isInfieldHit ? SCORE_MATRIX_INFIELD_HIT_TEXT_OFFSET.x : 0}
+                  cy={(isInfieldHit ? SCORE_MATRIX_INFIELD_HIT_TEXT_OFFSET.y : 0) - 118}
+                  r="18"
+                />
               )}
               <text
                 className="matrix-hit-location"
@@ -1485,6 +1522,7 @@ function FieldStage({
   onRunnerMove,
   onFieldOutDecision,
   onInitialFieldErrorDecision,
+  onThrowErrorDecision,
   onFieldDecisionCleared,
   onBatterBoxChange,
   onFieldFoulStart,
@@ -1504,7 +1542,13 @@ function FieldStage({
   pendingPitchContext: PendingPitchContext;
   onLiveScorePreview: () => void;
   onAdvance: (source: RunnerSource, reason: AdvanceReason, hitLocation?: string) => void;
-  onRunnerMove: (source: RunnerSource, destination: RunnerDestination, reason: AdvanceReason, hitLocation?: string) => void;
+  onRunnerMove: (
+    source: RunnerSource,
+    destination: RunnerDestination,
+    reason: AdvanceReason,
+    hitLocation?: string,
+    resultLabel?: string
+  ) => void;
   onFieldOutDecision: (
     nodeId: string,
     source: RunnerSource,
@@ -1512,7 +1556,8 @@ function FieldStage({
     runnerId?: string,
     destination?: RunnerDestination
   ) => void;
-  onInitialFieldErrorDecision: () => void;
+  onInitialFieldErrorDecision: (fieldingPosition?: string) => void;
+  onThrowErrorDecision: (resultLabel: string) => void;
   onFieldDecisionCleared: (nodeId: string) => void;
   onBatterBoxChange: (box: BatterBox) => void;
   onFieldFoulStart: () => boolean;
@@ -1727,8 +1772,11 @@ function FieldStage({
   }
 
   function getInitialHitLocation(play = fieldPlay) {
-    return play.nodes.find((node) => node.kind === "position" && play.segments.some((segment) => segment.kind === "hit" && segment.toNodeId === node.id))
-      ?.label;
+    const node = play.nodes.find(
+      (node) => node.kind === "position" && play.segments.some((segment) => segment.kind === "hit" && segment.toNodeId === node.id)
+    );
+    if (!node) return undefined;
+    return isOutfieldOverNode(node) ? `${node.label}+` : node.label;
   }
 
   function isOpenPickoffDecision() {
@@ -3951,7 +3999,8 @@ function FieldStage({
     setAdvanceTarget(null);
     onFieldPlayStarted();
     if (shouldAutoAdvanceBatterOnHit) {
-      startForcedHitAdvanceAnimation(target.label, shouldDelayHomeRunDecisionBubble ? () => activateFieldDecisionNode(createdNodeId) : undefined);
+      const initialHitLocation = target.kind === "position" && target.key.endsWith("-over") ? `${target.label}+` : target.label;
+      startForcedHitAdvanceAnimation(initialHitLocation, shouldDelayHomeRunDecisionBubble ? () => activateFieldDecisionNode(createdNodeId) : undefined);
     }
     if (shouldDelayBaseDecisionBubble && delayedBaseDecisionSourceNode && delayedBaseDecisionAnimationFrom) {
       startPositionCoverAnimation(delayedBaseDecisionSourceNode.id, delayedBaseDecisionAnimationFrom, targetPoint, () => {
@@ -4179,7 +4228,7 @@ function FieldStage({
       }
       setRunnerAnimations([]);
       onFieldDecisionCleared(nodeId);
-      onInitialFieldErrorDecision();
+      onInitialFieldErrorDecision(getInitialFieldingPositionNode()?.label);
       return;
     }
 
@@ -4194,13 +4243,19 @@ function FieldStage({
           : null;
       const runnerAlreadyThere =
         destination === "home" ? Boolean(homeRunnerVisual?.arrived) : currentRunnerLocation === destination;
-      if (!runnerAlreadyThere) {
+      const throwErrorFieldingLabel =
+        decision === "error" && resolvedRunnerSource === "batter" && decidedNode.kind === "base" ? getFieldOutResultLabel(decidedNode) : "";
+      const throwErrorResultLabel = /^[1-9](?:-[1-9])?A?$/.test(throwErrorFieldingLabel) ? `${throwErrorFieldingLabel}E` : undefined;
+      if (runnerAlreadyThere && throwErrorResultLabel) {
+        onThrowErrorDecision(throwErrorResultLabel);
+      } else if (!runnerAlreadyThere) {
         if (destination === "home") addScoredRunner(resolvedRunnerSource, false, false, resolvedRunnerSource === "batter");
         onRunnerMove(
           resolvedRunnerSource,
           destination,
           resolveAdvanceReasonForNode(decidedNode, resolvedRunnerSource, decision),
-          getInitialHitLocation()
+          getInitialHitLocation(),
+          throwErrorResultLabel
         );
         if (destination === "home") markScoredRunnerArrived(resolvedRunnerSource, resolvedRunnerId);
       }
