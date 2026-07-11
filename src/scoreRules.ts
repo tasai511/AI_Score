@@ -1,6 +1,6 @@
 ﻿import type { AdvanceReason, AppState, BaseKey, PitchType, RunnerDestination, RunnerSource, RunnerState, TeamKey } from "./types";
 
-import type { ScoreCellMark } from "./types";
+import type { ScoreCellMark, ScoreLogEntry } from "./types";
 
 export const hitMarkAssets = {
   single: "assets/single.svg",
@@ -453,6 +453,22 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
   }
 
   return marks;
+}
+
+export function buildScoreLogEntry(state: AppState, pendingOuts: ScoreCellPendingOut[] = []): ScoreLogEntry {
+  const batter = getCurrentBatter(state);
+  return {
+    teamKey: getBattingTeamKey(state),
+    battingOrder: state.game.battingOrder,
+    inning: state.game.inning,
+    marks: buildCurrentScoreCellMarks(state, pendingOuts),
+    hitType: state.game.hitType,
+    showInningEndSlash: shouldShowScorebookInningEndSlash(state, pendingOuts),
+    jerseyNumber: normalizeNumber(batter?.jerseyNumber),
+    playerName: normalizeNumber(batter?.name),
+    positionNumber: normalizeNumber(batter?.positionNumber),
+    batterBox: batter?.batterBox ?? "right"
+  };
 }
 
 function getRunnerScoreAdvances(runner: RunnerState) {

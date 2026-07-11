@@ -77,7 +77,7 @@ input {
   left: 50%;
   z-index: 1200;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: auto repeat(3, 1fr);
   gap: 4px;
   align-items: center;
   width: min(100vw, 430px);
@@ -103,6 +103,13 @@ input {
   color: #fff;
   background: linear-gradient(#287ae8, #0758c8);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+.main-tabs-home {
+  width: 34px;
+  padding: 0;
+  font-size: 1.2rem;
+  font-weight: 900;
 }
 
 .view[hidden] {
@@ -674,6 +681,304 @@ input {
   display: block;
   width: 100%;
   height: auto;
+}
+
+.output-view {
+  min-width: 0;
+  padding: 14px 12px 40px;
+}
+
+.output-team-switch {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.output-team-switch button {
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid #e2e5eb;
+  background: #f6f7f9;
+  color: #4b5563;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.output-team-switch button.active {
+  border-color: transparent;
+  color: #fff;
+  background: linear-gradient(#287ae8, #0758c8);
+}
+
+.output-grid-scroll {
+  overflow-x: auto;
+  border: 1px solid #e2e5eb;
+  border-radius: 8px;
+}
+
+.output-grid {
+  border-collapse: collapse;
+  font-size: 0.72rem;
+}
+
+.output-grid th,
+.output-grid td {
+  border: 1px solid #d7dbe2;
+  white-space: nowrap;
+}
+
+.output-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f0f2f6;
+  color: #374151;
+  font-weight: 700;
+  padding: 6px 4px;
+}
+
+.output-col-order {
+  width: 28px;
+  min-width: 28px;
+  text-align: center;
+}
+
+.output-col-name {
+  width: 92px;
+  min-width: 92px;
+  padding: 0 6px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.output-col-position,
+.output-col-box,
+.output-col-number {
+  width: 30px;
+  min-width: 30px;
+  text-align: center;
+}
+
+.output-col-inning {
+  width: 74px;
+  min-width: 74px;
+  text-align: center;
+}
+
+.output-stack-line {
+  padding: 2px 0;
+  line-height: 1.2;
+}
+
+.output-stack-line:not(:last-child) {
+  border-bottom: 1px dashed #d7dbe2;
+}
+
+.output-grid tbody td.output-col-name {
+  position: sticky;
+  left: 28px;
+  z-index: 1;
+  background: #fff;
+}
+
+.output-grid tbody td.output-col-order {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: #fff;
+}
+
+.output-cell {
+  width: 74px;
+  min-width: 74px;
+  height: 56px;
+  padding: 2px;
+  vertical-align: middle;
+}
+
+.score-matrix-output {
+  width: 100%;
+  box-shadow: none;
+  border-radius: 2px;
+}
+
+.output-cell-button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border-radius: 2px;
+  background: none;
+}
+
+.output-cell-button:hover .score-matrix-output,
+.output-cell-button:focus-visible .score-matrix-output {
+  outline: 2px solid #287ae8;
+  outline-offset: 1px;
+}
+
+.title-shell {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  padding: 24px 18px 40px;
+}
+
+.title-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title-header h1 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: #111827;
+}
+
+.title-new-game-button {
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 10px;
+  color: #fff;
+  background: linear-gradient(#287ae8, #0758c8);
+  font-size: 0.9rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.title-game-list {
+  display: grid;
+  gap: 10px;
+}
+
+.title-empty {
+  color: #6b7280;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 40px 0;
+}
+
+.title-game-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid #e2e5eb;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.title-game-row:hover {
+  border-color: #287ae8;
+}
+
+.title-game-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.title-game-teams {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #111827;
+  overflow: hidden;
+}
+
+.title-game-teams span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title-game-score {
+  flex: 0 0 auto;
+  color: #287ae8;
+  font-variant-numeric: tabular-nums;
+}
+
+.title-game-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #6b7280;
+  font-size: 0.76rem;
+}
+
+.title-game-delete {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #9ca3af;
+  background: #f3f4f6;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.title-game-delete:hover {
+  color: #dc2626;
+  background: #fee2e2;
+}
+
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(17, 24, 39, 0.5);
+}
+
+.confirm-panel {
+  width: min(320px, 100%);
+  padding: 20px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 20px 50px rgba(17, 24, 39, 0.3);
+}
+
+.confirm-panel p {
+  margin: 0 0 18px;
+  color: #1f2937;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.confirm-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.confirm-actions button {
+  height: 40px;
+  border-radius: 9px;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.confirm-cancel {
+  color: #4b5563;
+  background: #f3f4f6;
+}
+
+.confirm-ok {
+  color: #fff;
+  background: linear-gradient(#e0483f, #c62b22);
 }
 
 i {

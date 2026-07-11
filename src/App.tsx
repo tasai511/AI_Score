@@ -1,5 +1,5 @@
 ﻿import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, Dispatch, KeyboardEvent, PointerEvent, SetStateAction } from "react";
+import type { CSSProperties, Dispatch, KeyboardEvent, MouseEvent, PointerEvent, SetStateAction } from "react";
 import type {
   AdvanceReason,
   AppState,
@@ -12,10 +12,13 @@ import type {
   RunnerSource,
   RunnerState,
   ScoreCellMark,
+  ScoreLogEntry,
   TabKey,
   TeamKey
 } from "./types";
 import { initialState } from "./data";
+import type { GameSummary, StateSnapshot } from "./persistence";
+import { buildGameSummary, createNewGameId, deleteGame, loadGame, loadGameIndex, saveGame, stripScoreLog } from "./persistence";
 import {
   advanceReasonLabels,
   advanceRunner,
@@ -27,6 +30,7 @@ import {
   applyPitch,
   buildCurrentScoreCellMarks,
   buildRunnerScoreCellMarks,
+  buildScoreLogEntry,
   canUseDroppedThirdStrike,
   confirmPlateAppearance,
   fieldOutResultLabels,
@@ -46,7 +50,6 @@ import {
   isOwnBattingNow,
   moveRunnerToDestination,
   normalizeNumber,
-  shouldResetPlateAfterConfirm,
   shouldShowScorebookInningEndSlash
 } from "./scoreRules";
 
@@ -201,7 +204,13 @@ function getOpponentName(state: AppState) {
 
 export function App() {
   const [state, setState] = useState<AppState>(initialState);
+  const [currentGameId, setCurrentGameId] = useState<string | null>(null);
+  const [gameIndex, setGameIndex] = useState<GameSummary[]>(() => loadGameIndex());
+  const [preAtBatSnapshots, setPreAtBatSnapshots] = useState<StateSnapshot[]>([]);
+  const preAtBatSnapshotRef = useRef<StateSnapshot>(stripScoreLog(initialState));
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("score");
+  const [outputTeamKey, setOutputTeamKey] = useState<TeamKey>("own");
   const [dialogMode, setDialogMode] = useState<DialogMode>(null);
   const [forceRegistration, setForceRegistration] = useState(false);
   const [dragging, setDragging] = useState<{ teamKey: TeamKey; rowId: string } | null>(null);
@@ -214,6 +223,65 @@ export function App() {
   const [liveScorePreviewActive, setLiveScorePreviewActive] = useState(false);
   const [plateActionsLocked, setPlateActionsLocked] = useState(false);
   const inputSnapshotRef = useRef<AppState | null>(null);
+
+  useEffect(() => {
+    if (!currentGameId) return;
+    saveGame(currentGameId, { state, preAtBatSnapshots, currentAtBatStartSnapshot: preAtBatSnapshotRef.current });
+    setGameIndex(loadGameIndex());
+  }, [state, preAtBatSnapshots, currentGameId]);
+
+  function handleStartNewGame() {
+    const id = createNewGameId();
+    const freshState = structuredClone(initialState);
+    setState(freshState);
+    setPreAtBatSnapshots([]);
+    preAtBatSnapshotRef.current = stripScoreLog(freshState);
+    setActiveTab("order");
+    setCurrentGameId(id);
+  }
+
+  function handleResumeGame(id: string) {
+    const record = loadGame(id);
+    if (!record) return;
+    setState(record.state);
+    setPreAtBatSnapshots(record.preAtBatSnapshots);
+    preAtBatSnapshotRef.current = record.currentAtBatStartSnapshot;
+    setActiveTab("score");
+    setCurrentGameId(id);
+  }
+
+  function handleDeleteGame(id: string) {
+    deleteGame(id);
+    setGameIndex(loadGameIndex());
+  }
+
+  function handleReturnToTitle() {
+    setCurrentGameId(null);
+    setGameIndex(loadGameIndex());
+  }
+
+  function requestConfirm(message: string, onConfirm: () => void) {
+    setConfirmDialog({ message, onConfirm });
+  }
+
+  function handleRedoAtBat(index: number) {
+    const snapshot = preAtBatSnapshots[index];
+    if (!snapshot) return;
+    const restoredState: AppState = { ...structuredClone(snapshot), scoreLog: state.scoreLog.slice(0, index) };
+    setState(restoredState);
+    setPreAtBatSnapshots((current) => current.slice(0, index));
+    preAtBatSnapshotRef.current = structuredClone(snapshot);
+    inputSnapshotRef.current = null;
+    setPendingFieldOuts([]);
+    setPitchAdvanceRequest(null);
+    setPendingPitchContext(null);
+    setLiveScorePreviewActive(false);
+    setPlateActionsLocked(false);
+    setNeedsPlateConfirm(false);
+    setFieldSelection(null);
+    setFieldResetToken((token) => token + 1);
+    setActiveTab("score");
+  }
 
   const ownBatting = isOwnBattingNow(state);
   const battingTeamKey = getBattingTeamKey(state);
@@ -579,15 +647,24 @@ export function App() {
   }
 
   function handleConfirmPlate() {
-    setState((current) => {
-      const withFieldOuts = pendingFieldOuts.reduce((next, fieldOut) => applyPendingFieldOutDecision(next, fieldOut), current);
-      const shouldClearPromptedBatterKeys =
-        isCurrentBatterPlateAppearanceComplete(withFieldOuts) || shouldResetPlateAfterConfirm(withFieldOuts);
-      return {
-        ...confirmPlateAppearance(withFieldOuts),
-        promptedBatterKeys: shouldClearPromptedBatterKeys ? [] : withFieldOuts.promptedBatterKeys
-      };
-    });
+    const withFieldOuts = pendingFieldOuts.reduce((next, fieldOut) => applyPendingFieldOutDecision(next, fieldOut), state);
+    const endsAtBat = isCurrentBatterPlateAppearanceComplete(withFieldOuts) || withFieldOuts.game.outs >= 3;
+    const nextScoreLog = endsAtBat
+      ? [...withFieldOuts.scoreLog, buildScoreLogEntry(withFieldOuts, pendingFieldOuts)]
+      : withFieldOuts.scoreLog;
+    const nextState: AppState = {
+      ...confirmPlateAppearance(withFieldOuts),
+      scoreLog: nextScoreLog,
+      promptedBatterKeys: endsAtBat ? [] : withFieldOuts.promptedBatterKeys
+    };
+
+    if (endsAtBat) {
+      const startSnapshot = preAtBatSnapshotRef.current;
+      setPreAtBatSnapshots((current) => [...current, startSnapshot]);
+      preAtBatSnapshotRef.current = stripScoreLog(nextState);
+    }
+
+    setState(nextState);
     inputSnapshotRef.current = null;
     setPendingFieldOuts([]);
     setPitchAdvanceRequest(null);
@@ -696,9 +773,50 @@ export function App() {
     ? formatPlayerLabel(opponentPitcher, state.game.currentOpponentPitcherJerseyNumber) || "?"
     : formatPlayerLabel(currentPitcher, state.game.currentPitcherJerseyNumber) || "?";
 
+  const confirmDialogElement = confirmDialog && (
+    <div className="confirm-overlay" role="alertdialog" aria-modal="true">
+      <div className="confirm-panel">
+        <p>{confirmDialog.message}</p>
+        <div className="confirm-actions">
+          <button type="button" className="confirm-cancel" onClick={() => setConfirmDialog(null)}>
+            キャンセル
+          </button>
+          <button
+            type="button"
+            className="confirm-ok"
+            onClick={() => {
+              confirmDialog.onConfirm();
+              setConfirmDialog(null);
+            }}
+          >
+            実行
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (!currentGameId) {
+    return (
+      <>
+        <TitleScreen
+          games={gameIndex}
+          onNewGame={handleStartNewGame}
+          onResumeGame={handleResumeGame}
+          onDeleteGame={handleDeleteGame}
+          onRequestConfirm={requestConfirm}
+        />
+        {confirmDialogElement}
+      </>
+    );
+  }
+
   return (
     <>
       <nav className="main-tabs" aria-label="メインメニュー">
+        <button type="button" className="main-tabs-home" aria-label="試合一覧に戻る" onClick={handleReturnToTitle}>
+          {"‹"}
+        </button>
         {[
           ["order", "オーダー"],
           ["score", "スコア入力"],
@@ -845,9 +963,13 @@ export function App() {
         )}
 
         {activeTab === "output" && (
-          <section className="view output-view">
-            <div className="empty-state">スコア出力</div>
-          </section>
+          <ScoreOutputView
+            state={state}
+            teamKey={outputTeamKey}
+            setTeamKey={setOutputTeamKey}
+            onRedoAtBat={handleRedoAtBat}
+            onRequestConfirm={requestConfirm}
+          />
         )}
 
         {dialogMode && (
@@ -864,6 +986,7 @@ export function App() {
           />
         )}
       </main>
+      {confirmDialogElement}
     </>
   );
 }
@@ -1418,6 +1541,217 @@ function ScoreMatrixGraphic({
         })}
       </svg>
     </div>
+  );
+}
+
+function formatGameUpdatedAt(timestamp: number) {
+  const date = new Date(timestamp);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getMonth() + 1}/${date.getDate()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function TitleScreen({
+  games,
+  onNewGame,
+  onResumeGame,
+  onDeleteGame,
+  onRequestConfirm
+}: {
+  games: GameSummary[];
+  onNewGame: () => void;
+  onResumeGame: (id: string) => void;
+  onDeleteGame: (id: string) => void;
+  onRequestConfirm: (message: string, onConfirm: () => void) => void;
+}) {
+  function handleDeleteClick(event: MouseEvent, id: string) {
+    event.stopPropagation();
+    onRequestConfirm("この試合の記録を削除しますか？", () => onDeleteGame(id));
+  }
+
+  return (
+    <main className="phone-shell title-shell" aria-label="AIスコア タイトル画面">
+      <div className="title-header">
+        <h1>AIスコア</h1>
+        <button type="button" className="title-new-game-button" onClick={onNewGame}>
+          + 新規試合
+        </button>
+      </div>
+      <div className="title-game-list">
+        {games.length === 0 && <p className="title-empty">保存された試合はまだありません。</p>}
+        {games.map((game) => (
+          <div key={game.id} className="title-game-row" role="button" tabIndex={0} onClick={() => onResumeGame(game.id)}>
+            <div className="title-game-main">
+              <div className="title-game-teams">
+                <span>{game.ownTeamName}</span>
+                <span className="title-game-score">
+                  {game.ownScore} - {game.opponentScore}
+                </span>
+                <span>{game.opponentTeamName}</span>
+              </div>
+              <div className="title-game-meta">
+                <span>{game.gameStarted ? `${game.inning}回${game.half}` : "試合開始前"}</span>
+                <span>{formatGameUpdatedAt(game.updatedAt)}</span>
+              </div>
+            </div>
+            <button type="button" className="title-game-delete" aria-label="この試合を削除" onClick={(event) => handleDeleteClick(event, game.id)}>
+              {"×"}
+            </button>
+          </div>
+        ))}
+      </div>
+    </main>
+  );
+}
+
+function ScoreOutputView({
+  state,
+  teamKey,
+  setTeamKey,
+  onRedoAtBat,
+  onRequestConfirm
+}: {
+  state: AppState;
+  teamKey: TeamKey;
+  setTeamKey: (teamKey: TeamKey) => void;
+  onRedoAtBat: (index: number) => void;
+  onRequestConfirm: (message: string, onConfirm: () => void) => void;
+}) {
+  const order = teamKey === "own" ? state.ownOrder : state.opponentOrder;
+  const entries = state.scoreLog.map((entry, index) => ({ entry, index })).filter(({ entry }) => entry.teamKey === teamKey);
+  const maxLoggedInning = entries.reduce((max, { entry }) => Math.max(max, entry.inning), 0);
+  const inningCount = Math.max(9, state.game.inning, maxLoggedInning);
+  const innings = Array.from({ length: inningCount }, (_, index) => index + 1);
+  const battingOrderSlots = Array.from({ length: 9 }, (_, index) => index + 1);
+
+  function getEntry(battingOrder: number, inning: number) {
+    return entries.find(({ entry }) => entry.battingOrder === battingOrder && entry.inning === inning);
+  }
+
+  function getSlotPlayers(battingOrder: number) {
+    const seen = new Set<string>();
+    const players: { jerseyNumber: string; playerName: string; positionNumber: string; batterBox: BatterBox }[] = [];
+    entries
+      .filter(({ entry }) => entry.battingOrder === battingOrder)
+      .forEach(({ entry }) => {
+        const key = entry.jerseyNumber || entry.playerName;
+        if (!key || seen.has(key)) return;
+        seen.add(key);
+        players.push({
+          jerseyNumber: entry.jerseyNumber,
+          playerName: entry.playerName,
+          positionNumber: entry.positionNumber,
+          batterBox: entry.batterBox
+        });
+      });
+
+    if (players.length === 0) {
+      const fallback = order[battingOrder - 1];
+      if (fallback) {
+        players.push({
+          jerseyNumber: fallback.jerseyNumber,
+          playerName: fallback.name,
+          positionNumber: fallback.positionNumber,
+          batterBox: fallback.batterBox
+        });
+      }
+    }
+
+    return players.slice(0, 3);
+  }
+
+  function handleCellClick(index: number) {
+    onRequestConfirm("この打席からやり直しますか？この打席より後の記録は削除されます。", () => onRedoAtBat(index));
+  }
+
+  return (
+    <section className="view output-view" data-view="output">
+      <div className="output-team-switch">
+        <button type="button" className={teamKey === "own" ? "active" : ""} onClick={() => setTeamKey("own")}>
+          {state.ownTeam.shortName || state.ownTeam.name}
+        </button>
+        <button type="button" className={teamKey === "opponent" ? "active" : ""} onClick={() => setTeamKey("opponent")}>
+          {getOpponentName(state)}
+        </button>
+      </div>
+      <div className="output-grid-scroll">
+        <table className="output-grid">
+          <thead>
+            <tr>
+              <th className="output-col-order">打順</th>
+              <th className="output-col-name">名前</th>
+              <th className="output-col-position">守備</th>
+              <th className="output-col-box">左右</th>
+              <th className="output-col-number">#</th>
+              {innings.map((inning) => (
+                <th key={inning} className="output-col-inning">
+                  {inning}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {battingOrderSlots.map((battingOrder) => {
+              const players = getSlotPlayers(battingOrder);
+              return (
+                <tr key={battingOrder}>
+                  <td className="output-col-order">{battingOrder}</td>
+                  <td className="output-col-name">
+                    {players.map((player, playerIndex) => (
+                      <div className="output-stack-line" key={player.jerseyNumber || playerIndex}>
+                        {player.playerName}
+                      </div>
+                    ))}
+                  </td>
+                  <td className="output-col-position">
+                    {players.map((player, playerIndex) => (
+                      <div className="output-stack-line" key={player.jerseyNumber || playerIndex}>
+                        {player.positionNumber}
+                      </div>
+                    ))}
+                  </td>
+                  <td className="output-col-box">
+                    {players.map((player, playerIndex) => (
+                      <div className="output-stack-line" key={player.jerseyNumber || playerIndex}>
+                        {player.batterBox === "left" ? "左" : "右"}
+                      </div>
+                    ))}
+                  </td>
+                  <td className="output-col-number">
+                    {players.map((player, playerIndex) => (
+                      <div className="output-stack-line" key={player.jerseyNumber || playerIndex}>
+                        {player.jerseyNumber}
+                      </div>
+                    ))}
+                  </td>
+                  {innings.map((inning) => {
+                    const found = getEntry(battingOrder, inning);
+                    return (
+                      <td key={inning} className="output-cell">
+                        {found && (
+                          <button
+                            type="button"
+                            className="output-cell-button"
+                            aria-label={`${battingOrder}番 ${inning}回の打席をやり直す`}
+                            onClick={() => handleCellClick(found.index)}
+                          >
+                            <ScoreMatrixGraphic
+                              marks={found.entry.marks}
+                              hitType={found.entry.hitType}
+                              showInningEndSlash={found.entry.showInningEndSlash}
+                              className="score-matrix-output"
+                            />
+                          </button>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 

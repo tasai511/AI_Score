@@ -95,6 +95,19 @@ export interface PlateAppearance {
   outNumber: number;
 }
 
+export interface ScoreLogEntry {
+  teamKey: TeamKey;
+  battingOrder: number;
+  inning: number;
+  marks: ScoreCellMark[];
+  hitType: HitType;
+  showInningEndSlash: boolean;
+  jerseyNumber: string;
+  playerName: string;
+  positionNumber: string;
+  batterBox: BatterBox;
+}
+
 export interface AppState {
   ownTeam: Team & { battingSide: BattingSide };
   opponentTeam: Team;
@@ -103,4 +116,5 @@ export interface AppState {
   game: GameState;
   plate: PlateAppearance;
   promptedBatterKeys: string[];
+  scoreLog: ScoreLogEntry[];
 }

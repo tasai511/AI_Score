@@ -79,5 +79,6 @@ export const initialState: AppState = {
     result: "",
     outNumber: 0
   },
-  promptedBatterKeys: []
+  promptedBatterKeys: [],
+  scoreLog: []
 };
