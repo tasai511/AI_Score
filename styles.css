@@ -2169,7 +2169,7 @@ i.red {
   padding: 8px 10px 16px;
 }
 
-.plate-actions .plate-cancel-button,
+.plate-actions .plate-rewind-button,
 .plate-actions .plate-confirm-button {
   display: inline-grid;
   width: 100%;
@@ -2182,7 +2182,7 @@ i.red {
   line-height: 1;
 }
 
-.plate-actions .plate-cancel-button {
+.plate-actions .plate-rewind-button {
   border: 1px solid rgba(116, 128, 148, 0.28);
   color: #1f2937;
   background: rgba(255, 255, 255, 0.96);
@@ -2834,12 +2834,12 @@ i.red {
   padding: 7px 8px 12px;
 }
 
-.plate-actions .plate-cancel-button,
+.plate-actions .plate-rewind-button,
 .plate-actions .plate-confirm-button {
   min-height: 36px;
 }
 
-.plate-actions .plate-cancel-button {
+.plate-actions .plate-rewind-button {
   font-size: 0.8rem;
 }
 
@@ -2891,7 +2891,7 @@ i.red {
     padding: 6px 8px 10px;
   }
 
-  .plate-actions .plate-cancel-button,
+  .plate-actions .plate-rewind-button,
   .plate-actions .plate-confirm-button {
     min-height: 34px;
   }

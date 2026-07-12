@@ -223,7 +223,13 @@ export function App() {
   const [pendingPitchContext, setPendingPitchContext] = useState<PendingPitchContext>(null);
   const [liveScorePreviewActive, setLiveScorePreviewActive] = useState(false);
   const [plateActionsLocked, setPlateActionsLocked] = useState(false);
-  const inputSnapshotRef = useRef<AppState | null>(null);
+  const [historyDepth, setHistoryDepth] = useState(0);
+  const historyStackRef = useRef<AppState[]>([]);
+
+  function clearPitchHistory() {
+    historyStackRef.current = [];
+    setHistoryDepth(0);
+  }
 
   useEffect(() => {
     if (!currentGameId) return;
@@ -237,6 +243,7 @@ export function App() {
     setState(freshState);
     setPreAtBatSnapshots([]);
     preAtBatSnapshotRef.current = stripScoreLog(freshState);
+    clearPitchHistory();
     setActiveTab("order");
     setCurrentGameId(id);
   }
@@ -247,6 +254,7 @@ export function App() {
     setState(record.state);
     setPreAtBatSnapshots(record.preAtBatSnapshots);
     preAtBatSnapshotRef.current = record.currentAtBatStartSnapshot;
+    clearPitchHistory();
     setActiveTab("score");
     setCurrentGameId(id);
   }
@@ -268,11 +276,13 @@ export function App() {
   function handleRedoAtBat(index: number) {
     const snapshot = preAtBatSnapshots[index];
     if (!snapshot) return;
-    const restoredState: AppState = { ...structuredClone(snapshot), scoreLog: state.scoreLog.slice(0, index) };
+    // Keep every existing scoreLog/preAtBatSnapshots entry (including later batters') so redoing
+    // one at-bat never erases anyone else's recorded plate appearances. Re-confirming this at-bat
+    // appends a fresh entry, and the output grid already shows the latest entry per (order, inning).
+    const restoredState: AppState = { ...structuredClone(snapshot), scoreLog: state.scoreLog };
     setState(restoredState);
-    setPreAtBatSnapshots((current) => current.slice(0, index));
     preAtBatSnapshotRef.current = structuredClone(snapshot);
-    inputSnapshotRef.current = null;
+    clearPitchHistory();
     setPendingFieldOuts([]);
     setPitchAdvanceRequest(null);
     setPendingPitchContext(null);
@@ -289,9 +299,10 @@ export function App() {
   const currentBatter = getCurrentBatter(state);
   const currentOwnBatter = getCurrentOwnBatter(state);
   const currentOpponentBatter = getCurrentOpponentBatter(state);
-  const scoreDisplayState = needsPlateConfirm && inputSnapshotRef.current ? inputSnapshotRef.current : state;
+  const latestHistorySnapshot = historyStackRef.current.length > 0 ? historyStackRef.current[historyStackRef.current.length - 1] : null;
+  const scoreDisplayState = needsPlateConfirm && latestHistorySnapshot ? latestHistorySnapshot : state;
   const scoreBoardState = liveScorePreviewActive ? state : scoreDisplayState;
-  const runnerScoreBaseState = inputSnapshotRef.current ?? state;
+  const runnerScoreBaseState = latestHistorySnapshot ?? state;
   const currentPitcher =
     state.ownOrder.find((player) => player.jerseyNumber === state.game.currentPitcherJerseyNumber) ??
     state.ownOrder.find((player) => player.positionNumber === "1");
@@ -422,7 +433,8 @@ export function App() {
   }
 
   function captureInputSnapshot(current: AppState) {
-    if (!inputSnapshotRef.current) inputSnapshotRef.current = structuredClone(current);
+    historyStackRef.current = [...historyStackRef.current, structuredClone(current)];
+    setHistoryDepth(historyStackRef.current.length);
   }
 
   function updateTeamOrder(teamKey: TeamKey, updater: (rows: Player[]) => Player[]) {
@@ -491,10 +503,8 @@ export function App() {
       return true;
     }
 
-    setState((current) => {
-      captureInputSnapshot(current);
-      return applyPitch(current, type);
-    });
+    captureInputSnapshot(state);
+    setState((current) => applyPitch(current, type));
     setNeedsPlateConfirm(true);
     if (type === "strike" || type === "ball") {
       setPendingPitchContext("live-count");
@@ -516,10 +526,8 @@ export function App() {
 
   function handlePitchAdvanceAnimationComplete(type: PitchAdvanceType) {
     setPitchAdvanceRequest(null);
-    setState((current) => {
-      captureInputSnapshot(current);
-      return applyPitch(current, type);
-    });
+    captureInputSnapshot(state);
+    setState((current) => applyPitch(current, type));
     setNeedsPlateConfirm(true);
     setPendingPitchContext("dead-ball");
   }
@@ -540,10 +548,8 @@ export function App() {
   }
 
   function handleAdvance(source: RunnerSource, reason: AdvanceReason, hitLocation?: string) {
-    setState((current) => {
-      captureInputSnapshot(current);
-      return advanceRunner(current, source, reason, hitLocation);
-    });
+    captureInputSnapshot(state);
+    setState((current) => advanceRunner(current, source, reason, hitLocation));
     setNeedsPlateConfirm(true);
   }
 
@@ -567,10 +573,8 @@ export function App() {
     hitLocation?: string,
     resultLabel?: string
   ) {
-    setState((current) => {
-      captureInputSnapshot(current);
-      return moveRunnerToDestination(current, source, destination, reason, hitLocation, resultLabel);
-    });
+    captureInputSnapshot(state);
+    setState((current) => moveRunnerToDestination(current, source, destination, reason, hitLocation, resultLabel));
     setNeedsPlateConfirm(true);
   }
 
@@ -616,24 +620,20 @@ export function App() {
   }
 
   function handleFieldPlayStarted() {
-    setState((current) => {
-      captureInputSnapshot(current);
-      return {
-        ...current,
-        game: {
-          ...current.game,
-          gameStarted: true
-        }
-      };
-    });
+    captureInputSnapshot(state);
+    setState((current) => ({
+      ...current,
+      game: {
+        ...current.game,
+        gameStarted: true
+      }
+    }));
     setNeedsPlateConfirm(true);
   }
 
   function handleHomeRun() {
-    setState((current) => {
-      captureInputSnapshot(current);
-      return applyHomeRun(current);
-    });
+    captureInputSnapshot(state);
+    setState((current) => applyHomeRun(current));
     setNeedsPlateConfirm(true);
   }
 
@@ -679,7 +679,7 @@ export function App() {
     }
 
     setState(nextState);
-    inputSnapshotRef.current = null;
+    if (endsAtBat) clearPitchHistory();
     setPendingFieldOuts([]);
     setPitchAdvanceRequest(null);
     setPendingPitchContext(null);
@@ -690,10 +690,13 @@ export function App() {
     setFieldResetToken((token) => token + 1);
   }
 
-  function handleCancelPlate() {
-    const snapshot = inputSnapshotRef.current;
-    if (snapshot) setState(structuredClone(snapshot));
-    inputSnapshotRef.current = null;
+  function handleRewindPitch() {
+    const stack = historyStackRef.current;
+    if (stack.length === 0) return;
+    const previous = stack[stack.length - 1];
+    historyStackRef.current = stack.slice(0, -1);
+    setHistoryDepth(historyStackRef.current.length);
+    setState(structuredClone(previous));
     setPendingFieldOuts([]);
     setPitchAdvanceRequest(null);
     setPendingPitchContext(null);
@@ -963,14 +966,16 @@ export function App() {
               </button>
             </section>
 
-            {needsPlateConfirm && !plateActionsLocked && (
+            {(needsPlateConfirm || historyDepth > 0) && !plateActionsLocked && (
               <section className="plate-actions" aria-label="plate actions">
-                <button className="plate-cancel-button" type="button" onClick={handleCancelPlate}>
-                  取り消し
+                <button className="plate-rewind-button" type="button" onClick={handleRewindPitch}>
+                  巻き戻し
                 </button>
-                <button className="plate-confirm-button" type="button" onClick={handleConfirmPlate}>
-                  {"\u78ba\u5b9a"}
-                </button>
+                {needsPlateConfirm && (
+                  <button className="plate-confirm-button" type="button" onClick={handleConfirmPlate}>
+                    {"確定"}
+                  </button>
+                )}
               </section>
             )}
 
@@ -1676,7 +1681,7 @@ function ScoreOutputView({
   }
 
   function handleCellClick(index: number) {
-    onRequestConfirm("この打席からやり直しますか？この打席より後の記録は削除されます。", () => onRedoAtBat(index));
+    onRequestConfirm("この打席からやり直しますか？現在入力中の内容は失われます。", () => onRedoAtBat(index));
   }
 
   return (
