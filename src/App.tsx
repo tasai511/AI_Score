@@ -4,6 +4,7 @@ import type {
   AdvanceReason,
   AppState,
   BaseKey,
+  BaseRunners,
   BatterBox,
   PitchType,
   Player,
@@ -546,6 +547,19 @@ export function App() {
     setNeedsPlateConfirm(true);
   }
 
+  function handleRevertForcedAdvance(snapshot: { runners: BaseRunners; ownScore: number; opponentScore: number }) {
+    setState((current) => ({
+      ...current,
+      game: {
+        ...current.game,
+        runners: snapshot.runners,
+        runnerFirst: Boolean(snapshot.runners.first),
+        ownScore: snapshot.ownScore,
+        opponentScore: snapshot.opponentScore
+      }
+    }));
+  }
+
   function handleRunnerMove(
     source: RunnerSource,
     destination: RunnerDestination,
@@ -896,6 +910,7 @@ export function App() {
               onFieldOutDecision={handleFieldOutDecision}
               onInitialFieldErrorDecision={handleInitialFieldErrorDecision}
               onThrowErrorDecision={handleThrowErrorDecision}
+              onRevertForcedAdvance={handleRevertForcedAdvance}
               onFieldDecisionCleared={clearFieldOutDecision}
               onBatterBoxChange={handleBatterBoxChange}
               onFieldFoulStart={handleFieldFoulStart}
@@ -1857,6 +1872,7 @@ function FieldStage({
   onFieldOutDecision,
   onInitialFieldErrorDecision,
   onThrowErrorDecision,
+  onRevertForcedAdvance,
   onFieldDecisionCleared,
   onBatterBoxChange,
   onFieldFoulStart,
@@ -1892,6 +1908,7 @@ function FieldStage({
   ) => void;
   onInitialFieldErrorDecision: (fieldingPosition?: string) => void;
   onThrowErrorDecision: (resultLabel: string) => void;
+  onRevertForcedAdvance: (snapshot: { runners: BaseRunners; ownScore: number; opponentScore: number }) => void;
   onFieldDecisionCleared: (nodeId: string) => void;
   onBatterBoxChange: (box: BatterBox) => void;
   onFieldFoulStart: () => boolean;
@@ -1988,6 +2005,7 @@ function FieldStage({
   const fieldLayerRef = useRef<HTMLDivElement | null>(null);
   const targetRefs = useRef<Record<string, HTMLElement | null>>({});
   const runnerAnimationTimerRef = useRef<number | null>(null);
+  const preForcedAdvanceRef = useRef<{ runners: BaseRunners; ownScore: number; opponentScore: number } | null>(null);
   const positionMoveAnimationFrameRefs = useRef<Record<string, number>>({});
   const decisionBubbleTimerRefs = useRef<number[]>([]);
   const advanceTargetTimerRef = useRef<number | null>(null);
@@ -2152,6 +2170,7 @@ function FieldStage({
     decisionBubbleTimerRefs.current = [];
     Object.values(positionMoveAnimationFrameRefs.current).forEach((frameId) => window.cancelAnimationFrame(frameId));
     positionMoveAnimationFrameRefs.current = {};
+    preForcedAdvanceRef.current = null;
   }, [resetToken]);
 
   useEffect(() => {
@@ -4333,6 +4352,11 @@ function FieldStage({
     setAdvanceTarget(null);
     onFieldPlayStarted();
     if (shouldAutoAdvanceBatterOnHit) {
+      preForcedAdvanceRef.current = {
+        runners: structuredClone(state.game.runners),
+        ownScore: state.game.ownScore,
+        opponentScore: state.game.opponentScore
+      };
       const initialHitLocation = target.kind === "position" && target.key.endsWith("-over") ? `${target.label}+` : target.label;
       startForcedHitAdvanceAnimation(initialHitLocation, shouldDelayHomeRunDecisionBubble ? () => activateFieldDecisionNode(createdNodeId) : undefined);
     }
@@ -4528,6 +4552,11 @@ function FieldStage({
         window.clearTimeout(runnerAnimationTimerRef.current);
         runnerAnimationTimerRef.current = null;
         setRunnerAnimations([]);
+      }
+      if (isInitialHitDecisionNode(decidedNode) && preForcedAdvanceRef.current) {
+        onRevertForcedAdvance(preForcedAdvanceRef.current);
+        setScoredRunners([]);
+        preForcedAdvanceRef.current = null;
       }
       onFieldOutDecision(
         decidedNode.id,
