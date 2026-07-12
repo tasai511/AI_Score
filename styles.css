@@ -713,40 +713,49 @@ input {
 
 .output-grid-scroll {
   overflow-x: auto;
-  border: 1px solid #e2e5eb;
-  border-radius: 8px;
+  border-radius: 2px;
 }
 
 .output-grid {
+  --scorebook-green: #1d5c39;
+  border: 3px solid var(--scorebook-green);
   border-collapse: collapse;
+  background: #fff;
   font-size: 0.72rem;
 }
 
 .output-grid th,
 .output-grid td {
-  border: 1px solid #d7dbe2;
+  border: 1px solid #2b2b2b;
   white-space: nowrap;
 }
 
 .output-grid thead th {
   position: sticky;
   top: 0;
-  z-index: 1;
-  background: #f0f2f6;
-  color: #374151;
-  font-weight: 700;
+  z-index: 2;
+  background: #fff;
+  color: #111;
+  font-weight: 800;
   padding: 6px 4px;
+  border-bottom: 3px solid var(--scorebook-green);
 }
 
 .output-col-order {
-  width: 28px;
-  min-width: 28px;
+  width: 30px;
+  min-width: 30px;
   text-align: center;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+thead .output-col-order {
+  font-size: 0.8rem;
 }
 
 .output-col-name {
-  width: 92px;
-  min-width: 92px;
+  width: 96px;
+  min-width: 96px;
   padding: 0 6px;
   text-align: left;
   overflow: hidden;
@@ -762,9 +771,31 @@ input {
 }
 
 .output-col-inning {
-  width: 74px;
-  min-width: 74px;
+  width: 76px;
+  min-width: 76px;
   text-align: center;
+}
+
+.output-grid .output-col-inning {
+  border-left: 3px solid var(--scorebook-green);
+}
+
+thead .output-col-inning {
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.output-col-supplement {
+  width: 76px;
+  min-width: 76px;
+  text-align: center;
+  color: #6b6440;
+  font-size: 0.68rem;
+}
+
+.output-grid .output-col-supplement {
+  background: #faf6d9;
+  border-left: 3px solid var(--scorebook-green);
 }
 
 .output-stack-line {
@@ -773,12 +804,12 @@ input {
 }
 
 .output-stack-line:not(:last-child) {
-  border-bottom: 1px dashed #d7dbe2;
+  border-bottom: 1px dashed #c8ccd3;
 }
 
 .output-grid tbody td.output-col-name {
   position: sticky;
-  left: 28px;
+  left: 30px;
   z-index: 1;
   background: #fff;
 }
@@ -791,11 +822,24 @@ input {
 }
 
 .output-cell {
-  width: 74px;
-  min-width: 74px;
-  height: 56px;
+  width: 76px;
+  min-width: 76px;
+  height: 58px;
   padding: 2px;
   vertical-align: middle;
+}
+
+.output-grid td.output-cell {
+  border-left: 3px solid var(--scorebook-green);
+}
+
+.output-grid td.output-cell-supplement {
+  background: #faf6d9;
+}
+
+.output-grid tbody tr:first-child td,
+.output-grid tbody tr:first-child th {
+  border-top: none;
 }
 
 .score-matrix-output {

@@ -664,7 +664,7 @@ export function App() {
     const withFieldOuts = pendingFieldOuts.reduce((next, fieldOut) => applyPendingFieldOutDecision(next, fieldOut), state);
     const endsAtBat = isCurrentBatterPlateAppearanceComplete(withFieldOuts) || withFieldOuts.game.outs >= 3;
     const nextScoreLog = endsAtBat
-      ? [...withFieldOuts.scoreLog, buildScoreLogEntry(withFieldOuts, pendingFieldOuts)]
+      ? [...withFieldOuts.scoreLog, buildScoreLogEntry(state, pendingFieldOuts)]
       : withFieldOuts.scoreLog;
     const nextState: AppState = {
       ...confirmPlateAppearance(withFieldOuts),
@@ -1639,7 +1639,8 @@ function ScoreOutputView({
   const battingOrderSlots = Array.from({ length: 9 }, (_, index) => index + 1);
 
   function getEntry(battingOrder: number, inning: number) {
-    return entries.find(({ entry }) => entry.battingOrder === battingOrder && entry.inning === inning);
+    const matches = entries.filter(({ entry }) => entry.battingOrder === battingOrder && entry.inning === inning);
+    return matches[matches.length - 1];
   }
 
   function getSlotPlayers(battingOrder: number) {
@@ -1702,6 +1703,7 @@ function ScoreOutputView({
                   {inning}
                 </th>
               ))}
+              <th className="output-col-supplement">補足</th>
             </tr>
           </thead>
           <tbody>
@@ -1760,6 +1762,7 @@ function ScoreOutputView({
                       </td>
                     );
                   })}
+                  <td className="output-cell output-cell-supplement" />
                 </tr>
               );
             })}
