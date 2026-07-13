@@ -801,7 +801,6 @@ thead .output-col-inning {
 .output-col-boxnumber {
   width: 60px;
   min-width: 60px;
-  height: 58px;
   padding: 0;
   text-align: center;
   vertical-align: middle;
@@ -826,35 +825,37 @@ thead .output-col-inning {
 
 .output-col-name,
 .output-col-position {
-  height: 58px;
   vertical-align: top;
   padding-top: 0;
   padding-bottom: 0;
 }
 
-.output-stack-lines {
+.output-player-block {
   display: flex;
   flex-direction: column;
-  height: 100%;
 }
 
 .output-stack-line {
-  flex: 1 1 0;
+  min-height: 19px;
+  padding: 1px 4px;
+  line-height: 1.2;
   display: flex;
   align-items: center;
   box-sizing: border-box;
+  border-bottom: 1px solid #2b2b2b;
 }
 
 .output-col-name .output-stack-line {
   justify-content: flex-start;
+  padding: 1px 6px;
 }
 
 .output-col-position .output-stack-line {
   justify-content: center;
 }
 
-.output-stack-line:not(:last-child) {
-  border-bottom: 1px solid #2b2b2b;
+.output-player-block:last-child .output-stack-line:last-child {
+  border-bottom: none;
 }
 
 .output-grid tbody td.output-col-name {
@@ -874,7 +875,7 @@ thead .output-col-inning {
 .output-cell {
   width: 76px;
   min-width: 76px;
-  height: 58px;
+  min-height: 58px;
   padding: 2px;
   vertical-align: middle;
 }

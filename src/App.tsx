@@ -1648,39 +1648,56 @@ function ScoreOutputView({
     return matches[matches.length - 1];
   }
 
-  const SLOT_ROW_COUNT = 3;
+  const SLOT_PLAYER_COUNT = 3;
+  const SLOT_POSITION_COUNT = 3;
 
-  function getSlotRows(battingOrder: number) {
-    const rows: { jerseyNumber: string; playerName: string; positionNumber: string; batterBox: BatterBox }[] = [];
+  function getSlotPlayers(battingOrder: number) {
+    const indexByKey = new Map<string, number>();
+    const players: { jerseyNumber: string; playerName: string; batterBox: BatterBox; positions: string[] }[] = [];
     entries
       .filter(({ entry }) => entry.battingOrder === battingOrder)
       .forEach(({ entry }) => {
         const key = entry.jerseyNumber || entry.playerName;
         if (!key) return;
-        const last = rows[rows.length - 1];
-        const isSameAsLast = Boolean(last) && (last!.jerseyNumber || last!.playerName) === key && last!.positionNumber === entry.positionNumber;
-        if (isSameAsLast || rows.length >= SLOT_ROW_COUNT) return;
-        rows.push({
-          jerseyNumber: entry.jerseyNumber,
-          playerName: entry.playerName,
-          positionNumber: entry.positionNumber,
-          batterBox: entry.batterBox
-        });
+        const existingIndex = indexByKey.get(key);
+        if (existingIndex === undefined) {
+          if (players.length >= SLOT_PLAYER_COUNT) return;
+          indexByKey.set(key, players.length);
+          players.push({
+            jerseyNumber: entry.jerseyNumber,
+            playerName: entry.playerName,
+            batterBox: entry.batterBox,
+            positions: entry.positionNumber ? [entry.positionNumber] : []
+          });
+          return;
+        }
+        const player = players[existingIndex];
+        if (
+          entry.positionNumber &&
+          player.positions[player.positions.length - 1] !== entry.positionNumber &&
+          player.positions.length < SLOT_POSITION_COUNT
+        ) {
+          player.positions.push(entry.positionNumber);
+        }
       });
 
-    if (rows.length === 0) {
+    if (players.length === 0) {
       const fallback = order[battingOrder - 1];
       if (fallback) {
-        rows.push({
+        players.push({
           jerseyNumber: fallback.jerseyNumber,
           playerName: fallback.name,
-          positionNumber: fallback.positionNumber,
-          batterBox: fallback.batterBox
+          batterBox: fallback.batterBox,
+          positions: fallback.positionNumber ? [fallback.positionNumber] : []
         });
       }
     }
 
-    return Array.from({ length: SLOT_ROW_COUNT }, (_, index) => rows[index] ?? null);
+    return Array.from({ length: SLOT_PLAYER_COUNT }, (_, playerIndex) => {
+      const player = players[playerIndex] ?? null;
+      const positions = Array.from({ length: SLOT_POSITION_COUNT }, (_, positionIndex) => player?.positions[positionIndex] ?? null);
+      return { player, positions };
+    });
   }
 
   function handleCellClick(index: number) {
@@ -1716,32 +1733,35 @@ function ScoreOutputView({
           </thead>
           <tbody>
             {battingOrderSlots.map((battingOrder) => {
-              const rows = getSlotRows(battingOrder);
+              const slotPlayers = getSlotPlayers(battingOrder);
+              const primary = slotPlayers[0]?.player ?? null;
               return (
                 <tr key={battingOrder}>
                   <td className="output-col-order">{battingOrder}</td>
                   <td className="output-col-name">
-                    <div className="output-stack-lines">
-                      {rows.map((row, rowIndex) => (
-                        <div className="output-stack-line" key={rowIndex}>
-                          {row ? row.playerName : " "}
-                        </div>
-                      ))}
-                    </div>
+                    {slotPlayers.map(({ player }, playerIndex) => (
+                      <div className="output-player-block" key={playerIndex}>
+                        <div className="output-stack-line">{player ? player.playerName : " "}</div>
+                        <div className="output-stack-line output-stack-filler"> </div>
+                        <div className="output-stack-line output-stack-filler"> </div>
+                      </div>
+                    ))}
                   </td>
                   <td className="output-col-position">
-                    <div className="output-stack-lines">
-                      {rows.map((row, rowIndex) => (
-                        <div className="output-stack-line" key={rowIndex}>
-                          {row ? row.positionNumber : " "}
-                        </div>
-                      ))}
-                    </div>
+                    {slotPlayers.map(({ positions }, playerIndex) => (
+                      <div className="output-player-block" key={playerIndex}>
+                        {positions.map((position, positionIndex) => (
+                          <div className="output-stack-line" key={positionIndex}>
+                            {position ?? " "}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
                   </td>
                   <td className="output-col-boxnumber" colSpan={2}>
                     <div className="output-boxnumber-value">
-                      <span className="output-boxnumber-box">{rows[0] ? (rows[0].batterBox === "left" ? "左" : "右") : ""}</span>
-                      <span className="output-boxnumber-jersey">{rows[0] ? rows[0].jerseyNumber : ""}</span>
+                      <span className="output-boxnumber-box">{primary ? (primary.batterBox === "left" ? "左" : "右") : ""}</span>
+                      <span className="output-boxnumber-jersey">{primary ? primary.jerseyNumber : ""}</span>
                     </div>
                   </td>
                   {innings.map((inning) => {
