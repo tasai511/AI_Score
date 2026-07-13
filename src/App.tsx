@@ -1739,24 +1739,26 @@ function ScoreOutputView({
                 <tr key={battingOrder}>
                   <td className="output-col-order">{battingOrder}</td>
                   <td className="output-col-name">
-                    {slotPlayers.map(({ player }, playerIndex) => (
-                      <div className="output-player-block" key={playerIndex}>
-                        <div className="output-stack-line">{player ? player.playerName : " "}</div>
-                        <div className="output-stack-line output-stack-filler"> </div>
-                        <div className="output-stack-line output-stack-filler"> </div>
-                      </div>
-                    ))}
+                    <div className="output-stack-lines">
+                      {slotPlayers.map(({ player }, playerIndex) => (
+                        <div className="output-stack-line" key={playerIndex}>
+                          {player ? player.playerName : " "}
+                        </div>
+                      ))}
+                    </div>
                   </td>
                   <td className="output-col-position">
-                    {slotPlayers.map(({ positions }, playerIndex) => (
-                      <div className="output-player-block" key={playerIndex}>
-                        {positions.map((position, positionIndex) => (
-                          <div className="output-stack-line" key={positionIndex}>
-                            {position ?? " "}
-                          </div>
-                        ))}
-                      </div>
-                    ))}
+                    <div className="output-stack-lines">
+                      {slotPlayers.map(({ positions }, playerIndex) => (
+                        <div className="output-stack-line output-position-row" key={playerIndex}>
+                          {positions.map((position, positionIndex) => (
+                            <span className="output-position-box" key={positionIndex}>
+                              {position ?? ""}
+                            </span>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
                   </td>
                   <td className="output-col-boxnumber" colSpan={2}>
                     <div className="output-boxnumber-value">

@@ -762,7 +762,12 @@ thead .output-col-order {
   text-overflow: ellipsis;
 }
 
-.output-col-position,
+.output-col-position {
+  width: 90px;
+  min-width: 90px;
+  text-align: center;
+}
+
 .output-col-box,
 .output-col-number {
   width: 30px;
@@ -825,24 +830,25 @@ thead .output-col-inning {
 
 .output-col-name,
 .output-col-position {
+  height: 58px;
   vertical-align: top;
   padding-top: 0;
   padding-bottom: 0;
 }
 
-.output-player-block {
+.output-stack-lines {
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 .output-stack-line {
-  min-height: 19px;
-  padding: 1px 4px;
-  line-height: 1.2;
+  flex: 1 1 0;
   display: flex;
   align-items: center;
   box-sizing: border-box;
-  border-bottom: 1px solid #2b2b2b;
+  padding: 1px 4px;
+  line-height: 1.2;
 }
 
 .output-col-name .output-stack-line {
@@ -850,12 +856,24 @@ thead .output-col-inning {
   padding: 1px 6px;
 }
 
-.output-col-position .output-stack-line {
+.output-position-row {
   justify-content: center;
+  padding: 0;
+  gap: 0;
 }
 
-.output-player-block:last-child .output-stack-line:last-child {
-  border-bottom: none;
+.output-position-box {
+  flex: 1 1 0;
+  text-align: center;
+  border-right: 1px solid #2b2b2b;
+}
+
+.output-position-box:last-child {
+  border-right: none;
+}
+
+.output-stack-line:not(:last-child) {
+  border-bottom: 1px solid #2b2b2b;
 }
 
 .output-grid tbody td.output-col-name {
@@ -875,7 +893,7 @@ thead .output-col-inning {
 .output-cell {
   width: 76px;
   min-width: 76px;
-  min-height: 58px;
+  height: 58px;
   padding: 2px;
   vertical-align: middle;
 }
