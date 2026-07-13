@@ -4416,8 +4416,8 @@ function FieldStage({
       const isFirstTarget = !lastNode;
       const isInitialHit = isFirstTarget && (target.kind === "position" || target.kind === "foul");
       const currentFoulCatchMode = lastNode?.kind === "foul" && target.kind === "position";
-      const lastNodeHasIncomingSegment = lastNode ? current.segments.some((segment) => segment.toNodeId === lastNode.id) : false;
-      const shouldUseInitialThrowFromPendingBase = target.kind === "position" && lastNode?.kind === "base" && !lastNodeHasIncomingSegment;
+      const lastNodeIsBallHolder = Boolean(lastNode && currentBallHolderNode && lastNode.id === currentBallHolderNode.id);
+      const shouldUseInitialThrowFromPendingBase = target.kind === "position" && lastNode?.kind === "base" && !lastNodeIsBallHolder;
       const ballHolderNodeForSegment =
         shouldUseInitialThrowFromPendingBase && currentBallHolderNode && currentBallHolderNode.id !== lastNode?.id ? currentBallHolderNode : null;
       const shouldUseBallHolderFromPendingBase = Boolean(ballHolderNodeForSegment);
@@ -4457,7 +4457,7 @@ function FieldStage({
 
       return {
         activeNodeId: shouldDelayBaseDecisionBubble || shouldDelayHomeRunDecisionBubble ? null : node.id,
-        ballNodeId: target.kind === "position" || target.kind === "base" || target.kind === "foul" ? node.id : current.ballNodeId,
+        ballNodeId: segmentKind === "throw" || segmentKind === "hit" ? node.id : current.ballNodeId,
         nodes: [
           ...current.nodes.map((currentNode) =>
             delayedBaseDecisionSourceNode && currentNode.id === delayedBaseDecisionSourceNode.id && currentNode.kind === "position"
