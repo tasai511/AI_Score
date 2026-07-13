@@ -798,10 +798,34 @@ thead .output-col-inning {
   border-left: 3px solid var(--scorebook-green);
 }
 
+.output-col-boxnumber {
+  width: 60px;
+  min-width: 60px;
+  height: 58px;
+  padding: 0;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.output-boxnumber-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.output-boxnumber-box,
+.output-boxnumber-jersey {
+  flex: 1 1 0;
+  text-align: center;
+}
+
+.output-boxnumber-box {
+  border-right: 1px solid #2b2b2b;
+}
+
 .output-col-name,
-.output-col-position,
-.output-col-box,
-.output-col-number {
+.output-col-position {
   height: 58px;
   vertical-align: top;
   padding-top: 0;
@@ -825,9 +849,7 @@ thead .output-col-inning {
   justify-content: flex-start;
 }
 
-.output-col-position .output-stack-line,
-.output-col-box .output-stack-line,
-.output-col-number .output-stack-line {
+.output-col-position .output-stack-line {
   justify-content: center;
 }
 

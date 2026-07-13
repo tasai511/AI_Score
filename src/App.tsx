@@ -1738,22 +1738,10 @@ function ScoreOutputView({
                       ))}
                     </div>
                   </td>
-                  <td className="output-col-box">
-                    <div className="output-stack-lines">
-                      {rows.map((row, rowIndex) => (
-                        <div className="output-stack-line" key={rowIndex}>
-                          {row ? (row.batterBox === "left" ? "左" : "右") : " "}
-                        </div>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="output-col-number">
-                    <div className="output-stack-lines">
-                      {rows.map((row, rowIndex) => (
-                        <div className="output-stack-line" key={rowIndex}>
-                          {row ? row.jerseyNumber : " "}
-                        </div>
-                      ))}
+                  <td className="output-col-boxnumber" colSpan={2}>
+                    <div className="output-boxnumber-value">
+                      <span className="output-boxnumber-box">{rows[0] ? (rows[0].batterBox === "left" ? "左" : "右") : ""}</span>
+                      <span className="output-boxnumber-jersey">{rows[0] ? rows[0].jerseyNumber : ""}</span>
                     </div>
                   </td>
                   {innings.map((inning) => {
