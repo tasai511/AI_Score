@@ -762,12 +762,7 @@ thead .output-col-order {
   text-overflow: ellipsis;
 }
 
-.output-col-position {
-  width: 90px;
-  min-width: 90px;
-  text-align: center;
-}
-
+.output-col-position-cell,
 .output-col-box,
 .output-col-number {
   width: 30px;
@@ -803,81 +798,20 @@ thead .output-col-inning {
   border-left: 3px solid var(--scorebook-green);
 }
 
-.output-col-boxnumber {
-  width: 60px;
-  min-width: 60px;
-  padding: 0;
-  text-align: center;
-  vertical-align: middle;
-}
-
-.output-boxnumber-value {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-}
-
-.output-boxnumber-box,
-.output-boxnumber-jersey {
-  flex: 1 1 0;
-  text-align: center;
-}
-
-.output-boxnumber-box {
-  border-right: 1px solid #2b2b2b;
-}
-
 .output-col-name,
-.output-col-position {
-  height: 58px;
-  vertical-align: top;
-  padding-top: 0;
-  padding-bottom: 0;
-}
-
-.output-stack-lines {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.output-stack-line {
-  flex: 1 1 0;
-  display: flex;
-  align-items: center;
-  box-sizing: border-box;
+.output-col-position-cell,
+.output-col-box,
+.output-col-number {
+  height: 19px;
   padding: 1px 4px;
   line-height: 1.2;
-}
-
-.output-col-name .output-stack-line {
-  justify-content: flex-start;
-  padding: 1px 6px;
-}
-
-.output-position-row {
-  align-items: stretch;
-  justify-content: center;
-  padding: 0;
-  gap: 0;
-}
-
-.output-position-box {
-  flex: 1 1 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  vertical-align: middle;
   box-sizing: border-box;
-  border-right: 1px solid #2b2b2b;
 }
 
-.output-position-box:last-child {
-  border-right: none;
-}
-
-.output-stack-line:not(:last-child) {
-  border-bottom: 1px solid #2b2b2b;
+.output-col-name {
+  text-align: left;
+  padding: 1px 6px;
 }
 
 .output-grid tbody td.output-col-name {

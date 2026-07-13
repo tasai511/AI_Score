@@ -1720,7 +1720,9 @@ function ScoreOutputView({
             <tr>
               <th className="output-col-order">打順</th>
               <th className="output-col-name">名前</th>
-              <th className="output-col-position">守備</th>
+              <th className="output-col-position" colSpan={SLOT_POSITION_COUNT}>
+                守備
+              </th>
               <th className="output-col-box">左右</th>
               <th className="output-col-number">#</th>
               {innings.map((inning) => (
@@ -1732,65 +1734,49 @@ function ScoreOutputView({
             </tr>
           </thead>
           <tbody>
-            {battingOrderSlots.map((battingOrder) => {
+            {battingOrderSlots.flatMap((battingOrder) => {
               const slotPlayers = getSlotPlayers(battingOrder);
-              const primary = slotPlayers[0]?.player ?? null;
-              return (
-                <tr key={battingOrder}>
-                  <td className="output-col-order">{battingOrder}</td>
-                  <td className="output-col-name">
-                    <div className="output-stack-lines">
-                      {slotPlayers.map(({ player }, playerIndex) => (
-                        <div className="output-stack-line" key={playerIndex}>
-                          {player ? player.playerName : " "}
-                        </div>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="output-col-position">
-                    <div className="output-stack-lines">
-                      {slotPlayers.map(({ positions }, playerIndex) => (
-                        <div className="output-stack-line output-position-row" key={playerIndex}>
-                          {positions.map((position, positionIndex) => (
-                            <span className="output-position-box" key={positionIndex}>
-                              {position ?? ""}
-                            </span>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="output-col-boxnumber" colSpan={2}>
-                    <div className="output-boxnumber-value">
-                      <span className="output-boxnumber-box">{primary ? (primary.batterBox === "left" ? "左" : "右") : ""}</span>
-                      <span className="output-boxnumber-jersey">{primary ? primary.jerseyNumber : ""}</span>
-                    </div>
-                  </td>
-                  {innings.map((inning) => {
-                    const found = getEntry(battingOrder, inning);
-                    return (
-                      <td key={inning} className="output-cell">
-                        {found && (
-                          <button
-                            type="button"
-                            className="output-cell-button"
-                            aria-label={`${battingOrder}番 ${inning}回の打席をやり直す`}
-                            onClick={() => handleCellClick(found.index)}
-                          >
-                            <ScoreMatrixGraphic
-                              marks={found.entry.marks}
-                              hitType={found.entry.hitType}
-                              showInningEndSlash={found.entry.showInningEndSlash}
-                              className="score-matrix-output"
-                            />
-                          </button>
-                        )}
-                      </td>
-                    );
-                  })}
-                  <td className="output-cell output-cell-supplement" />
+              return slotPlayers.map(({ player, positions }, playerIndex) => (
+                <tr key={`${battingOrder}-${playerIndex}`}>
+                  {playerIndex === 0 && (
+                    <td className="output-col-order" rowSpan={SLOT_PLAYER_COUNT}>
+                      {battingOrder}
+                    </td>
+                  )}
+                  <td className="output-col-name">{player ? player.playerName : ""}</td>
+                  {positions.map((position, positionIndex) => (
+                    <td className="output-col-position-cell" key={positionIndex}>
+                      {position ?? ""}
+                    </td>
+                  ))}
+                  <td className="output-col-box">{player ? (player.batterBox === "left" ? "左" : "右") : ""}</td>
+                  <td className="output-col-number">{player ? player.jerseyNumber : ""}</td>
+                  {playerIndex === 0 &&
+                    innings.map((inning) => {
+                      const found = getEntry(battingOrder, inning);
+                      return (
+                        <td key={inning} className="output-cell" rowSpan={SLOT_PLAYER_COUNT}>
+                          {found && (
+                            <button
+                              type="button"
+                              className="output-cell-button"
+                              aria-label={`${battingOrder}番 ${inning}回の打席をやり直す`}
+                              onClick={() => handleCellClick(found.index)}
+                            >
+                              <ScoreMatrixGraphic
+                                marks={found.entry.marks}
+                                hitType={found.entry.hitType}
+                                showInningEndSlash={found.entry.showInningEndSlash}
+                                className="score-matrix-output"
+                              />
+                            </button>
+                          )}
+                        </td>
+                      );
+                    })}
+                  {playerIndex === 0 && <td className="output-cell output-cell-supplement" rowSpan={SLOT_PLAYER_COUNT} />}
                 </tr>
-              );
+              ));
             })}
           </tbody>
         </table>
