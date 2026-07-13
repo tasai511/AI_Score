@@ -1721,32 +1721,40 @@ function ScoreOutputView({
                 <tr key={battingOrder}>
                   <td className="output-col-order">{battingOrder}</td>
                   <td className="output-col-name">
-                    {rows.map((row, rowIndex) => (
-                      <div className="output-stack-line" key={rowIndex}>
-                        {row ? row.playerName : " "}
-                      </div>
-                    ))}
+                    <div className="output-stack-lines">
+                      {rows.map((row, rowIndex) => (
+                        <div className="output-stack-line" key={rowIndex}>
+                          {row ? row.playerName : " "}
+                        </div>
+                      ))}
+                    </div>
                   </td>
                   <td className="output-col-position">
-                    {rows.map((row, rowIndex) => (
-                      <div className="output-stack-line" key={rowIndex}>
-                        {row ? row.positionNumber : " "}
-                      </div>
-                    ))}
+                    <div className="output-stack-lines">
+                      {rows.map((row, rowIndex) => (
+                        <div className="output-stack-line" key={rowIndex}>
+                          {row ? row.positionNumber : " "}
+                        </div>
+                      ))}
+                    </div>
                   </td>
                   <td className="output-col-box">
-                    {rows.map((row, rowIndex) => (
-                      <div className="output-stack-line" key={rowIndex}>
-                        {row ? (row.batterBox === "left" ? "左" : "右") : " "}
-                      </div>
-                    ))}
+                    <div className="output-stack-lines">
+                      {rows.map((row, rowIndex) => (
+                        <div className="output-stack-line" key={rowIndex}>
+                          {row ? (row.batterBox === "left" ? "左" : "右") : " "}
+                        </div>
+                      ))}
+                    </div>
                   </td>
                   <td className="output-col-number">
-                    {rows.map((row, rowIndex) => (
-                      <div className="output-stack-line" key={rowIndex}>
-                        {row ? row.jerseyNumber : " "}
-                      </div>
-                    ))}
+                    <div className="output-stack-lines">
+                      {rows.map((row, rowIndex) => (
+                        <div className="output-stack-line" key={rowIndex}>
+                          {row ? row.jerseyNumber : " "}
+                        </div>
+                      ))}
+                    </div>
                   </td>
                   {innings.map((inning) => {
                     const found = getEntry(battingOrder, inning);
