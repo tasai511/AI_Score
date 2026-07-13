@@ -1648,45 +1648,39 @@ function ScoreOutputView({
     return matches[matches.length - 1];
   }
 
-  function getSlotPlayers(battingOrder: number) {
-    const indexByKey = new Map<string, number>();
-    const players: { jerseyNumber: string; playerName: string; positions: string[]; batterBox: BatterBox }[] = [];
+  const SLOT_ROW_COUNT = 3;
+
+  function getSlotRows(battingOrder: number) {
+    const rows: { jerseyNumber: string; playerName: string; positionNumber: string; batterBox: BatterBox }[] = [];
     entries
       .filter(({ entry }) => entry.battingOrder === battingOrder)
       .forEach(({ entry }) => {
         const key = entry.jerseyNumber || entry.playerName;
         if (!key) return;
-        const existingIndex = indexByKey.get(key);
-        if (existingIndex === undefined) {
-          if (players.length >= 3) return;
-          indexByKey.set(key, players.length);
-          players.push({
-            jerseyNumber: entry.jerseyNumber,
-            playerName: entry.playerName,
-            positions: entry.positionNumber ? [entry.positionNumber] : [],
-            batterBox: entry.batterBox
-          });
-          return;
-        }
-        const player = players[existingIndex];
-        if (entry.positionNumber && player.positions[player.positions.length - 1] !== entry.positionNumber && player.positions.length < 3) {
-          player.positions.push(entry.positionNumber);
-        }
+        const last = rows[rows.length - 1];
+        const isSameAsLast = Boolean(last) && (last!.jerseyNumber || last!.playerName) === key && last!.positionNumber === entry.positionNumber;
+        if (isSameAsLast || rows.length >= SLOT_ROW_COUNT) return;
+        rows.push({
+          jerseyNumber: entry.jerseyNumber,
+          playerName: entry.playerName,
+          positionNumber: entry.positionNumber,
+          batterBox: entry.batterBox
+        });
       });
 
-    if (players.length === 0) {
+    if (rows.length === 0) {
       const fallback = order[battingOrder - 1];
       if (fallback) {
-        players.push({
+        rows.push({
           jerseyNumber: fallback.jerseyNumber,
           playerName: fallback.name,
-          positions: fallback.positionNumber ? [fallback.positionNumber] : [],
+          positionNumber: fallback.positionNumber,
           batterBox: fallback.batterBox
         });
       }
     }
 
-    return players;
+    return Array.from({ length: SLOT_ROW_COUNT }, (_, index) => rows[index] ?? null);
   }
 
   function handleCellClick(index: number) {
@@ -1722,65 +1716,37 @@ function ScoreOutputView({
           </thead>
           <tbody>
             {battingOrderSlots.map((battingOrder) => {
-              const players = getSlotPlayers(battingOrder);
+              const rows = getSlotRows(battingOrder);
               return (
                 <tr key={battingOrder}>
                   <td className="output-col-order">{battingOrder}</td>
                   <td className="output-col-name">
-                    {players.map((player, playerIndex) => {
-                      const lineCount = Math.max(1, player.positions.length);
-                      return (
-                        <div className="output-player-block" key={player.jerseyNumber || playerIndex}>
-                          <div className="output-stack-line">{player.playerName}</div>
-                          {Array.from({ length: lineCount - 1 }).map((_, fillerIndex) => (
-                            <div className="output-stack-line output-stack-filler" key={fillerIndex}>
-                              {" "}
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })}
+                    {rows.map((row, rowIndex) => (
+                      <div className="output-stack-line" key={rowIndex}>
+                        {row ? row.playerName : " "}
+                      </div>
+                    ))}
                   </td>
                   <td className="output-col-position">
-                    {players.map((player, playerIndex) => (
-                      <div className="output-player-block" key={player.jerseyNumber || playerIndex}>
-                        {(player.positions.length ? player.positions : [""]).map((position, positionIndex) => (
-                          <div className="output-stack-line" key={positionIndex}>
-                            {position}
-                          </div>
-                        ))}
+                    {rows.map((row, rowIndex) => (
+                      <div className="output-stack-line" key={rowIndex}>
+                        {row ? row.positionNumber : " "}
                       </div>
                     ))}
                   </td>
                   <td className="output-col-box">
-                    {players.map((player, playerIndex) => {
-                      const lineCount = Math.max(1, player.positions.length);
-                      return (
-                        <div className="output-player-block" key={player.jerseyNumber || playerIndex}>
-                          <div className="output-stack-line">{player.batterBox === "left" ? "左" : "右"}</div>
-                          {Array.from({ length: lineCount - 1 }).map((_, fillerIndex) => (
-                            <div className="output-stack-line output-stack-filler" key={fillerIndex}>
-                              {" "}
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })}
+                    {rows.map((row, rowIndex) => (
+                      <div className="output-stack-line" key={rowIndex}>
+                        {row ? (row.batterBox === "left" ? "左" : "右") : " "}
+                      </div>
+                    ))}
                   </td>
                   <td className="output-col-number">
-                    {players.map((player, playerIndex) => {
-                      const lineCount = Math.max(1, player.positions.length);
-                      return (
-                        <div className="output-player-block" key={player.jerseyNumber || playerIndex}>
-                          <div className="output-stack-line">{player.jerseyNumber}</div>
-                          {Array.from({ length: lineCount - 1 }).map((_, fillerIndex) => (
-                            <div className="output-stack-line output-stack-filler" key={fillerIndex}>
-                              {" "}
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })}
+                    {rows.map((row, rowIndex) => (
+                      <div className="output-stack-line" key={rowIndex}>
+                        {row ? row.jerseyNumber : " "}
+                      </div>
+                    ))}
                   </td>
                   {innings.map((inning) => {
                     const found = getEntry(battingOrder, inning);

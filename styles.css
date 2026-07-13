@@ -803,7 +803,7 @@ thead .output-col-inning {
   line-height: 1.2;
 }
 
-.output-player-block:not(:last-child) {
+.output-stack-line:not(:last-child) {
   border-bottom: 1px dashed #c8ccd3;
 }
 
