@@ -122,7 +122,7 @@ function getPlateResultArea(
   if (pendingBatterOut?.resultLabel === "走死") return getRunnerDestinationArea(pendingBatterOut.destination) || currentBatterBase || "result";
   if (pendingBatterOut?.resultLabel) return "result";
   if (result === "本") return "home";
-  if (currentBatterBase && isFielderChoiceResult(result)) return currentBatterBase;
+  if (isFielderChoiceResult(result)) return "first";
   if (currentBatterBase && (result === "B" || result === "HP" || isErrorResult(result))) return currentBatterBase;
   if (currentBatterBase && !result) return currentBatterBase;
   return "result";
@@ -230,7 +230,7 @@ function isHitLocationOverFielder(runner: RunnerState) {
 }
 
 function shouldDrawAdvancePath(advance: RunnerState["scoreAdvances"][number], blockedDestination?: RunnerDestination) {
-  if (advance.reason !== "hit" && advance.reason !== "error") return false;
+  if (advance.reason !== "hit" && advance.reason !== "error" && advance.reason !== "fielder-choice") return false;
   if (blockedDestination && advance.destination === blockedDestination) return false;
   return true;
 }
@@ -391,7 +391,7 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
     marks.push({
       kind: "result",
       text: resultLabel,
-      area: isFielderChoiceResult(result) ? currentBase || "first" : "result"
+      area: isFielderChoiceResult(result) ? "first" : "result"
     });
   }
 

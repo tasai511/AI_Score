@@ -180,8 +180,12 @@ function hasJapaneseScoreText(marks) {
 
   const batterMarks = rules.buildRunnerScoreCellMarks(batterRunner, null, "first");
   assert.equal(batterMarks.filter((mark) => mark.kind === "result" && mark.text === "4-" && mark.area === "first").length, 1);
-  assert.equal(batterMarks.some((mark) => mark.kind === "advance"), false);
+  assert.equal(batterMarks.filter((mark) => mark.kind === "advance" && mark.area === "first").length, 1);
   assert.equal(batterMarks.some((mark) => mark.kind === "hitLocation"), false);
+
+  const advancedRunner = { ...batterRunner, scoreAdvances: [...batterRunner.scoreAdvances, { destination: "second", reason: "steal" }] };
+  const advancedMarks = rules.buildRunnerScoreCellMarks(advancedRunner, null, "second");
+  assert.equal(advancedMarks.filter((mark) => mark.kind === "result" && mark.text === "4-" && mark.area === "first").length, 1);
 }
 
 {
