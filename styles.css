@@ -5,6 +5,7 @@
   --opponent-team-color-rgb: 42 141 255;
   --team-red-bright: #ff533f;
   --team-blue-bright: #47a3ff;
+  --scorebook-green: #1d5c39;
   color: #222;
   background: #e8edf4;
   font-family:
@@ -832,11 +833,12 @@ thead .output-col-inning {
   width: 76px;
   min-width: 76px;
   height: 58px;
-  padding: 2px;
+  padding: 0;
   vertical-align: middle;
 }
 
 .output-grid td.output-cell {
+  border: 1px solid var(--scorebook-green);
   border-left: 3px solid var(--scorebook-green);
 }
 
@@ -851,22 +853,30 @@ thead .output-col-inning {
 
 .score-matrix-output {
   width: 100%;
+  height: 100%;
   box-shadow: none;
-  border-radius: 2px;
+  border-radius: 0;
+  background: transparent;
+}
+
+.score-matrix-output img {
+  width: 100%;
+  height: 100%;
 }
 
 .output-cell-button {
   display: block;
   width: 100%;
+  height: 100%;
   padding: 0;
-  border-radius: 2px;
+  border-radius: 0;
   background: none;
 }
 
 .output-cell-button:hover .score-matrix-output,
 .output-cell-button:focus-visible .score-matrix-output {
   outline: 2px solid #287ae8;
-  outline-offset: 1px;
+  outline-offset: -2px;
 }
 
 .title-shell {
@@ -1086,7 +1096,7 @@ i.red {
 }
 
 .matrix-advance-lines line {
-  stroke: #e83b2e;
+  stroke: var(--scorebook-green);
   stroke-width: 22;
   stroke-linecap: round;
 }
@@ -1106,12 +1116,12 @@ i.red {
 }
 
 .score-symbol {
-  fill: #111;
+  fill: var(--scorebook-green);
   font-size: 128px;
 }
 
 .score-symbol-shape {
-  color: #111;
+  color: var(--scorebook-green);
 }
 
 .score-symbol-stroke path {
@@ -1127,27 +1137,27 @@ i.red {
 }
 
 .matrix-play {
-  fill: #111;
+  fill: var(--scorebook-green);
   font-size: 160px;
 }
 
 .matrix-note {
-  fill: #111;
+  fill: var(--scorebook-green);
   font-size: 118px;
 }
 
 .matrix-hit-location {
-  fill: #e83b2e;
+  fill: var(--scorebook-green);
 }
 
 .matrix-hit-over-dot {
-  fill: #e83b2e;
+  fill: var(--scorebook-green);
   stroke: #fff;
   stroke-width: 6;
 }
 
 .matrix-out {
-  fill: #111;
+  fill: var(--scorebook-green);
   font-family: Georgia, "Times New Roman", serif;
   font-size: 330px;
   font-weight: 800;
@@ -1156,25 +1166,25 @@ i.red {
 
 .matrix-inning-end-slash path {
   fill: none;
-  stroke: #111;
+  stroke: var(--scorebook-green);
   stroke-width: 16;
   stroke-linecap: square;
 }
 
 .matrix-fielder-out circle {
   fill: #fff;
-  stroke: #111;
+  stroke: var(--scorebook-green);
   stroke-width: 9;
 }
 
 .matrix-score-mark {
-  fill: #e83b2e;
+  fill: var(--scorebook-green);
   stroke: #fff;
   stroke-width: 14;
 }
 
 .matrix-fielder-out text {
-  fill: #111;
+  fill: var(--scorebook-green);
   font-size: 58px;
 }
 
