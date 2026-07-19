@@ -6,6 +6,7 @@
   --team-red-bright: #ff533f;
   --team-blue-bright: #47a3ff;
   --scorebook-green: #1d5c39;
+  --scorebook-mark-green: #16a34a;
   color: #222;
   background: #e8edf4;
   font-family:
@@ -1096,7 +1097,7 @@ i.red {
 }
 
 .matrix-advance-lines line {
-  stroke: var(--scorebook-green);
+  stroke: var(--scorebook-mark-green);
   stroke-width: 22;
   stroke-linecap: round;
 }
@@ -1116,12 +1117,12 @@ i.red {
 }
 
 .score-symbol {
-  fill: var(--scorebook-green);
+  fill: var(--scorebook-mark-green);
   font-size: 128px;
 }
 
 .score-symbol-shape {
-  color: var(--scorebook-green);
+  color: var(--scorebook-mark-green);
 }
 
 .score-symbol-stroke path {
@@ -1137,27 +1138,27 @@ i.red {
 }
 
 .matrix-play {
-  fill: var(--scorebook-green);
+  fill: var(--scorebook-mark-green);
   font-size: 160px;
 }
 
 .matrix-note {
-  fill: var(--scorebook-green);
+  fill: var(--scorebook-mark-green);
   font-size: 118px;
 }
 
 .matrix-hit-location {
-  fill: var(--scorebook-green);
+  fill: var(--scorebook-mark-green);
 }
 
 .matrix-hit-over-dot {
-  fill: var(--scorebook-green);
+  fill: var(--scorebook-mark-green);
   stroke: #fff;
   stroke-width: 6;
 }
 
 .matrix-out {
-  fill: var(--scorebook-green);
+  fill: var(--scorebook-mark-green);
   font-family: Georgia, "Times New Roman", serif;
   font-size: 330px;
   font-weight: 800;
@@ -1166,25 +1167,25 @@ i.red {
 
 .matrix-inning-end-slash path {
   fill: none;
-  stroke: var(--scorebook-green);
+  stroke: var(--scorebook-mark-green);
   stroke-width: 16;
   stroke-linecap: square;
 }
 
 .matrix-fielder-out circle {
   fill: #fff;
-  stroke: var(--scorebook-green);
+  stroke: var(--scorebook-mark-green);
   stroke-width: 9;
 }
 
 .matrix-score-mark {
-  fill: var(--scorebook-green);
+  fill: var(--scorebook-mark-green);
   stroke: #fff;
   stroke-width: 14;
 }
 
 .matrix-fielder-out text {
-  fill: var(--scorebook-green);
+  fill: var(--scorebook-mark-green);
   font-size: 58px;
 }
 
