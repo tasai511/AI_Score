@@ -20,6 +20,12 @@ This audit only covers score-cell notation. It does not claim that the app is a 
 | Obstruction is `OB` | Displays `OB`, not Japanese text |
 | Runner tag out shorthand | Displays `T.O` instead of Japanese `走死` |
 | Score cell should not show Japanese labels | Display conversion suppresses Japanese result text in score cells |
+| Ball/strike/foul pitch symbols are black | Pitch symbols render black (#111) |
+| Walk `B` and hit-by-pitch `HP` are blue | `B`/`HP` render blue (#006fc9); `IB` still has no UI input |
+| Hits and advance segments are red lines | Advance lines and run mark render red (#e83b2e); every safe advance draws its base segment |
+| RBI circles the batting order number | When a runner scores, the driving batter's order number is written at the scoring runner's home corner, circled (①-style) when the advance reason carries an RBI (hit/walk/HP/CI/FC), plain otherwise; run itself marked with the red center circle |
+| Three-out slash and left-on-base mark | Inning-end slash recorded on the final entry; runners stranded at the third out get `ℓ` written into their completed scorebook cells |
+| Completed cells keep updating with later baserunning | Runner advances, steals, outs on base, and runs recorded during later at-bats are now written back into that runner's scorebook cell (output mirrors input) |
 
 ## Remaining Differences
 
@@ -27,8 +33,6 @@ These still differ from the article. They should not be treated as fully impleme
 
 | Article notation | Current gap | Reason |
 |---|---|---|
-| Ball is a black circle | Pitch symbols currently share the app's red score-symbol styling | Requires CSS/render color changes |
-| Walk `B`, hit-by-pitch `HP`, intentional walk `IB` are blue | `B`/`HP` are displayed through the current result style, not blue-specific notation | Requires color-aware score-cell marks/CSS; `IB` has no UI |
 | Swinging strike differs from looking strike | Current UI has one strike input and one strike symbol | Requires new input or strike-type state |
 | Bunt foul and bunt swing have extra marks | No bunt input | Requires UI/input support |
 | Three-bunt failure has `K` with wavy underline | No bunt input | Requires UI/input support and new drawing |
@@ -39,7 +43,6 @@ These still differ from the article. They should not be treated as fully impleme
 | Hit landing point uses fielder number plus dot position | Current hit location stores the fielder number, but not over/line/landing-dot position | Requires additional input/data/drawing |
 | Doubles/triples distinguish over/line by dot position | Current long-hit display cannot encode dot placement | Requires additional input/data/drawing |
 | Home run has central run/scoring mark | Current home-run handling does not fully draw the article's center mark | Requires score-cell drawing support |
-| RBI circles the batting order number | RBI input/record is not implemented | Requires UI/input and scorebook output support |
 | Force out records the forced runner's play such as `4-6` and batter safe on throw | Current runner-out flow does not reliably distinguish force out vs tag out vs throw interval | Requires more play-detail state |
 | Tag out records fielder plus `T.O` | Current fallback is only `T.O` for runner out | Requires tag fielder tracking |
 | Stolen base caught stealing is `CS` | Runner-out after steal is not converted to `CS` | Requires steal-out detail state |
@@ -48,7 +51,6 @@ These still differ from the article. They should not be treated as fully impleme
 | Fielder's choice is `Fc` | No fielder's-choice input | Requires UI/input support |
 | Double play is `DP` | Multiple outs can be recorded, but not as one `DP` notation | Requires play-level grouping |
 | Rundown play records a throw chain | No full throw-chain score-cell notation | Requires richer play-detail state |
-| Three-out slash and left-on-base mark | Not drawn in completed scorebook cells | Requires scorebook output/drawing support |
 
 ## Conclusion
 

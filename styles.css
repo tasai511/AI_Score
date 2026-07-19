@@ -6,7 +6,6 @@
   --team-red-bright: #ff533f;
   --team-blue-bright: #47a3ff;
   --scorebook-green: #1d5c39;
-  --scorebook-mark-green: #16a34a;
   color: #222;
   background: #e8edf4;
   font-family:
@@ -720,7 +719,7 @@ input {
 
 .output-grid {
   --scorebook-green: #1d5c39;
-  border: 3px solid var(--scorebook-green);
+  border: none;
   border-collapse: collapse;
   background: #fff;
   font-size: 0.72rem;
@@ -740,7 +739,6 @@ input {
   color: #111;
   font-weight: 800;
   padding: 6px 4px;
-  border-bottom: 3px solid var(--scorebook-green);
 }
 
 .output-col-order {
@@ -778,10 +776,6 @@ thead .output-col-order {
   text-align: center;
 }
 
-.output-grid .output-col-inning {
-  border-left: 3px solid var(--scorebook-green);
-}
-
 thead .output-col-inning {
   font-size: 1.15rem;
   font-weight: 900;
@@ -797,7 +791,6 @@ thead .output-col-inning {
 
 .output-grid .output-col-supplement {
   background: #faf6d9;
-  border-left: 3px solid var(--scorebook-green);
 }
 
 .output-col-name,
@@ -839,17 +832,12 @@ thead .output-col-inning {
 }
 
 .output-grid td.output-cell {
-  border: 1px solid var(--scorebook-green);
-  border-left: 3px solid var(--scorebook-green);
+  border: none;
 }
 
 .output-grid td.output-cell-supplement {
+  border: 1px solid var(--scorebook-green);
   background: #faf6d9;
-}
-
-.output-grid tbody tr:first-child td,
-.output-grid tbody tr:first-child th {
-  border-top: none;
 }
 
 .score-matrix-output {
@@ -1097,7 +1085,7 @@ i.red {
 }
 
 .matrix-advance-lines line {
-  stroke: var(--scorebook-mark-green);
+  stroke: #e83b2e;
   stroke-width: 22;
   stroke-linecap: round;
 }
@@ -1117,12 +1105,12 @@ i.red {
 }
 
 .score-symbol {
-  fill: var(--scorebook-mark-green);
+  fill: #111;
   font-size: 128px;
 }
 
 .score-symbol-shape {
-  color: var(--scorebook-mark-green);
+  color: #111;
 }
 
 .score-symbol-stroke path {
@@ -1138,27 +1126,27 @@ i.red {
 }
 
 .matrix-play {
-  fill: var(--scorebook-mark-green);
+  fill: #111;
   font-size: 160px;
 }
 
 .matrix-note {
-  fill: var(--scorebook-mark-green);
+  fill: #111;
   font-size: 118px;
 }
 
 .matrix-hit-location {
-  fill: var(--scorebook-mark-green);
+  fill: #e83b2e;
 }
 
 .matrix-hit-over-dot {
-  fill: var(--scorebook-mark-green);
+  fill: #e83b2e;
   stroke: #fff;
   stroke-width: 6;
 }
 
 .matrix-out {
-  fill: var(--scorebook-mark-green);
+  fill: #111;
   font-family: Georgia, "Times New Roman", serif;
   font-size: 330px;
   font-weight: 800;
@@ -1167,25 +1155,25 @@ i.red {
 
 .matrix-inning-end-slash path {
   fill: none;
-  stroke: var(--scorebook-mark-green);
+  stroke: #111;
   stroke-width: 16;
   stroke-linecap: square;
 }
 
 .matrix-fielder-out circle {
   fill: #fff;
-  stroke: var(--scorebook-mark-green);
+  stroke: #111;
   stroke-width: 9;
 }
 
 .matrix-score-mark {
-  fill: var(--scorebook-mark-green);
+  fill: #e83b2e;
   stroke: #fff;
   stroke-width: 14;
 }
 
 .matrix-fielder-out text {
-  fill: var(--scorebook-mark-green);
+  fill: #111;
   font-size: 58px;
 }
 

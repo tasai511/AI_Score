@@ -51,6 +51,7 @@ import {
   isOwnBattingNow,
   moveRunnerToDestination,
   normalizeNumber,
+  refreshScoreLogWithRunners,
   shouldShowScorebookInningEndSlash
 } from "./scoreRules";
 
@@ -657,11 +658,13 @@ export function App() {
       return applyHomeRunnerOut(current, fieldOut.source, fieldOut.resultLabel);
     }
 
-    return applyFieldOut(current, resolvePendingFieldOutSource(current, fieldOut), fieldOut.resultLabel);
+    return applyFieldOut(current, resolvePendingFieldOutSource(current, fieldOut), fieldOut.resultLabel, fieldOut.destination);
   }
 
   function handleConfirmPlate() {
-    const withFieldOuts = pendingFieldOuts.reduce((next, fieldOut) => applyPendingFieldOutDecision(next, fieldOut), state);
+    const withFieldOuts = refreshScoreLogWithRunners(
+      pendingFieldOuts.reduce((next, fieldOut) => applyPendingFieldOutDecision(next, fieldOut), state)
+    );
     const endsAtBat = isCurrentBatterPlateAppearanceComplete(withFieldOuts) || withFieldOuts.game.outs >= 3;
     const nextScoreLog = endsAtBat
       ? [...withFieldOuts.scoreLog, buildScoreLogEntry(state, pendingFieldOuts)]
@@ -1344,10 +1347,10 @@ function renderScoreFielderOutMark(mark: ScoreCellMark, coordinate: { x: number;
   if (mark.text === "K 2-3") {
     return (
       <g transform={`translate(${textStyle.x} ${textStyle.y})`} key={key}>
-        <text x="0" y="-42" fill="#16a34a" stroke="#fff" strokeWidth={textStyle.strokeWidth} paintOrder="stroke" style={{ fontSize: `${textStyle.fontSize}px` }}>
+        <text x="0" y="-42" fill="#111" stroke="#fff" strokeWidth={textStyle.strokeWidth} paintOrder="stroke" style={{ fontSize: `${textStyle.fontSize}px` }}>
           K
         </text>
-        <text x="34" y="100" fill="#16a34a" stroke="#fff" strokeWidth="9" paintOrder="stroke" style={{ fontSize: "104px" }}>
+        <text x="34" y="100" fill="#111" stroke="#fff" strokeWidth="9" paintOrder="stroke" style={{ fontSize: "104px" }}>
           2-3
         </text>
       </g>
@@ -1358,10 +1361,10 @@ function renderScoreFielderOutMark(mark: ScoreCellMark, coordinate: { x: number;
     const throwText = mark.text.replace(" T.O", "");
     return (
       <g transform={`translate(${textStyle.x} ${textStyle.y})`} key={key}>
-        <text x="0" y="-48" fill="#16a34a" stroke="#fff" strokeWidth={textStyle.strokeWidth} paintOrder="stroke" style={{ fontSize: `${textStyle.fontSize}px` }}>
+        <text x="0" y="-48" fill="#111" stroke="#fff" strokeWidth={textStyle.strokeWidth} paintOrder="stroke" style={{ fontSize: `${textStyle.fontSize}px` }}>
           {throwText}
         </text>
-        <text x="0" y="76" fill="#16a34a" stroke="#fff" strokeWidth="9" paintOrder="stroke" style={{ fontSize: "108px" }}>
+        <text x="0" y="76" fill="#111" stroke="#fff" strokeWidth="9" paintOrder="stroke" style={{ fontSize: "108px" }}>
           T.O
         </text>
       </g>
@@ -1373,10 +1376,10 @@ function renderScoreFielderOutMark(mark: ScoreCellMark, coordinate: { x: number;
       {isCaughtFlyResult && (
         <>
           <path d="M -50 -108 Q 0 -156 50 -108" fill="none" stroke="#fff" strokeWidth="22" strokeLinecap="round" />
-          <path d="M -50 -108 Q 0 -156 50 -108" fill="none" stroke="#16a34a" strokeWidth="10" strokeLinecap="round" />
+          <path d="M -50 -108 Q 0 -156 50 -108" fill="none" stroke="#111" strokeWidth="10" strokeLinecap="round" />
         </>
       )}
-      <text x="0" y="0" fill="#16a34a" stroke="#fff" strokeWidth={textStyle.strokeWidth} paintOrder="stroke" style={{ fontSize: `${textStyle.fontSize}px` }}>
+      <text x="0" y="0" fill="#111" stroke="#fff" strokeWidth={textStyle.strokeWidth} paintOrder="stroke" style={{ fontSize: `${textStyle.fontSize}px` }}>
         {mark.text}
       </text>
     </g>
@@ -1400,9 +1403,9 @@ function getScorePlayCoordinate(area: ScoreMatrixTextArea, index: number, total:
 }
 
 function getScorePlayTextStyle(mark: ScoreCellMark) {
-  if (mark.text === "l") return { fill: "#16a34a", fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "190px", fontStyle: "italic" };
-  if (mark.text === "B" || mark.text === "HP") return { fill: "#16a34a" };
-  if (/^[1-9]-$/.test(mark.text)) return { fill: "#16a34a" };
+  if (mark.text === "l") return { fill: "#111", fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "190px", fontStyle: "italic" };
+  if (mark.text === "B" || mark.text === "HP") return { fill: "#006fc9" };
+  if (/^[1-9]-$/.test(mark.text)) return { fill: "#111" };
   return undefined;
 }
 
@@ -1526,7 +1529,7 @@ function ScoreMatrixGraphic({
               {isInfieldHit && (
                 <>
                   <path d={SCORE_MATRIX_INFIELD_HIT_ARC_PATH} fill="none" stroke="#fff" strokeWidth="30" strokeLinecap="round" />
-                  <path d={SCORE_MATRIX_INFIELD_HIT_ARC_PATH} fill="none" stroke="#16a34a" strokeWidth="13" strokeLinecap="round" />
+                  <path d={SCORE_MATRIX_INFIELD_HIT_ARC_PATH} fill="none" stroke="#e83b2e" strokeWidth="13" strokeLinecap="round" />
                 </>
               )}
               {mark.over && (

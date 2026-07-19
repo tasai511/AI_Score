@@ -230,7 +230,6 @@ function isHitLocationOverFielder(runner: RunnerState) {
 }
 
 function shouldDrawAdvancePath(advance: RunnerState["scoreAdvances"][number], blockedDestination?: RunnerDestination) {
-  if (advance.reason !== "hit" && advance.reason !== "error" && advance.reason !== "fielder-choice") return false;
   if (blockedDestination && advance.destination === blockedDestination) return false;
   return true;
 }
@@ -307,6 +306,11 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
       kind: "score",
       text: "",
       area: "center"
+    });
+    marks.push({
+      kind: "note",
+      text: getScoringBatterNumberText(state.game.battingOrder, true),
+      area: "home"
     });
   }
 
@@ -485,6 +489,61 @@ function getRunnerScoreAdvances(runner: RunnerState) {
     destination,
     reason: "hit" as const
   }));
+}
+
+const rbiAdvanceReasons = new Set<AdvanceReason>(["hit", "walk", "dead-ball", "catcher-interference", "fielder-choice"]);
+
+function isCurrentBatterRunner(state: AppState, runner: RunnerState) {
+  return runner.teamKey === getBattingTeamKey(state) && runner.battingOrder === state.game.battingOrder;
+}
+
+function getScoringBatterNumberText(battingOrder: number, rbi: boolean) {
+  if (rbi && battingOrder >= 1 && battingOrder <= 20) return String.fromCharCode(0x2460 + battingOrder - 1);
+  return String(battingOrder);
+}
+
+function updateRunnerScoreLogEntryInPlace(
+  state: AppState,
+  runner: RunnerState,
+  pendingOut: ScoreCellPendingOut | null = null,
+  currentBase: BaseKey | null = null,
+  extraMarks: ScoreCellMark[] = []
+) {
+  // The current batter's own plate appearance is logged at confirm time, not here.
+  if (isCurrentBatterRunner(state, runner)) return;
+
+  for (let index = state.scoreLog.length - 1; index >= 0; index -= 1) {
+    const entry = state.scoreLog[index];
+    if (entry.teamKey !== runner.teamKey || entry.battingOrder !== runner.battingOrder) continue;
+    state.scoreLog = [
+      ...state.scoreLog.slice(0, index),
+      {
+        ...entry,
+        marks: [...buildRunnerScoreCellMarks(runner, pendingOut, currentBase), ...extraMarks],
+        hitType: runner.scoreCard.hitType
+      },
+      ...state.scoreLog.slice(index + 1)
+    ];
+    return;
+  }
+}
+
+function refreshOnBaseRunnersScoreLogInPlace(state: AppState) {
+  (["first", "second", "third"] as BaseKey[]).forEach((base) => {
+    const runner = state.game.runners[base];
+    if (runner) updateRunnerScoreLogEntryInPlace(state, runner, null, base);
+  });
+}
+
+export function refreshScoreLogWithRunners(state: AppState): AppState {
+  const next = { ...state, scoreLog: [...state.scoreLog] };
+  const inningEnded = next.game.outs >= 3;
+  (["first", "second", "third"] as BaseKey[]).forEach((base) => {
+    const runner = next.game.runners[base];
+    if (!runner) return;
+    updateRunnerScoreLogEntryInPlace(next, runner, inningEnded ? { source: base, leftOnBase: true } : null, base);
+  });
+  return next;
 }
 
 const nextBaseMap: Record<BaseKey, BaseKey | "home"> = {
@@ -671,6 +730,13 @@ function scoreRunner(state: AppState, runner: RunnerState) {
   } else {
     state.game.opponentScore += 1;
   }
+
+  const lastAdvance = runner.scoreAdvances?.[runner.scoreAdvances.length - 1];
+  const rbi = lastAdvance ? rbiAdvanceReasons.has(lastAdvance.reason) : false;
+  updateRunnerScoreLogEntryInPlace(state, runner, null, null, [
+    { kind: "score", text: "", area: "center" },
+    { kind: "note", text: getScoringBatterNumberText(state.game.battingOrder, rbi), area: "home" }
+  ]);
 }
 
 function placeRunnerOnBase(state: AppState, base: BaseKey, runner: RunnerState, reason: AdvanceReason, appendAdvanceNote = true) {
@@ -724,6 +790,7 @@ export function advanceRunner(state: AppState, source: RunnerSource, reason: Adv
     advanceExistingRunnerInPlace(next, source, reason);
   }
 
+  refreshOnBaseRunnersScoreLogInPlace(next);
   syncRunnerFirst(next);
   return next;
 }
@@ -773,7 +840,7 @@ function markCurrentBatterReachedOnFieldersChoice(state: AppState, resultLabel?:
   state.game.hitType = "";
 }
 
-export function applyFieldOut(state: AppState, source: RunnerSource, resultLabel?: string): AppState {
+export function applyFieldOut(state: AppState, source: RunnerSource, resultLabel?: string, destination?: RunnerDestination): AppState {
   const next: AppState = structuredClone(state);
   next.game.firstPitchEntered = true;
   next.game.gameStarted = true;
@@ -787,6 +854,12 @@ export function applyFieldOut(state: AppState, source: RunnerSource, resultLabel
   } else {
     const runner = next.game.runners[source];
     if (runner) {
+      updateRunnerScoreLogEntryInPlace(
+        next,
+        runner,
+        { source, destination: destination ?? nextBaseMap[source], resultLabel, outNumber: Math.min(3, next.game.outs + 1) },
+        source
+      );
       next.game.runners[source] = null;
     }
     markCurrentBatterReachedOnFieldersChoice(next, resultLabel);
@@ -794,6 +867,7 @@ export function applyFieldOut(state: AppState, source: RunnerSource, resultLabel
 
   next.game.outs = Math.min(3, next.game.outs + 1);
   if (source === "batter") next.plate.outNumber = next.game.outs;
+  refreshOnBaseRunnersScoreLogInPlace(next);
   syncRunnerFirst(next);
   return next;
 }
@@ -861,6 +935,7 @@ export function applyInitialFieldError(state: AppState, fieldingPosition?: strin
     }
   }
 
+  refreshOnBaseRunnersScoreLogInPlace(next);
   syncRunnerFirst(next);
   return next;
 }
@@ -892,6 +967,7 @@ export function applyThrowError(state: AppState, resultLabel: string): AppState 
     }
   }
 
+  refreshOnBaseRunnersScoreLogInPlace(next);
   syncRunnerFirst(next);
   return next;
 }
@@ -990,6 +1066,7 @@ export function moveRunnerToDestination(
     }
   }
 
+  refreshOnBaseRunnersScoreLogInPlace(next);
   syncRunnerFirst(next);
   return next;
 }
