@@ -2132,7 +2132,7 @@ i.red {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
-  margin-top: 4px;
+  margin-top: 14px;
   padding: 0 10px 0;
 }
 
@@ -2822,7 +2822,7 @@ i.red {
 
 .pitch-buttons {
   gap: 5px;
-  margin-top: 2px;
+  margin-top: 12px;
   padding: 0 8px 0;
 }
 

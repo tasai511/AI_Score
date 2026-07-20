@@ -88,6 +88,7 @@ const FIELD_IMAGE_POINTS = {
   "base-home": { x: 626.39, y: 966.2 },
   "foul-zone-left": { x: 274, y: 812 },
   "foul-zone-right": { x: 980, y: 812 },
+  "foul-zone-back": { x: 627, y: 1168 },
   "position-1": { x: 627, y: 680 },
   "position-2": { x: 627, y: 1054 },
   "position-3": { x: 824.9, y: 598 },
@@ -2539,7 +2540,8 @@ function FieldStage({
 
   const foulZones = [
     ["left", "foul-zone-left", "\u5de6\u30d5\u30a1\u30fc\u30eb\u30be\u30fc\u30f3"],
-    ["right", "foul-zone-right", "\u53f3\u30d5\u30a1\u30fc\u30eb\u30be\u30fc\u30f3"]
+    ["right", "foul-zone-right", "\u53f3\u30d5\u30a1\u30fc\u30eb\u30be\u30fc\u30f3"],
+    ["back", "foul-zone-back", "\u5f8c\u65b9\u30d5\u30a1\u30fc\u30eb\u30be\u30fc\u30f3"]
   ] as const;
 
   function makeBaseTarget(base: { key: string; className: string; label: string }): FieldTarget {
@@ -2635,7 +2637,7 @@ function FieldStage({
     };
   }
 
-  function makeFoulTarget(side: "left" | "right"): FieldTarget {
+  function makeFoulTarget(side: "left" | "right" | "back"): FieldTarget {
     return {
       key: `foul-${side}`,
       className: `foul-zone-${side}`,
@@ -3020,6 +3022,9 @@ function FieldStage({
 
   function getNodeBubblePoint(node: FieldPlayNode) {
     if (node.kind === "foul") {
+      if (node.key.endsWith("back")) {
+        return { x: node.point.x, y: node.point.y - 44 };
+      }
       return {
         x: node.point.x + (node.key.endsWith("left") ? 34 : -34),
         y: node.point.y - 8
