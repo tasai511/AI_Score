@@ -1489,6 +1489,9 @@ function getScorePlayTextStyle(mark: ScoreCellMark) {
   if (mark.text === "l") return { fill: "#111", fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "190px", fontStyle: "italic" };
   if (mark.text === "B" || mark.text === "HP") return { fill: "#006fc9" };
   if (/^[1-9]-$/.test(mark.text)) return { fill: "#111" };
+  // Scoring batter number at the home corner (circled = RBI): draw large enough to read.
+  if (/^[①-⑳]$/.test(mark.text)) return { fill: "#111", fontSize: "280px" };
+  if (mark.area === "home" && /^\d{1,2}$/.test(mark.text)) return { fill: "#111", fontSize: "220px" };
   return undefined;
 }
 
