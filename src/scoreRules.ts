@@ -443,6 +443,8 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
         });
       }
     });
+
+    appendLaterAdvanceOriginNotes(marks, scoreAdvances);
   }
 
   if (pendingOut && !pendingOut.leftOnBase) {
@@ -499,6 +501,21 @@ function getRunnerScoreAdvances(runner: RunnerState) {
       reason: "hit"
     })
   );
+}
+
+function appendLaterAdvanceOriginNotes(marks: ScoreCellMark[], scoreAdvances: RunnerState["scoreAdvances"]) {
+  const furthestByOrder = new Map<number, RunnerDestination>();
+  scoreAdvances.forEach((advance) => {
+    if (!advance.laterPlay || advance.byBattingOrder === undefined) return;
+    const current = furthestByOrder.get(advance.byBattingOrder);
+    if (!current || runnerProgressRank[advance.destination] > runnerProgressRank[current]) {
+      furthestByOrder.set(advance.byBattingOrder, advance.destination);
+    }
+  });
+  furthestByOrder.forEach((destination, battingOrder) => {
+    if (destination === "home") return;
+    marks.push({ kind: "note", text: `(${battingOrder})`, area: destination });
+  });
 }
 
 const rbiAdvanceReasons = new Set<AdvanceReason>(["hit", "walk", "dead-ball", "catcher-interference", "fielder-choice"]);
@@ -727,7 +744,11 @@ function withAdvanceNote(state: AppState, runner: RunnerState, reason: AdvanceRe
   const existingDestinations = new Set(scoreAdvances.map((advance) => advance.destination));
   const nextAdvances = runnerDestinationOrder
     .filter((nextDestination) => runnerProgressRank[nextDestination] <= runnerProgressRank[destination] && !existingDestinations.has(nextDestination))
-    .map((nextDestination) => ({ destination: nextDestination, reason, ...(laterPlay ? { laterPlay: true } : {}) }));
+    .map((nextDestination) => ({
+      destination: nextDestination,
+      reason,
+      ...(laterPlay ? { laterPlay: true, byBattingOrder: state.game.battingOrder } : {})
+    }));
   return {
     ...runner,
     scoreAdvances: [...scoreAdvances, ...nextAdvances],

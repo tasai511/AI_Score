@@ -55,6 +55,7 @@ export interface RunnerState {
     destination: RunnerDestination;
     reason: AdvanceReason;
     laterPlay?: boolean;
+    byBattingOrder?: number;
   }[];
   scoreNotes: string[];
 }

@@ -1188,10 +1188,6 @@ i.red {
   stroke-width: 14;
 }
 
-#score-advance-arrow-head path {
-  fill: #111;
-}
-
 .matrix-fielder-out text {
   fill: #111;
   font-size: 58px;

@@ -1491,6 +1491,7 @@ function getScorePlayTextStyle(mark: ScoreCellMark) {
   if (/^[1-9]-$/.test(mark.text)) return { fill: "#111" };
   // Scoring batter number at the home corner (circled = RBI): draw large enough to read.
   if (/^[①-⑳]$/.test(mark.text)) return { fill: "#111", fontSize: "280px" };
+  if (/^\(\d{1,2}\)$/.test(mark.text)) return { fill: "#111", fontSize: "190px" };
   if (mark.area === "home" && /^\d{1,2}$/.test(mark.text)) return { fill: "#111", fontSize: "220px" };
   return undefined;
 }
@@ -1557,11 +1558,6 @@ function ScoreMatrixMarksLayer({
         ? SCORE_MATRIX_HIT_PATHS[hitType]
         : [];
   const arrowAreas = advanceMarks.filter((mark) => mark.arrow).map((mark) => mark.area as RunnerDestination);
-  const arrowRank: Record<string, number> = { first: 1, second: 2, third: 3, home: 4 };
-  const arrowHeadArea = arrowAreas.reduce<RunnerDestination | null>(
-    (max, area) => (max === null || arrowRank[area] > arrowRank[max] ? area : max),
-    null
-  );
   const pitchSymbolScale = getPitchSymbolLayout(effectivePitchTotal).symbolScale;
   const playMarks = [resultMark, ...noteMarks].filter((mark): mark is ScoreCellMark => Boolean(mark));
   const playMarkEntries = playMarks.map((mark, index) => {
@@ -1589,16 +1585,7 @@ function ScoreMatrixMarksLayer({
           {arrowAreas.map((area, index) => {
             const path = SCORE_MATRIX_BASE_PATHS[area];
             if (!path) return null;
-            return (
-              <line
-                x1={path.x1}
-                y1={path.y1}
-                x2={path.x2}
-                y2={path.y2}
-                markerEnd={area === arrowHeadArea ? "url(#score-advance-arrow-head)" : undefined}
-                key={`arrow-${area}-${index}`}
-              />
-            );
+            return <line x1={path.x1} y1={path.y1} x2={path.x2} y2={path.y2} key={`arrow-${area}-${index}`} />;
           })}
         </g>
         <g>
@@ -1703,11 +1690,6 @@ function ScoreMatrixGraphic({
     <div className={`score-matrix ${className}`.trim()}>
       <img src="assets/score_matrix.png" alt="" />
       <svg className="matrix-overlay" viewBox="0 0 1382 1025" aria-hidden="true">
-        <defs>
-          <marker id="score-advance-arrow-head" viewBox="0 0 10 10" refX="7.4" refY="5" markerWidth="4.4" markerHeight="4.4" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 5 L 0 10 z" />
-          </marker>
-        </defs>
         {ghostLayerMarks.length > 0 && (
           <g className="matrix-ghost">
             <ScoreMatrixMarksLayer
