@@ -1610,19 +1610,12 @@ function ScoreMatrixMarksLayer({
           </text>
         )}
         {scoreMarks.length > 0 && (
-          <g>
-            <circle
-              className="matrix-score-mark"
-              cx={SCORE_MATRIX_MARK_COORDINATES.out.x}
-              cy={SCORE_MATRIX_MARK_COORDINATES.out.y}
-              r="86"
-            />
-            {scoreMarks.some((mark) => mark.text === "E") && (
-              <text className="matrix-score-earned" x={SCORE_MATRIX_MARK_COORDINATES.out.x} y={SCORE_MATRIX_MARK_COORDINATES.out.y}>
-                E
-              </text>
-            )}
-          </g>
+          <circle
+            className={`matrix-score-mark${scoreMarks.some((mark) => mark.text === "E") ? " earned" : ""}`}
+            cx={SCORE_MATRIX_MARK_COORDINATES.out.x}
+            cy={SCORE_MATRIX_MARK_COORDINATES.out.y}
+            r="86"
+          />
         )}
         {showInningEndSlash && (
           <g className="matrix-inning-end-slash">

@@ -23,7 +23,7 @@ This audit only covers score-cell notation. It does not claim that the app is a 
 | Ball/strike/foul pitch symbols are black | Pitch symbols render black (#111) |
 | Walk `B` and hit-by-pitch `HP` are blue | `B`/`HP` render blue (#006fc9); `IB` still has no UI input |
 | Hits and advance segments are red lines | The batter's own reach draws red segments; advances on a later batter's play draw black arrows (arrowhead on the furthest base) per article section 11 |
-| Earned run shows a red circled E | Run mark is a red ring; earned runs (no error/passed-ball in the runner's chain, simplified rule) carry a red E inside; home runs included |
+| Earned vs unearned run marks | Earned runs (no error/passed-ball in the runner's chain, simplified rule) draw a filled red circle; unearned runs draw an outline-only red circle; home runs count as earned |
 | RBI circles the batting order number | When a runner scores, the driving batter's order number is written at the scoring runner's home corner, circled (①-style) when the advance reason carries an RBI (hit/walk/HP/CI/FC), plain otherwise; run itself marked with the red center circle |
 | Three-out slash and left-on-base mark | Inning-end slash recorded on the final entry; runners stranded at the third out get `ℓ` written into their completed scorebook cells |
 | Completed cells keep updating with later baserunning | Runner advances, steals, outs on base, and runs recorded during later at-bats are now written back into that runner's scorebook cell (output mirrors input) |

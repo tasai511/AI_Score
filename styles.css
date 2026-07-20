@@ -1173,14 +1173,13 @@ i.red {
 }
 
 .matrix-score-mark {
-  fill: #fff;
+  fill: none;
   stroke: #e83b2e;
   stroke-width: 12;
 }
 
-.matrix-score-earned {
+.matrix-score-mark.earned {
   fill: #e83b2e;
-  font-size: 128px;
 }
 
 .matrix-advance-arrows line {
