@@ -1491,7 +1491,7 @@ function getScorePlayTextStyle(mark: ScoreCellMark) {
   if (/^[1-9]-$/.test(mark.text)) return { fill: "#111" };
   // Scoring batter number at the home corner (circled = RBI): draw large enough to read.
   if (/^[①-⑳]$/.test(mark.text)) return { fill: "#111", fontSize: "280px" };
-  if (/^\(\d{1,2}\)$/.test(mark.text)) return { fill: "#111", fontSize: "190px" };
+  if (/^\(\d{1,2}\)$/.test(mark.text)) return { fill: "#111", fontSize: "150px" };
   if (mark.area === "home" && /^\d{1,2}$/.test(mark.text)) return { fill: "#111", fontSize: "220px" };
   return undefined;
 }
@@ -1527,6 +1527,38 @@ function renderScorePitchSymbol(symbol: string, x: number, y: number, scale: num
       {symbol}
     </text>
   );
+}
+
+function buildLaterAdvancePathD(areas: RunnerDestination[]) {
+  const has = (area: RunnerDestination) => areas.includes(area);
+  const cornerRadius = 90;
+  const rightX = 1270;
+  const topY = 110;
+  const leftX = 450;
+  const parts: string[] = [];
+
+  if (has("second")) {
+    parts.push(`M ${rightX} 760`);
+    if (has("third")) {
+      parts.push(`L ${rightX} ${topY + cornerRadius}`, `Q ${rightX} ${topY} ${rightX - cornerRadius} ${topY}`);
+    } else {
+      parts.push(`L ${rightX} 260`);
+    }
+  }
+  if (has("third")) {
+    if (!has("second")) parts.push(`M 1150 ${topY}`);
+    if (has("home")) {
+      parts.push(`L ${leftX + cornerRadius} ${topY}`, `Q ${leftX} ${topY} ${leftX} ${topY + cornerRadius}`);
+    } else {
+      parts.push(`L 570 ${topY}`);
+    }
+  }
+  if (has("home")) {
+    if (!has("third")) parts.push(`M ${leftX} 260`);
+    parts.push(`L ${leftX} 760`);
+  }
+
+  return parts.join(" ");
 }
 
 function ScoreMatrixMarksLayer({
@@ -1581,13 +1613,11 @@ function ScoreMatrixMarksLayer({
             return <line x1={path.x1} y1={path.y1} x2={path.x2} y2={path.y2} key={`${area}-${index}`} />;
           })}
         </g>
-        <g className="matrix-advance-arrows">
-          {arrowAreas.map((area, index) => {
-            const path = SCORE_MATRIX_BASE_PATHS[area];
-            if (!path) return null;
-            return <line x1={path.x1} y1={path.y1} x2={path.x2} y2={path.y2} key={`arrow-${area}-${index}`} />;
-          })}
-        </g>
+        {arrowAreas.length > 0 && (
+          <g className="matrix-advance-arrows">
+            <path d={buildLaterAdvancePathD(arrowAreas)} />
+          </g>
+        )}
         <g>
           {pitchMarks.map((mark, index) => {
             const coordinate = getPitchSymbolCoordinate(pitchOffset + index, effectivePitchTotal);

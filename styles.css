@@ -1182,7 +1182,8 @@ i.red {
   fill: #e83b2e;
 }
 
-.matrix-advance-arrows line {
+.matrix-advance-arrows path {
+  fill: none;
   stroke: #111;
   stroke-linecap: round;
   stroke-width: 14;
