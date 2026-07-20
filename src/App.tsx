@@ -365,7 +365,10 @@ export function App() {
   const latestHistorySnapshot = historyStackRef.current.length > 0 ? historyStackRef.current[historyStackRef.current.length - 1] : null;
   const scoreDisplayState = needsPlateConfirm && latestHistorySnapshot ? latestHistorySnapshot : state;
   const scoreBoardState = liveScorePreviewActive ? state : scoreDisplayState;
-  const runnerScoreBaseState = latestHistorySnapshot ?? state;
+  // Keep the strip stable against the pre-play arrangement only while an input awaits 確定;
+  // otherwise mirror the live bases (a stale snapshot here left runners showing after the
+  // side change and hid a freshly reached runner after confirm).
+  const runnerScoreBaseState = needsPlateConfirm && latestHistorySnapshot ? latestHistorySnapshot : state;
   const currentPitcher =
     state.ownOrder.find((player) => player.jerseyNumber === state.game.currentPitcherJerseyNumber) ??
     state.ownOrder.find((player) => player.positionNumber === "1");
@@ -762,6 +765,10 @@ export function App() {
     setHistoryDepth(historyStackRef.current.length);
     const restored = structuredClone(previous);
     setState(restored);
+    // Rewinding into an earlier at-bat: its entry is erased, so its start snapshot (about to
+    // be truncated away) becomes the current at-bat's start again.
+    const restoredAtBatStart = preAtBatSnapshots[restored.scoreLog.length];
+    if (restoredAtBatStart) preAtBatSnapshotRef.current = structuredClone(restoredAtBatStart);
     setPreAtBatSnapshots((current) => (current.length > restored.scoreLog.length ? current.slice(0, restored.scoreLog.length) : current));
     resetTransientInputState();
   }
