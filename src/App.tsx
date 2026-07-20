@@ -70,18 +70,6 @@ type PitchAdvanceRequest = {
   id: number;
   type: PitchAdvanceType;
 };
-type PitchCorrection = {
-  logIndex: number;
-  originalPitches: string[];
-  pitches: string[];
-  overwrittenCount: number;
-};
-
-const pitchCorrectionSymbols: Record<Exclude<PitchType, "dead">, string> = {
-  strike: "✕",
-  ball: "●",
-  foul: "△"
-};
 
 const FIELD_IMAGE_WIDTH = 1254;
 const FIELD_IMAGE_HEIGHT = 1254;
@@ -238,7 +226,6 @@ export function App() {
   const [plateActionsLocked, setPlateActionsLocked] = useState(false);
   const [historyDepth, setHistoryDepth] = useState(0);
   const historyStackRef = useRef<AppState[]>([]);
-  const [pitchCorrection, setPitchCorrection] = useState<PitchCorrection | null>(null);
 
   function clearPitchHistory() {
     historyStackRef.current = [];
@@ -251,11 +238,6 @@ export function App() {
     setGameIndex(loadGameIndex());
   }, [state, preAtBatSnapshots, currentGameId]);
 
-  useEffect(() => {
-    // Leaving the score tab abandons an in-progress correction without committing it.
-    if (activeTab !== "score") setPitchCorrection(null);
-  }, [activeTab]);
-
   function handleStartNewGame() {
     const id = createNewGameId();
     const freshState = structuredClone(initialState);
@@ -263,7 +245,6 @@ export function App() {
     setPreAtBatSnapshots([]);
     preAtBatSnapshotRef.current = stripScoreLog(freshState);
     clearPitchHistory();
-    setPitchCorrection(null);
     setActiveTab("order");
     setCurrentGameId(id);
   }
@@ -275,7 +256,6 @@ export function App() {
     setPreAtBatSnapshots(record.preAtBatSnapshots);
     preAtBatSnapshotRef.current = record.currentAtBatStartSnapshot;
     clearPitchHistory();
-    setPitchCorrection(null);
     setActiveTab("score");
     setCurrentGameId(id);
   }
@@ -294,14 +274,24 @@ export function App() {
     setConfirmDialog({ message, onConfirm });
   }
 
-  function handleStartPitchCorrection(index: number) {
-    const entry = state.scoreLog[index];
-    if (!entry) return;
-    // Correction never rewinds game state: it overlays new pitch symbols onto the logged
-    // cell one at a time. Pitches beyond what gets overwritten, the result marks, and all
-    // post-reach records (advances, steals, runs, RBI) stay untouched.
-    const pitches = entry.marks.filter((mark) => mark.kind === "pitch").map((mark) => mark.text);
-    setPitchCorrection({ logIndex: index, originalPitches: pitches, pitches: [...pitches], overwrittenCount: 0 });
+  function handleRedoAtBat(index: number) {
+    const snapshot = preAtBatSnapshots[index];
+    if (!snapshot) return;
+    // Keep every existing scoreLog/preAtBatSnapshots entry (including later batters') so redoing
+    // one at-bat never erases anyone else's recorded plate appearances. Re-confirming this at-bat
+    // appends a fresh entry, and the output grid already shows the latest entry per (order, inning).
+    const restoredState: AppState = { ...structuredClone(snapshot), scoreLog: state.scoreLog };
+    setState(restoredState);
+    preAtBatSnapshotRef.current = structuredClone(snapshot);
+    clearPitchHistory();
+    setPendingFieldOuts([]);
+    setPitchAdvanceRequest(null);
+    setPendingPitchContext(null);
+    setLiveScorePreviewActive(false);
+    setPlateActionsLocked(false);
+    setNeedsPlateConfirm(false);
+    setFieldSelection(null);
+    setFieldResetToken((token) => token + 1);
     setActiveTab("score");
   }
 
@@ -311,7 +301,6 @@ export function App() {
   const currentOwnBatter = getCurrentOwnBatter(state);
   const currentOpponentBatter = getCurrentOpponentBatter(state);
   const latestHistorySnapshot = historyStackRef.current.length > 0 ? historyStackRef.current[historyStackRef.current.length - 1] : null;
-  const correctionEntry = pitchCorrection ? state.scoreLog[pitchCorrection.logIndex] ?? null : null;
   const scoreDisplayState = needsPlateConfirm && latestHistorySnapshot ? latestHistorySnapshot : state;
   const scoreBoardState = liveScorePreviewActive ? state : scoreDisplayState;
   const runnerScoreBaseState = latestHistorySnapshot ?? state;
@@ -490,19 +479,6 @@ export function App() {
   }
 
   function requestPitchInput(type: PitchType, origin: PitchInputOrigin = "button") {
-    if (pitchCorrection) {
-      // Correction mode: overwrite the recorded pitch at the current position, leave the rest alone.
-      if (type === "dead" || origin === "field-foul") return false;
-      const symbol = pitchCorrectionSymbols[type];
-      setPitchCorrection((current) => {
-        if (!current) return current;
-        const pitches = [...current.pitches];
-        pitches[current.overwrittenCount] = symbol;
-        return { ...current, pitches, overwrittenCount: current.overwrittenCount + 1 };
-      });
-      return true;
-    }
-
     if (!normalizeNumber(currentBatter?.jerseyNumber)) {
       const key = getCurrentBatterPromptKey(state);
       const alreadyPrompted = state.promptedBatterKeys.includes(key);
@@ -550,7 +526,6 @@ export function App() {
   }
 
   function handlePitchAdvanceAnimationComplete(type: PitchAdvanceType) {
-    if (pitchCorrection) return;
     setPitchAdvanceRequest(null);
     captureInputSnapshot(state);
     setState((current) => applyPitch(current, type));
@@ -574,7 +549,6 @@ export function App() {
   }
 
   function handleAdvance(source: RunnerSource, reason: AdvanceReason, hitLocation?: string) {
-    if (pitchCorrection) return;
     captureInputSnapshot(state);
     setState((current) => advanceRunner(current, source, reason, hitLocation));
     setNeedsPlateConfirm(true);
@@ -600,7 +574,6 @@ export function App() {
     hitLocation?: string,
     resultLabel?: string
   ) {
-    if (pitchCorrection) return;
     captureInputSnapshot(state);
     setState((current) => moveRunnerToDestination(current, source, destination, reason, hitLocation, resultLabel));
     setNeedsPlateConfirm(true);
@@ -613,7 +586,6 @@ export function App() {
     runnerId?: string,
     destination?: RunnerDestination
   ) {
-    if (pitchCorrection) return;
     setPendingFieldOuts((current) => [
       ...current.filter((fieldOut) => fieldOut.nodeId !== nodeId),
       { nodeId, source, destination, runnerId, resultLabel }
@@ -622,13 +594,11 @@ export function App() {
   }
 
   function handleInitialFieldErrorDecision(fieldingPosition?: string) {
-    if (pitchCorrection) return;
     setState((current) => applyInitialFieldError(current, fieldingPosition));
     setNeedsPlateConfirm(true);
   }
 
   function handleThrowErrorDecision(resultLabel: string) {
-    if (pitchCorrection) return;
     setState((current) => applyThrowError(current, resultLabel));
     setNeedsPlateConfirm(true);
   }
@@ -651,7 +621,6 @@ export function App() {
   }
 
   function handleFieldPlayStarted() {
-    if (pitchCorrection) return;
     captureInputSnapshot(state);
     setState((current) => ({
       ...current,
@@ -664,7 +633,6 @@ export function App() {
   }
 
   function handleHomeRun() {
-    if (pitchCorrection) return;
     captureInputSnapshot(state);
     setState((current) => applyHomeRun(current));
     setNeedsPlateConfirm(true);
@@ -694,42 +662,6 @@ export function App() {
   }
 
   function handleConfirmPlate() {
-    if (pitchCorrection) {
-      const { logIndex, pitches } = pitchCorrection;
-      setState((current) => {
-        const entry = current.scoreLog[logIndex];
-        if (!entry) return current;
-
-        const pitchMarks: ScoreCellMark[] = pitches.map((text) => ({ kind: "pitch", text, area: "pitch" }));
-        const scoreLog = [...current.scoreLog];
-        scoreLog[logIndex] = { ...entry, marks: [...pitchMarks, ...entry.marks.filter((mark) => mark.kind !== "pitch")] };
-
-        // If this player is still on base from this plate appearance, sync the corrected
-        // pitches into the runner state so later cell refreshes keep the correction.
-        const isLatestForPlayer = !current.scoreLog.some(
-          (other, otherIndex) => otherIndex > logIndex && other.teamKey === entry.teamKey && other.battingOrder === entry.battingOrder
-        );
-        let game = current.game;
-        if (isLatestForPlayer) {
-          for (const base of ["first", "second", "third"] as BaseKey[]) {
-            const runner = current.game.runners[base];
-            if (runner && runner.teamKey === entry.teamKey && runner.battingOrder === entry.battingOrder) {
-              game = {
-                ...game,
-                runners: { ...game.runners, [base]: { ...runner, scoreCard: { ...runner.scoreCard, pitches: [...pitches] } } }
-              };
-              break;
-            }
-          }
-        }
-
-        return { ...current, game, scoreLog };
-      });
-      setPitchCorrection(null);
-      setActiveTab("output");
-      return;
-    }
-
     const withFieldOuts = refreshScoreLogWithRunners(
       pendingFieldOuts.reduce((next, fieldOut) => applyPendingFieldOutDecision(next, fieldOut), state)
     );
@@ -762,21 +694,6 @@ export function App() {
   }
 
   function handleRewindPitch() {
-    if (pitchCorrection) {
-      setPitchCorrection((current) => {
-        if (!current || current.overwrittenCount === 0) return current;
-        const nextCount = current.overwrittenCount - 1;
-        const pitches = [...current.pitches];
-        if (nextCount < current.originalPitches.length) {
-          pitches[nextCount] = current.originalPitches[nextCount];
-        } else {
-          pitches.length = nextCount;
-        }
-        return { ...current, pitches, overwrittenCount: nextCount };
-      });
-      return;
-    }
-
     const stack = historyStackRef.current;
     if (stack.length === 0) return;
     const previous = stack[stack.length - 1];
@@ -977,21 +894,7 @@ export function App() {
                       </button>
                     </div>
                   </div>
-                  {pitchCorrection && correctionEntry ? (
-                    <article className="score-cell" aria-label="current score cell">
-                      <ScoreMatrixGraphic
-                        marks={[
-                          ...pitchCorrection.pitches.map((text): ScoreCellMark => ({ kind: "pitch", text, area: "pitch" })),
-                          ...correctionEntry.marks.filter((mark) => mark.kind !== "pitch")
-                        ]}
-                        hitType={correctionEntry.hitType}
-                        showInningEndSlash={correctionEntry.showInningEndSlash}
-                        className="score-matrix-current"
-                      />
-                    </article>
-                  ) : (
-                    <ScoreCell state={state} pendingOuts={pendingFieldOuts} />
-                  )}
+                  <ScoreCell state={state} pendingOuts={pendingFieldOuts} />
                 </div>
                 <RunnerScoreStrip state={state} baseState={runnerScoreBaseState} pendingOuts={pendingFieldOuts} />
               </div>
@@ -1027,7 +930,7 @@ export function App() {
               <button
                 className="strike"
                 type="button"
-                disabled={pitchCorrection ? false : Boolean(state.plate.result) || needsPlateConfirm || Boolean(pitchAdvanceRequest)}
+                disabled={Boolean(state.plate.result) || needsPlateConfirm || Boolean(pitchAdvanceRequest)}
                 onPointerDown={(event) => handlePitchPointer("strike", event)}
                 onKeyDown={(event) => handlePitchKey("strike", event)}
               >
@@ -1037,7 +940,7 @@ export function App() {
               <button
                 className="foul"
                 type="button"
-                disabled={pitchCorrection ? false : Boolean(state.plate.result) || needsPlateConfirm || Boolean(pitchAdvanceRequest)}
+                disabled={Boolean(state.plate.result) || needsPlateConfirm || Boolean(pitchAdvanceRequest)}
                 onPointerDown={(event) => handlePitchPointer("foul", event)}
                 onKeyDown={(event) => handlePitchKey("foul", event)}
               >
@@ -1047,7 +950,7 @@ export function App() {
               <button
                 className="ball"
                 type="button"
-                disabled={pitchCorrection ? false : Boolean(state.plate.result) || needsPlateConfirm || Boolean(pitchAdvanceRequest)}
+                disabled={Boolean(state.plate.result) || needsPlateConfirm || Boolean(pitchAdvanceRequest)}
                 onPointerDown={(event) => handlePitchPointer("ball", event)}
                 onKeyDown={(event) => handlePitchKey("ball", event)}
               >
@@ -1057,7 +960,7 @@ export function App() {
               <button
                 className="dead"
                 type="button"
-                disabled={pitchCorrection ? true : Boolean(state.plate.result) || needsPlateConfirm || Boolean(pitchAdvanceRequest)}
+                disabled={Boolean(state.plate.result) || needsPlateConfirm || Boolean(pitchAdvanceRequest)}
                 onPointerDown={(event) => handlePitchPointer("dead", event)}
                 onKeyDown={(event) => handlePitchKey("dead", event)}
               >
@@ -1066,14 +969,12 @@ export function App() {
               </button>
             </section>
 
-            {(pitchCorrection ? true : (needsPlateConfirm || historyDepth > 0) && !plateActionsLocked) && (
+            {(needsPlateConfirm || historyDepth > 0) && !plateActionsLocked && (
               <section className="plate-actions" aria-label="plate actions">
-                {(pitchCorrection ? pitchCorrection.overwrittenCount > 0 : true) && (
-                  <button className="plate-rewind-button" type="button" onClick={handleRewindPitch}>
-                    巻き戻し
-                  </button>
-                )}
-                {(Boolean(pitchCorrection) || needsPlateConfirm) && (
+                <button className="plate-rewind-button" type="button" onClick={handleRewindPitch}>
+                  巻き戻し
+                </button>
+                {needsPlateConfirm && (
                   <button className="plate-confirm-button" type="button" onClick={handleConfirmPlate}>
                     {"確定"}
                   </button>
@@ -1089,7 +990,7 @@ export function App() {
             state={state}
             teamKey={outputTeamKey}
             setTeamKey={setOutputTeamKey}
-            onRedoAtBat={handleStartPitchCorrection}
+            onRedoAtBat={handleRedoAtBat}
             onRequestConfirm={requestConfirm}
           />
         )}
@@ -1803,7 +1704,7 @@ function ScoreOutputView({
   }
 
   function handleCellClick(index: number) {
-    onRequestConfirm("この打席の投球を1球目から上書き修正します。上書きしなかった投球とその後の記録は残ります。", () => onRedoAtBat(index));
+    onRequestConfirm("この打席からやり直しますか？現在入力中の内容は失われます。", () => onRedoAtBat(index));
   }
 
   return (
