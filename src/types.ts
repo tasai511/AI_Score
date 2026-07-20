@@ -54,6 +54,7 @@ export interface RunnerState {
   scoreAdvances: {
     destination: RunnerDestination;
     reason: AdvanceReason;
+    laterPlay?: boolean;
   }[];
   scoreNotes: string[];
 }
@@ -63,6 +64,7 @@ export type ScoreCellMark = {
   text: string;
   area?: "pitch" | "center" | "result" | "first" | "second" | "third" | "home";
   over?: boolean;
+  arrow?: boolean;
 };
 
 export type BaseRunners = Record<BaseKey, RunnerState | null>;

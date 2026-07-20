@@ -291,6 +291,7 @@ input {
 }
 
 .order-drag-handle {
+  touch-action: none;
   display: grid;
   width: 28px;
   height: 29px;
@@ -1172,9 +1173,24 @@ i.red {
 }
 
 .matrix-score-mark {
+  fill: #fff;
+  stroke: #e83b2e;
+  stroke-width: 12;
+}
+
+.matrix-score-earned {
   fill: #e83b2e;
-  stroke: #fff;
+  font-size: 128px;
+}
+
+.matrix-advance-arrows line {
+  stroke: #111;
+  stroke-linecap: round;
   stroke-width: 14;
+}
+
+#score-advance-arrow-head path {
+  fill: #111;
 }
 
 .matrix-fielder-out text {

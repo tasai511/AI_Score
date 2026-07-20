@@ -304,7 +304,7 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
   if (result === "本") {
     marks.push({
       kind: "score",
-      text: "",
+      text: "E",
       area: "center"
     });
     marks.push({
@@ -338,7 +338,8 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
         marks.push({
           kind: "advance",
           text: "",
-          area: advance.destination
+          area: advance.destination,
+          ...(advance.laterPlay ? { arrow: true } : {})
         });
       }
 
@@ -419,7 +420,8 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
         marks.push({
           kind: "advance",
           text: "",
-          area: advance.destination
+          area: advance.destination,
+          ...(advance.laterPlay ? { arrow: true } : {})
         });
       }
 
@@ -491,10 +493,12 @@ function getRunnerScoreAdvances(runner: RunnerState) {
     "home-run": ["first", "second", "third", "home"]
   };
 
-  return (hitDestinationsByType[runner.scoreCard.hitType] ?? []).map((destination) => ({
-    destination,
-    reason: "hit" as const
-  }));
+  return (hitDestinationsByType[runner.scoreCard.hitType] ?? []).map(
+    (destination): RunnerState["scoreAdvances"][number] => ({
+      destination,
+      reason: "hit"
+    })
+  );
 }
 
 const rbiAdvanceReasons = new Set<AdvanceReason>(["hit", "walk", "dead-ball", "catcher-interference", "fielder-choice"]);
@@ -716,13 +720,14 @@ export function shouldResetPlateAfterConfirm(state: AppState) {
   return isCurrentBatterPlateAppearanceComplete(state) || state.game.outs >= 3;
 }
 
-function withAdvanceNote(runner: RunnerState, reason: AdvanceReason, destination: RunnerDestination): RunnerState {
+function withAdvanceNote(state: AppState, runner: RunnerState, reason: AdvanceReason, destination: RunnerDestination): RunnerState {
   const label = advanceReasonLabels[reason];
+  const laterPlay = !isCurrentBatterRunner(state, runner);
   const scoreAdvances = runner.scoreAdvances ?? [];
   const existingDestinations = new Set(scoreAdvances.map((advance) => advance.destination));
   const nextAdvances = runnerDestinationOrder
     .filter((nextDestination) => runnerProgressRank[nextDestination] <= runnerProgressRank[destination] && !existingDestinations.has(nextDestination))
-    .map((nextDestination) => ({ destination: nextDestination, reason }));
+    .map((nextDestination) => ({ destination: nextDestination, reason, ...(laterPlay ? { laterPlay: true } : {}) }));
   return {
     ...runner,
     scoreAdvances: [...scoreAdvances, ...nextAdvances],
@@ -745,8 +750,11 @@ function scoreRunner(state: AppState, runner: RunnerState) {
 
   const lastAdvance = runner.scoreAdvances?.[runner.scoreAdvances.length - 1];
   const rbi = lastAdvance ? rbiAdvanceReasons.has(lastAdvance.reason) : false;
+  const unearned =
+    isErrorResult(normalizeNumber(runner.scoreCard.result)) ||
+    (runner.scoreAdvances ?? []).some((advance) => advance.reason === "error" || advance.reason === "passed-ball");
   updateRunnerScoreLogEntryInPlace(state, runner, null, null, [
-    { kind: "score", text: "", area: "center" },
+    { kind: "score", text: unearned ? "" : "E", area: "center" },
     { kind: "note", text: getScoringBatterNumberText(state.game.battingOrder, rbi), area: "home" }
   ]);
 }
@@ -770,7 +778,7 @@ export function recountScoresFromLog(scoreLog: ScoreLogEntry[]) {
 function placeRunnerOnBase(state: AppState, base: BaseKey, runner: RunnerState, reason: AdvanceReason, appendAdvanceNote = true) {
   const occupyingRunner = state.game.runners[base];
   if (occupyingRunner) advanceExistingRunnerInPlace(state, base, reason);
-  state.game.runners[base] = appendAdvanceNote ? withAdvanceNote(runner, reason, base) : runner;
+  state.game.runners[base] = appendAdvanceNote ? withAdvanceNote(state, runner, reason, base) : runner;
 }
 
 function advanceExistingRunnerInPlace(state: AppState, source: BaseKey, reason: AdvanceReason) {
@@ -780,7 +788,7 @@ function advanceExistingRunnerInPlace(state: AppState, source: BaseKey, reason: 
   state.game.runners[source] = null;
   const destination = nextBaseMap[source];
   if (destination === "home") {
-    scoreRunner(state, withAdvanceNote(runner, reason, "home"));
+    scoreRunner(state, withAdvanceNote(state, runner, reason, "home"));
   } else {
     placeRunnerOnBase(state, destination, runner, reason);
   }
@@ -1029,7 +1037,7 @@ export function applyHomeRun(state: AppState): AppState {
   };
 
   runnersToScore.forEach((runner) => {
-    scoreRunner(next, withAdvanceNote(runner, "hit", "home"));
+    scoreRunner(next, withAdvanceNote(next, runner, "hit", "home"));
   });
 
   if (!currentBatterBase) {
@@ -1056,7 +1064,7 @@ export function moveRunnerToDestination(
   next.game.firstPitchEntered = true;
   next.game.gameStarted = true;
   if (destination === "home") {
-    scoreRunner(next, withAdvanceNote(runner, reason, "home"));
+    scoreRunner(next, withAdvanceNote(next, runner, reason, "home"));
   } else {
     placeRunnerOnBase(next, destination, runner, reason);
   }

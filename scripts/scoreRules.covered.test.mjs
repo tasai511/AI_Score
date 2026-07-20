@@ -120,7 +120,7 @@ function hasJapaneseScoreText(marks) {
   assert.equal(forcedRunner?.scoreCard.result, "B");
   assert.deepEqual(forcedRunner?.scoreAdvances, [
     { destination: "first", reason: "walk" },
-    { destination: "second", reason: "dead-ball" }
+    { destination: "second", reason: "dead-ball", laterPlay: true }
   ]);
 
   const runnerMarks = rules.buildRunnerScoreCellMarks(forcedRunner, null, "second");

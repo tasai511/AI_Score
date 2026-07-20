@@ -1226,6 +1226,8 @@ function OrderList({
         return (
           <div
             key={player.rowId}
+            data-order-row={player.rowId}
+            data-order-team={teamKey}
             className={`order-row${isDragging ? " is-dragging" : ""}${isCurrentBatter ? " is-current-batter" : ""}`}
             onDragOver={(event) => {
               event.preventDefault();
@@ -1246,7 +1248,18 @@ function OrderList({
                 event.currentTarget.setPointerCapture(event.pointerId);
                 setDragging({ teamKey, rowId: player.rowId });
               }}
+              onPointerMove={(event) => {
+                // Touch pointers stay captured by the handle, so rows never get
+                // pointerenter -- hit-test the row under the finger instead.
+                if (event.pointerType === "mouse") return;
+                const under = document.elementFromPoint(event.clientX, event.clientY);
+                const row = under?.closest<HTMLElement>("[data-order-row]");
+                if (!row || row.dataset.orderTeam !== teamKey) return;
+                const toRowId = row.dataset.orderRow;
+                if (toRowId && toRowId !== player.rowId) reorder(teamKey, player.rowId, toRowId);
+              }}
               onPointerUp={() => setDragging(null)}
+              onPointerCancel={() => setDragging(null)}
             />
             <span className="order-readonly order-batting">{index + 1}</span>
             <input
@@ -1536,10 +1549,16 @@ function ScoreMatrixMarksLayer({
   const effectivePitchTotal = pitchTotal ?? pitchOffset + pitchMarks.length;
   const advanceLineAreas =
     advanceMarks.length > 0
-      ? advanceMarks.map((mark) => mark.area as RunnerDestination)
+      ? advanceMarks.filter((mark) => !mark.arrow).map((mark) => mark.area as RunnerDestination)
       : hitType
         ? SCORE_MATRIX_HIT_PATHS[hitType]
         : [];
+  const arrowAreas = advanceMarks.filter((mark) => mark.arrow).map((mark) => mark.area as RunnerDestination);
+  const arrowRank: Record<string, number> = { first: 1, second: 2, third: 3, home: 4 };
+  const arrowHeadArea = arrowAreas.reduce<RunnerDestination | null>(
+    (max, area) => (max === null || arrowRank[area] > arrowRank[max] ? area : max),
+    null
+  );
   const pitchSymbolScale = getPitchSymbolLayout(effectivePitchTotal).symbolScale;
   const playMarks = [resultMark, ...noteMarks].filter((mark): mark is ScoreCellMark => Boolean(mark));
   const playMarkEntries = playMarks.map((mark, index) => {
@@ -1563,6 +1582,22 @@ function ScoreMatrixMarksLayer({
             return <line x1={path.x1} y1={path.y1} x2={path.x2} y2={path.y2} key={`${area}-${index}`} />;
           })}
         </g>
+        <g className="matrix-advance-arrows">
+          {arrowAreas.map((area, index) => {
+            const path = SCORE_MATRIX_BASE_PATHS[area];
+            if (!path) return null;
+            return (
+              <line
+                x1={path.x1}
+                y1={path.y1}
+                x2={path.x2}
+                y2={path.y2}
+                markerEnd={area === arrowHeadArea ? "url(#score-advance-arrow-head)" : undefined}
+                key={`arrow-${area}-${index}`}
+              />
+            );
+          })}
+        </g>
         <g>
           {pitchMarks.map((mark, index) => {
             const coordinate = getPitchSymbolCoordinate(pitchOffset + index, effectivePitchTotal);
@@ -1575,12 +1610,19 @@ function ScoreMatrixMarksLayer({
           </text>
         )}
         {scoreMarks.length > 0 && (
-          <circle
-            className="matrix-score-mark"
-            cx={SCORE_MATRIX_MARK_COORDINATES.out.x}
-            cy={SCORE_MATRIX_MARK_COORDINATES.out.y}
-            r="72"
-          />
+          <g>
+            <circle
+              className="matrix-score-mark"
+              cx={SCORE_MATRIX_MARK_COORDINATES.out.x}
+              cy={SCORE_MATRIX_MARK_COORDINATES.out.y}
+              r="86"
+            />
+            {scoreMarks.some((mark) => mark.text === "E") && (
+              <text className="matrix-score-earned" x={SCORE_MATRIX_MARK_COORDINATES.out.x} y={SCORE_MATRIX_MARK_COORDINATES.out.y}>
+                E
+              </text>
+            )}
+          </g>
         )}
         {showInningEndSlash && (
           <g className="matrix-inning-end-slash">
@@ -1665,6 +1707,11 @@ function ScoreMatrixGraphic({
     <div className={`score-matrix ${className}`.trim()}>
       <img src="assets/score_matrix.png" alt="" />
       <svg className="matrix-overlay" viewBox="0 0 1382 1025" aria-hidden="true">
+        <defs>
+          <marker id="score-advance-arrow-head" viewBox="0 0 10 10" refX="7.4" refY="5" markerWidth="4.4" markerHeight="4.4" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" />
+          </marker>
+        </defs>
         {ghostLayerMarks.length > 0 && (
           <g className="matrix-ghost">
             <ScoreMatrixMarksLayer
@@ -1951,11 +1998,22 @@ function RunnerScoreStrip({
     const currentBase = (["third", "second", "first"] as BaseKey[]).find((base) => state.game.runners[base]?.id === runner.id) ?? null;
     return {
       runner: currentBase ? state.game.runners[currentBase] : runner,
-      currentBase
+      currentBase,
+      // A runner no longer on any base (scored or out mid-play) shows their up-to-date
+      // logged cell -- including the advance arrows, run mark, and RBI number.
+      loggedEntry: currentBase ? null : getLoggedEntryForRunner(runner)
     };
   }
 
-  const runnerCells: { key: BaseKey; label: string; runner: RunnerState | null; currentBase: BaseKey | null }[] = [
+  function getLoggedEntryForRunner(runner: RunnerState): ScoreLogEntry | null {
+    for (let index = state.scoreLog.length - 1; index >= 0; index -= 1) {
+      const entry = state.scoreLog[index];
+      if (entry.teamKey === runner.teamKey && entry.battingOrder === runner.battingOrder) return entry;
+    }
+    return null;
+  }
+
+  const runnerCells: { key: BaseKey; label: string; runner: RunnerState | null; currentBase: BaseKey | null; loggedEntry?: ScoreLogEntry | null }[] = [
     { key: "third", label: "3塁", ...getCurrentRunnerEntryById(getRunnerForScoreStrip(baseState.game.runners.third)) },
     { key: "second", label: "2塁", ...getCurrentRunnerEntryById(getRunnerForScoreStrip(baseState.game.runners.second)) },
     { key: "first", label: "1塁", ...getCurrentRunnerEntryById(getRunnerForScoreStrip(baseState.game.runners.first)) }
@@ -1991,15 +2049,24 @@ function RunnerScoreStrip({
             <span>{cell.label}</span>
             {cell.runner && <b>{formatPlayerLabel(cell.runner)}</b>}
           </div>
-          <ScoreMatrixGraphic
-            marks={buildRunnerScoreCellMarks(
-              cell.runner,
-              cell.runner ? getPendingRunnerMark(cell.runner, cell.key) : null,
-              cell.currentBase
-            )}
-            hitType={cell.runner?.scoreCard.hitType ?? ""}
-            className="runner-score-matrix"
-          />
+          {cell.loggedEntry ? (
+            <ScoreMatrixGraphic
+              marks={cell.loggedEntry.marks}
+              hitType={cell.loggedEntry.hitType}
+              showInningEndSlash={cell.loggedEntry.showInningEndSlash}
+              className="runner-score-matrix"
+            />
+          ) : (
+            <ScoreMatrixGraphic
+              marks={buildRunnerScoreCellMarks(
+                cell.runner,
+                cell.runner ? getPendingRunnerMark(cell.runner, cell.key) : null,
+                cell.currentBase
+              )}
+              hitType={cell.runner?.scoreCard.hitType ?? ""}
+              className="runner-score-matrix"
+            />
+          )}
         </article>
       ))}
     </section>
