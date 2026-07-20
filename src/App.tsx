@@ -51,6 +51,7 @@ import {
   isOwnBattingNow,
   moveRunnerToDestination,
   normalizeNumber,
+  recountScoresFromLog,
   refreshScoreLogWithRunners,
   shouldShowScorebookInningEndSlash
 } from "./scoreRules";
@@ -69,6 +70,12 @@ type PitchInputOrigin = "button" | "field-foul";
 type PitchAdvanceRequest = {
   id: number;
   type: PitchAdvanceType;
+};
+type CorrectionSession = {
+  returnState: AppState;
+  returnHistory: AppState[];
+  returnPreAtBatStart: StateSnapshot;
+  preSessionLog: ScoreLogEntry[];
 };
 
 const FIELD_IMAGE_WIDTH = 1254;
@@ -226,6 +233,8 @@ export function App() {
   const [plateActionsLocked, setPlateActionsLocked] = useState(false);
   const [historyDepth, setHistoryDepth] = useState(0);
   const historyStackRef = useRef<AppState[]>([]);
+  const [correctionActive, setCorrectionActive] = useState(false);
+  const correctionRef = useRef<CorrectionSession | null>(null);
 
   function clearPitchHistory() {
     historyStackRef.current = [];
@@ -266,6 +275,7 @@ export function App() {
   }
 
   function handleReturnToTitle() {
+    if (correctionActive) finishCorrection();
     setCurrentGameId(null);
     setGameIndex(loadGameIndex());
   }
@@ -274,16 +284,7 @@ export function App() {
     setConfirmDialog({ message, onConfirm });
   }
 
-  function handleRedoAtBat(index: number) {
-    const snapshot = preAtBatSnapshots[index];
-    if (!snapshot) return;
-    // Keep every existing scoreLog/preAtBatSnapshots entry (including later batters') so redoing
-    // one at-bat never erases anyone else's recorded plate appearances. Re-confirming this at-bat
-    // appends a fresh entry, and the output grid already shows the latest entry per (order, inning).
-    const restoredState: AppState = { ...structuredClone(snapshot), scoreLog: state.scoreLog };
-    setState(restoredState);
-    preAtBatSnapshotRef.current = structuredClone(snapshot);
-    clearPitchHistory();
+  function resetTransientInputState() {
     setPendingFieldOuts([]);
     setPitchAdvanceRequest(null);
     setPendingPitchContext(null);
@@ -292,7 +293,57 @@ export function App() {
     setNeedsPlateConfirm(false);
     setFieldSelection(null);
     setFieldResetToken((token) => token + 1);
+  }
+
+  function handleStartCorrection(index: number) {
+    const snapshot = preAtBatSnapshots[index];
+    if (!snapshot) return;
+    // Correction re-records from this at-bat's start against its original context. The old
+    // record stays in scoreLog as a grayed-out ghost template; each confirm appends a fresh
+    // entry that supersedes the old one in the output grid (latest entry per cell wins).
+    correctionRef.current = {
+      returnState: structuredClone(state),
+      returnHistory: historyStackRef.current,
+      returnPreAtBatStart: preAtBatSnapshotRef.current,
+      preSessionLog: state.scoreLog
+    };
+    historyStackRef.current = [];
+    setHistoryDepth(0);
+    const restoredState: AppState = { ...structuredClone(snapshot), scoreLog: state.scoreLog };
+    setState(restoredState);
+    preAtBatSnapshotRef.current = structuredClone(snapshot);
+    setCorrectionActive(true);
+    resetTransientInputState();
     setActiveTab("score");
+  }
+
+  function finishCorrection() {
+    const session = correctionRef.current;
+    if (!session) return;
+    // Return to the live game. Everything recorded after the corrected span stays as written;
+    // the totals are recounted from the scorebook itself so corrections propagate across innings.
+    const recounted = recountScoresFromLog(state.scoreLog);
+    const exitState: AppState = {
+      ...session.returnState,
+      scoreLog: state.scoreLog,
+      game: {
+        ...session.returnState.game,
+        ownScore: recounted.own,
+        opponentScore: recounted.opponent
+      }
+    };
+    setState(exitState);
+    historyStackRef.current = session.returnHistory;
+    setHistoryDepth(session.returnHistory.length);
+    preAtBatSnapshotRef.current = session.returnPreAtBatStart;
+    correctionRef.current = null;
+    setCorrectionActive(false);
+    resetTransientInputState();
+  }
+
+  function handleSelectTab(tab: TabKey) {
+    if (correctionActive && tab !== "score") finishCorrection();
+    setActiveTab(tab);
   }
 
   const ownBatting = isOwnBattingNow(state);
@@ -300,6 +351,17 @@ export function App() {
   const currentBatter = getCurrentBatter(state);
   const currentOwnBatter = getCurrentOwnBatter(state);
   const currentOpponentBatter = getCurrentOpponentBatter(state);
+  const correctionGhostEntry = (() => {
+    if (!correctionActive || !correctionRef.current) return null;
+    const log = correctionRef.current.preSessionLog;
+    for (let index = log.length - 1; index >= 0; index -= 1) {
+      const entry = log[index];
+      if (entry.teamKey === battingTeamKey && entry.battingOrder === state.game.battingOrder && entry.inning === state.game.inning) {
+        return entry;
+      }
+    }
+    return null;
+  })();
   const latestHistorySnapshot = historyStackRef.current.length > 0 ? historyStackRef.current[historyStackRef.current.length - 1] : null;
   const scoreDisplayState = needsPlateConfirm && latestHistorySnapshot ? latestHistorySnapshot : state;
   const scoreBoardState = liveScorePreviewActive ? state : scoreDisplayState;
@@ -682,7 +744,6 @@ export function App() {
     }
 
     setState(nextState);
-    if (endsAtBat) clearPitchHistory();
     setPendingFieldOuts([]);
     setPitchAdvanceRequest(null);
     setPendingPitchContext(null);
@@ -693,21 +754,16 @@ export function App() {
     setFieldResetToken((token) => token + 1);
   }
 
-  function handleRewindPitch() {
+  function handleRestoreHistoryStep() {
     const stack = historyStackRef.current;
     if (stack.length === 0) return;
     const previous = stack[stack.length - 1];
     historyStackRef.current = stack.slice(0, -1);
     setHistoryDepth(historyStackRef.current.length);
-    setState(structuredClone(previous));
-    setPendingFieldOuts([]);
-    setPitchAdvanceRequest(null);
-    setPendingPitchContext(null);
-    setLiveScorePreviewActive(false);
-    setPlateActionsLocked(false);
-    setNeedsPlateConfirm(false);
-    setFieldSelection(null);
-    setFieldResetToken((token) => token + 1);
+    const restored = structuredClone(previous);
+    setState(restored);
+    setPreAtBatSnapshots((current) => (current.length > restored.scoreLog.length ? current.slice(0, restored.scoreLog.length) : current));
+    resetTransientInputState();
   }
 
   function closeDialog() {
@@ -847,7 +903,7 @@ export function App() {
             type="button"
             className={activeTab === key ? "active" : ""}
             aria-current={activeTab === key ? "page" : undefined}
-            onClick={() => setActiveTab(key as TabKey)}
+            onClick={() => handleSelectTab(key as TabKey)}
           >
             {label}
           </button>
@@ -894,7 +950,7 @@ export function App() {
                       </button>
                     </div>
                   </div>
-                  <ScoreCell state={state} pendingOuts={pendingFieldOuts} />
+                  <ScoreCell state={state} pendingOuts={pendingFieldOuts} ghostEntry={correctionGhostEntry} />
                 </div>
                 <RunnerScoreStrip state={state} baseState={runnerScoreBaseState} pendingOuts={pendingFieldOuts} />
               </div>
@@ -971,9 +1027,15 @@ export function App() {
 
             {(needsPlateConfirm || historyDepth > 0) && !plateActionsLocked && (
               <section className="plate-actions" aria-label="plate actions">
-                <button className="plate-rewind-button" type="button" onClick={handleRewindPitch}>
-                  巻き戻し
-                </button>
+                {needsPlateConfirm ? (
+                  <button className="plate-cancel-button" type="button" onClick={handleRestoreHistoryStep}>
+                    キャンセル
+                  </button>
+                ) : (
+                  <button className="plate-rewind-button" type="button" onClick={handleRestoreHistoryStep}>
+                    巻き戻し
+                  </button>
+                )}
                 {needsPlateConfirm && (
                   <button className="plate-confirm-button" type="button" onClick={handleConfirmPlate}>
                     {"確定"}
@@ -990,7 +1052,7 @@ export function App() {
             state={state}
             teamKey={outputTeamKey}
             setTeamKey={setOutputTeamKey}
-            onRedoAtBat={handleRedoAtBat}
+            onRedoAtBat={handleStartCorrection}
             onRequestConfirm={requestConfirm}
           />
         )}
@@ -1442,16 +1504,18 @@ function renderScorePitchSymbol(symbol: string, x: number, y: number, scale: num
   );
 }
 
-function ScoreMatrixGraphic({
+function ScoreMatrixMarksLayer({
   marks,
   hitType = "",
-  className = "",
-  showInningEndSlash = false
+  showInningEndSlash = false,
+  pitchOffset = 0,
+  pitchTotal
 }: {
   marks: ScoreCellMark[];
   hitType?: HitType;
-  className?: string;
   showInningEndSlash?: boolean;
+  pitchOffset?: number;
+  pitchTotal?: number;
 }) {
   const pitchMarks = marks.filter((mark) => mark.kind === "pitch");
   const resultMark = marks.find((mark) => mark.kind === "result");
@@ -1461,13 +1525,14 @@ function ScoreMatrixGraphic({
   const fielderOutMarks = marks.filter((mark) => mark.kind === "fielderOut" && mark.area);
   const hitLocationMarks = marks.filter((mark) => mark.kind === "hitLocation");
   const scoreMarks = marks.filter((mark) => mark.kind === "score");
+  const effectivePitchTotal = pitchTotal ?? pitchOffset + pitchMarks.length;
   const advanceLineAreas =
     advanceMarks.length > 0
       ? advanceMarks.map((mark) => mark.area as RunnerDestination)
       : hitType
         ? SCORE_MATRIX_HIT_PATHS[hitType]
         : [];
-  const pitchSymbolScale = getPitchSymbolLayout(pitchMarks.length).symbolScale;
+  const pitchSymbolScale = getPitchSymbolLayout(effectivePitchTotal).symbolScale;
   const playMarks = [resultMark, ...noteMarks].filter((mark): mark is ScoreCellMark => Boolean(mark));
   const playMarkEntries = playMarks.map((mark, index) => {
     const area = getScoreTextArea(mark.area);
@@ -1482,9 +1547,7 @@ function ScoreMatrixGraphic({
   });
 
   return (
-    <div className={`score-matrix ${className}`.trim()}>
-      <img src="assets/score_matrix.png" alt="" />
-      <svg className="matrix-overlay" viewBox="0 0 1382 1025" aria-hidden="true">
+    <>
         <g className="matrix-advance-lines">
           {advanceLineAreas.map((area, index) => {
             const path = SCORE_MATRIX_BASE_PATHS[area];
@@ -1494,7 +1557,7 @@ function ScoreMatrixGraphic({
         </g>
         <g>
           {pitchMarks.map((mark, index) => {
-            const coordinate = getPitchSymbolCoordinate(index, pitchMarks.length);
+            const coordinate = getPitchSymbolCoordinate(pitchOffset + index, effectivePitchTotal);
             return renderScorePitchSymbol(mark.text, coordinate.x, coordinate.y, pitchSymbolScale, `${mark.text}-${index}`);
           })}
         </g>
@@ -1562,6 +1625,50 @@ function ScoreMatrixGraphic({
             </text>
           );
         })}
+    </>
+  );
+}
+
+function ScoreMatrixGraphic({
+  marks,
+  hitType = "",
+  className = "",
+  showInningEndSlash = false,
+  ghostMarks,
+  ghostHitType = "",
+  ghostShowInningEndSlash = false
+}: {
+  marks: ScoreCellMark[];
+  hitType?: HitType;
+  className?: string;
+  showInningEndSlash?: boolean;
+  ghostMarks?: ScoreCellMark[];
+  ghostHitType?: HitType;
+  ghostShowInningEndSlash?: boolean;
+}) {
+  const mainPitchCount = marks.filter((mark) => mark.kind === "pitch").length;
+  const mainHasOutcome = marks.some((mark) => mark.kind !== "pitch" && !(mark.kind === "advance" && mark.area === "pitch"));
+  const ghostPitchRemainder = (ghostMarks ?? []).filter((mark) => mark.kind === "pitch").slice(mainPitchCount);
+  const ghostOutcomeMarks = mainHasOutcome ? [] : (ghostMarks ?? []).filter((mark) => mark.kind !== "pitch");
+  const ghostLayerMarks = [...ghostPitchRemainder, ...ghostOutcomeMarks];
+  const pitchTotal = mainPitchCount + ghostPitchRemainder.length;
+
+  return (
+    <div className={`score-matrix ${className}`.trim()}>
+      <img src="assets/score_matrix.png" alt="" />
+      <svg className="matrix-overlay" viewBox="0 0 1382 1025" aria-hidden="true">
+        {ghostLayerMarks.length > 0 && (
+          <g className="matrix-ghost">
+            <ScoreMatrixMarksLayer
+              marks={ghostLayerMarks}
+              hitType={mainHasOutcome ? "" : ghostHitType}
+              showInningEndSlash={!mainHasOutcome && ghostShowInningEndSlash}
+              pitchOffset={mainPitchCount}
+              pitchTotal={pitchTotal}
+            />
+          </g>
+        )}
+        <ScoreMatrixMarksLayer marks={marks} hitType={hitType} showInningEndSlash={showInningEndSlash} pitchTotal={pitchTotal} />
       </svg>
     </div>
   );
@@ -1704,7 +1811,7 @@ function ScoreOutputView({
   }
 
   function handleCellClick(index: number) {
-    onRequestConfirm("この打席からやり直しますか？現在入力中の内容は失われます。", () => onRedoAtBat(index));
+    onRequestConfirm("この打席から修正モードに入ります。記録はグレー表示のまま残り、入力し直した分だけ上書きされます。「スコア出力」をタップすると修正を終えて試合に戻ります。", () => onRedoAtBat(index));
   }
 
   return (
@@ -1788,13 +1895,29 @@ function ScoreOutputView({
   );
 }
 
-function ScoreCell({ state, pendingOuts = [] }: { state: AppState; pendingOuts?: PendingFieldOut[] }) {
+function ScoreCell({
+  state,
+  pendingOuts = [],
+  ghostEntry = null
+}: {
+  state: AppState;
+  pendingOuts?: PendingFieldOut[];
+  ghostEntry?: ScoreLogEntry | null;
+}) {
   const hitType = state.game.hitType;
   const marks = buildCurrentScoreCellMarks(state, pendingOuts);
   const showInningEndSlash = shouldShowScorebookInningEndSlash(state, pendingOuts);
   return (
     <article className="score-cell" aria-label="current score cell">
-      <ScoreMatrixGraphic marks={marks} hitType={hitType} className="score-matrix-current" showInningEndSlash={showInningEndSlash} />
+      <ScoreMatrixGraphic
+        marks={marks}
+        hitType={hitType}
+        className="score-matrix-current"
+        showInningEndSlash={showInningEndSlash}
+        ghostMarks={ghostEntry?.marks}
+        ghostHitType={ghostEntry?.hitType ?? ""}
+        ghostShowInningEndSlash={ghostEntry?.showInningEndSlash ?? false}
+      />
     </article>
   );
 }

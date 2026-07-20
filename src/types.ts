@@ -93,6 +93,7 @@ export interface PlateAppearance {
   pitches: string[];
   result: string;
   outNumber: number;
+  batterScored?: boolean;
 }
 
 export interface ScoreLogEntry {

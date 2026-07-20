@@ -312,6 +312,12 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
       text: getScoringBatterNumberText(state.game.battingOrder, true),
       area: "home"
     });
+  } else if (state.plate.batterScored) {
+    marks.push({
+      kind: "score",
+      text: "",
+      area: "center"
+    });
   }
 
   if (shouldSuppressCurrentBatterAdvances) {
@@ -731,12 +737,34 @@ function scoreRunner(state: AppState, runner: RunnerState) {
     state.game.opponentScore += 1;
   }
 
+  if (isCurrentBatterRunner(state, runner)) {
+    // The batter's own cell is built at confirm; flag the run so it gets a score mark there.
+    state.plate.batterScored = true;
+    return;
+  }
+
   const lastAdvance = runner.scoreAdvances?.[runner.scoreAdvances.length - 1];
   const rbi = lastAdvance ? rbiAdvanceReasons.has(lastAdvance.reason) : false;
   updateRunnerScoreLogEntryInPlace(state, runner, null, null, [
     { kind: "score", text: "", area: "center" },
     { kind: "note", text: getScoringBatterNumberText(state.game.battingOrder, rbi), area: "home" }
   ]);
+}
+
+export function recountScoresFromLog(scoreLog: ScoreLogEntry[]) {
+  // A paper-scorebook recount: one run per cell showing a run mark, latest entry per
+  // (team, batting order, inning) wins — mirrors how the output grid resolves cells.
+  const latest = new Map<string, ScoreLogEntry>();
+  scoreLog.forEach((entry) => latest.set(`${entry.teamKey}-${entry.battingOrder}-${entry.inning}`, entry));
+
+  let own = 0;
+  let opponent = 0;
+  latest.forEach((entry) => {
+    if (!entry.marks.some((mark) => mark.kind === "score")) return;
+    if (entry.teamKey === "own") own += 1;
+    else opponent += 1;
+  });
+  return { own, opponent };
 }
 
 function placeRunnerOnBase(state: AppState, base: BaseKey, runner: RunnerState, reason: AdvanceReason, appendAdvanceNote = true) {
