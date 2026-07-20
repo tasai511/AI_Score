@@ -1535,27 +1535,31 @@ function buildLaterAdvancePathD(areas: RunnerDestination[]) {
   const rightX = 1270;
   const topY = 110;
   const leftX = 450;
+  // Short strokes: a lone advance is a small centered tick; chained segments keep only
+  // short tails on either side of the rounded corner.
+  const tailEndY = 420;
   const parts: string[] = [];
 
   if (has("second")) {
-    parts.push(`M ${rightX} 760`);
     if (has("third")) {
-      parts.push(`L ${rightX} ${topY + cornerRadius}`, `Q ${rightX} ${topY} ${rightX - cornerRadius} ${topY}`);
+      parts.push(`M ${rightX} ${tailEndY}`, `L ${rightX} ${topY + cornerRadius}`, `Q ${rightX} ${topY} ${rightX - cornerRadius} ${topY}`);
     } else {
-      parts.push(`L ${rightX} 260`);
+      parts.push(`M ${rightX} 620`, `L ${rightX} 380`);
     }
   }
   if (has("third")) {
-    if (!has("second")) parts.push(`M 1150 ${topY}`);
+    if (!has("second")) parts.push(`M 990 ${topY}`);
     if (has("home")) {
       parts.push(`L ${leftX + cornerRadius} ${topY}`, `Q ${leftX} ${topY} ${leftX} ${topY + cornerRadius}`);
+    } else if (has("second")) {
+      parts.push(`L 920 ${topY}`);
     } else {
-      parts.push(`L 570 ${topY}`);
+      parts.push(`L 730 ${topY}`);
     }
   }
   if (has("home")) {
-    if (!has("third")) parts.push(`M ${leftX} 260`);
-    parts.push(`L ${leftX} 760`);
+    if (!has("third")) parts.push(`M ${leftX} 380`, `L ${leftX} 620`);
+    else parts.push(`L ${leftX} ${tailEndY}`);
   }
 
   return parts.join(" ");
