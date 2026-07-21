@@ -339,7 +339,7 @@ export function buildCurrentScoreCellMarks(state: AppState, pendingOuts: ScoreCe
           kind: "advance",
           text: "",
           area: advance.destination,
-          ...(advance.laterPlay ? { arrow: true } : {})
+          ...(advance.laterPlay ? { arrow: true, playGroup: advance.byBattingOrder } : {})
         });
       }
 
@@ -421,7 +421,7 @@ export function buildRunnerScoreCellMarks(runner: RunnerState | null, pendingOut
           kind: "advance",
           text: "",
           area: advance.destination,
-          ...(advance.laterPlay ? { arrow: true } : {})
+          ...(advance.laterPlay ? { arrow: true, playGroup: advance.byBattingOrder } : {})
         });
       }
 

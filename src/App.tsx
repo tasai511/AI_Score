@@ -1529,40 +1529,81 @@ function renderScorePitchSymbol(symbol: string, x: number, y: number, scale: num
   );
 }
 
-function buildLaterAdvancePathD(areas: RunnerDestination[]) {
-  const has = (area: RunnerDestination) => areas.includes(area);
-  const cornerRadius = 90;
-  const rightX = 1270;
-  const topY = 110;
-  const leftX = 450;
-  // Short strokes: a lone advance is a small centered tick; chained segments keep only
-  // short tails on either side of the rounded corner.
-  const tailEndY = 420;
+const LATER_ADVANCE_CORNER_RADIUS = 90;
+const LATER_ADVANCE_RIGHT_X = 1270;
+const LATER_ADVANCE_TOP_Y = 110;
+const LATER_ADVANCE_LEFT_X = 450;
+const LATER_ADVANCE_TAIL_END_Y = 420;
+
+// One contiguous run's stroke: a single area is a short tick on that side of the cell; a
+// run spanning multiple areas (one play advancing several bases at once) is one bent
+// stroke with a rounded corner where it turns.
+function buildAdvanceRunD(runAreas: RunnerDestination[]) {
+  const has = (area: RunnerDestination) => runAreas.includes(area);
   const parts: string[] = [];
 
   if (has("second")) {
     if (has("third")) {
-      parts.push(`M ${rightX} ${tailEndY}`, `L ${rightX} ${topY + cornerRadius}`, `Q ${rightX} ${topY} ${rightX - cornerRadius} ${topY}`);
+      parts.push(
+        `M ${LATER_ADVANCE_RIGHT_X} ${LATER_ADVANCE_TAIL_END_Y}`,
+        `L ${LATER_ADVANCE_RIGHT_X} ${LATER_ADVANCE_TOP_Y + LATER_ADVANCE_CORNER_RADIUS}`,
+        `Q ${LATER_ADVANCE_RIGHT_X} ${LATER_ADVANCE_TOP_Y} ${LATER_ADVANCE_RIGHT_X - LATER_ADVANCE_CORNER_RADIUS} ${LATER_ADVANCE_TOP_Y}`
+      );
     } else {
-      parts.push(`M ${rightX} 620`, `L ${rightX} 380`);
+      parts.push(`M ${LATER_ADVANCE_RIGHT_X} 620`, `L ${LATER_ADVANCE_RIGHT_X} 380`);
     }
   }
   if (has("third")) {
-    if (!has("second")) parts.push(`M 990 ${topY}`);
+    if (!has("second")) parts.push(`M 990 ${LATER_ADVANCE_TOP_Y}`);
     if (has("home")) {
-      parts.push(`L ${leftX + cornerRadius} ${topY}`, `Q ${leftX} ${topY} ${leftX} ${topY + cornerRadius}`);
+      parts.push(
+        `L ${LATER_ADVANCE_LEFT_X + LATER_ADVANCE_CORNER_RADIUS} ${LATER_ADVANCE_TOP_Y}`,
+        `Q ${LATER_ADVANCE_LEFT_X} ${LATER_ADVANCE_TOP_Y} ${LATER_ADVANCE_LEFT_X} ${LATER_ADVANCE_TOP_Y + LATER_ADVANCE_CORNER_RADIUS}`
+      );
     } else if (has("second")) {
-      parts.push(`L 920 ${topY}`);
+      parts.push(`L 920 ${LATER_ADVANCE_TOP_Y}`);
     } else {
-      parts.push(`L 730 ${topY}`);
+      parts.push(`L 730 ${LATER_ADVANCE_TOP_Y}`);
     }
   }
   if (has("home")) {
-    if (!has("third")) parts.push(`M ${leftX} 380`, `L ${leftX} 620`);
-    else parts.push(`L ${leftX} ${tailEndY}`);
+    if (!has("third")) parts.push(`M ${LATER_ADVANCE_LEFT_X} 380`, `L ${LATER_ADVANCE_LEFT_X} 620`);
+    else parts.push(`L ${LATER_ADVANCE_LEFT_X} ${LATER_ADVANCE_TAIL_END_Y}`);
   }
 
   return parts.join(" ");
+}
+
+// Advances only chain into one bent stroke when the SAME play carried the runner through
+// multiple bases at once; advances made on separate plays draw as separate strokes even
+// if the areas are adjacent (e.g. 1st->2nd on one batter's play, 2nd->3rd on a later
+// batter's play are two disconnected ticks, not one continuous line).
+function buildLaterAdvancePathD(entries: { area: RunnerDestination; group?: number }[]) {
+  const order: RunnerDestination[] = ["second", "third", "home"];
+  const byArea = new Map(entries.map((entry) => [entry.area, entry.group]));
+  const runs: RunnerDestination[][] = [];
+  let currentRun: RunnerDestination[] = [];
+  let currentGroup: number | undefined | symbol = Symbol("none");
+
+  order.forEach((area) => {
+    if (!byArea.has(area)) {
+      if (currentRun.length) runs.push(currentRun);
+      currentRun = [];
+      currentGroup = Symbol("none");
+      return;
+    }
+    const group = byArea.get(area);
+    if (currentRun.length && group === currentGroup) {
+      currentRun.push(area);
+    } else {
+      if (currentRun.length) runs.push(currentRun);
+      currentRun = [area];
+      currentGroup = group;
+    }
+  });
+  if (currentRun.length) runs.push(currentRun);
+
+  return runs.map((run) => buildAdvanceRunD(run)).join(" ");
 }
 
 function ScoreMatrixMarksLayer({
@@ -1593,7 +1634,9 @@ function ScoreMatrixMarksLayer({
       : hitType
         ? SCORE_MATRIX_HIT_PATHS[hitType]
         : [];
-  const arrowAreas = advanceMarks.filter((mark) => mark.arrow).map((mark) => mark.area as RunnerDestination);
+  const arrowEntries = advanceMarks
+    .filter((mark) => mark.arrow)
+    .map((mark) => ({ area: mark.area as RunnerDestination, group: mark.playGroup }));
   const pitchSymbolScale = getPitchSymbolLayout(effectivePitchTotal).symbolScale;
   const playMarks = [resultMark, ...noteMarks].filter((mark): mark is ScoreCellMark => Boolean(mark));
   const playMarkEntries = playMarks.map((mark, index) => {
@@ -1617,9 +1660,9 @@ function ScoreMatrixMarksLayer({
             return <line x1={path.x1} y1={path.y1} x2={path.x2} y2={path.y2} key={`${area}-${index}`} />;
           })}
         </g>
-        {arrowAreas.length > 0 && (
+        {arrowEntries.length > 0 && (
           <g className="matrix-advance-arrows">
-            <path d={buildLaterAdvancePathD(arrowAreas)} />
+            <path d={buildLaterAdvancePathD(arrowEntries)} />
           </g>
         )}
         <g>

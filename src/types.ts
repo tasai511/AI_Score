@@ -66,6 +66,7 @@ export type ScoreCellMark = {
   area?: "pitch" | "center" | "result" | "first" | "second" | "third" | "home";
   over?: boolean;
   arrow?: boolean;
+  playGroup?: number;
 };
 
 export type BaseRunners = Record<BaseKey, RunnerState | null>;
